@@ -21,5 +21,16 @@ namespace ACUnified.Business.Services
            string fileloc=Path.Combine(_webHostEnvironment.ContentRootPath,filepath);
             return await File.ReadAllTextAsync(fileloc);
         }
+
+        public async Task SaveTemplateFileAsync(string filepath, string content)
+        {
+            var fileloc = Path.Combine(_webHostEnvironment.ContentRootPath, filepath);
+            var directory = Path.GetDirectoryName(fileloc);
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory!);
+            }
+            await File.WriteAllTextAsync(fileloc, content);
+        }
     }
 }
