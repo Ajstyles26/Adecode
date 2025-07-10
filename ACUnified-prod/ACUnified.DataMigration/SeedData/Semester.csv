@@ -1,6 +1,0 @@
-Id,Name,Description,SessionId,isActive,isLate,SemesterType,CreatedDate,UpdatedDate
-1,First,,2,1,0,1,2024-04-20,2024-04-20
-2,Second,,2,0,0,2,2024-04-20,2024-04-20
-3,Summer,,2,0,0,3,2024-04-20,2024-04-20
-4,Third,,2,0,0,4,2024-04-20,2024-04-20
-5,Fourth,,2,0,0,5,2024-04-20,2024-04-20
