@@ -16,7 +16,7 @@ namespace ACUnified.Business.Repository.IRepository
 
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationForm();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationForm();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCourses();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCourses(long? sessionId = null);
         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudents();
         Task<ApplicationFormDto> GetCompletedApplicationForm(string userId);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsReg();
@@ -28,7 +28,7 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetCompletedApplicationFormBTH();
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormBTH();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormBTH();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH(long? sessionId = null);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsBTH();
          Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH();
         //bth
@@ -38,7 +38,7 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetCompletedApplicationFormJUPEB();
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormJUPEB();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormJUPEB();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB(long? sessionId = null);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsJUPEB();
          Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB();
        //JUPEB

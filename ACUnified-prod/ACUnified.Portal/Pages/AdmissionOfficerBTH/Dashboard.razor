@@ -39,7 +39,7 @@
             <MudGrid>
                 <MudItem xs="12">
                     <MudPaper Elevation="2" Class="pa-4" Style="height:auto">
-                        <SessionSelector @bind-SelectedSessionId="selectedSessionId" />
+                        <SessionSelector @bind-SelectedSessionId="selectedSessionId" SelectedSessionIdChanged="OnSessionChanged" />
                     </MudPaper>
                     <MudSimpleTable Style="overflow-x: auto;">
     <thead>
@@ -142,6 +142,7 @@
         private string searchString = null;
 
         private long selectedSessionId;
+        private IEnumerable<SessionDto> sessions;
 
         public IEnumerable<BioDataDto> BioDataDto;
         public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
@@ -161,10 +162,16 @@
         @"English 12 ", *@
 
     };
+    private IEnumerable<SessionDto> sessions;
     protected override async Task OnInitializedAsync()
     {
-        BioDataDto=(await BiodataRepository.GetAllBioData());
-        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCoursesBTH();
+        BioDataDto = (await BiodataRepository.GetAllBioData());
+        sessions = await AcademicSessionRepository.GetAllSession();
+        if (sessions != null && sessions.Any())
+        {
+            selectedSessionId = sessions.First().Id;
+        }
+        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCoursesBTH(selectedSessionId);
 
         _loading = true;
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -237,4 +244,10 @@
         new ChartSeries() { Name = "PHD", Data = new double[] { 8, 6, 11,  } },
     };
     public string[] XAxisLabels = { "2020/2021", "2021/2022", "2022/2023" };
+
+    private async Task OnSessionChanged(long value)
+    {
+        selectedSessionId = value;
+        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCoursesBTH(selectedSessionId);
+    }
 }
