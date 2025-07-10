@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header img {
+            max-width: 150px;
+        }
+        .student-info {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-line {
+            width: 200px;
+            border-top: 1px solid #000;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{LogoUrl}}" alt="University Logo"/>
+        <h2>Course Registration Form</h2>
+        <p>Academic Session: {{Session}}</p>
+    </div>
+
+    <div class="student-info">
+        <p><strong>Student Name:</strong> {{StudentName}}</p>
+        <p><strong>Registration Number:</strong> {{RegistrationNumber}}</p>
+        <p><strong>Department:</strong> {{Department}}</p>
+        <p><strong>Program:</strong> {{Program}}</p>
+    </div>
+
+    <h3>Selected Courses</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>S/N</th>
+                <th>Course Code</th>
+                <th>Course Title</th>
+                <th>Unit</th>
+                <th>Category</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{CourseRows}}
+        </tbody>
+    </table>
+
+    <div class="summary">
+        <p><strong>Total Courses:</strong> {{TotalCourses}}</p>
+        <p><strong>Total Units:</strong> {{TotalUnits}}</p>
+    </div>
+
+    <div class="signature-section">
+        <div>
+            <div class="signature-line">
+                <p>Student's Signature</p>
+                <p>Date: _____________</p>
+            </div>
+        </div>
+        <div>
+            <div class="signature-line">
+                <p>HOD's Signature</p>
+                <p>Date: _____________</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,169 @@
+@page "/parent/PayHistory"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs;
+@using ACUnified.Portal.Pages.Lecturer
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar snackBar
+@inject IPaymentRepository paymentService
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@inject IStudentRepository studentRepository
+@attribute [Authorize(Roles = "Parent")]
+<h3>Payment History</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Payment History</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+   
+</MudCard>
+<br />
+<MudTable Elevation="25"  Filter="new Func<PaymentDto, bool>(Search)" @bind-Items="payments">
+    <ToolBarContent>
+        
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search for Transaction..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        @* <MudTh>Id</MudTh> *@
+        <MudTh>Matric No</MudTh>
+        <MudTh>Amount</MudTh>
+        <MudTh>Item</MudTh>
+        <MudTh>Reference No</MudTh>
+         <MudTh>Created Date</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @* <MudTd DataLabel="Id">@context.Id</MudTd> *@
+        <MudTd DataLabel="Name">@context.MatricNo</MudTd>
+        <MudTd DataLabel="Description">@context.Amount.ToString("#,##0.00")</MudTd>
+       @*  <MudTd DataLabel="Details Name">@context.PaySetupDetails.Name</MudTd> *@
+         <MudTd DataLabel="Details Name">@context.ReferenceNo</MudTd>
+          <MudTd DataLabel="Created Date">@context.CreatedDate.ToString("dd/M/yyyy")</MudTd>
+        <MudTd DataLabel="">
+            <MudFab  Color="Color.Primary" Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab  Color="Color.Secondary" Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+</div>
+@code{
+    private string searchString = "";
+    private PaymentDto payment = new PaymentDto();
+    private List<PaymentDto> payments = new List<PaymentDto>();
+    private bool _loading;
+    protected override async Task OnInitializedAsync()
+    {
+         GetPaymentAsync();
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            var currentStudent = await studentRepository.GetStudentByUserId(userId);
+          
+        }
+        _loading = false;
+    }
+    private  void  GetPaymentAsync()
+    {
+        try
+        {
+             payments = ( paymentService.GetAllPayment().Result).ToList();
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data ");
+        }
+       
+    }
+    private bool Search(PaymentDto payment)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return payment.ReferenceNo.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        await paymentService.CreatePayment(payment);
+        payment = new PaymentDto();
+        snackBar.Add("Faculty Saved.", Severity.Success);
+        GetPaymentAsync();
+    }
+    private async Task Edit(long id)
+    {
+        payment = await paymentService.GetPayment(id);
+    }
+    private async Task Delete(long id)
+    {
+        await paymentService.DeletePayment(id);
+        snackBar.Add("Payment Deleted.", Severity.Success);
+        GetPaymentAsync();
+    }
+    // private async Task OpenEditDialog(long id)
+    // {
+    //     var parameters = new DialogParameters { ["Transaction"] = await paymentService.GetPayment(id) };
+    //     var dialog =  DialogService.Show<EditPaymentDialog>("Edit Payment", parameters);
+    //     var result = await dialog.Result;
+    //     if (!result.Canceled)
+    //     {
+    //          GetPaymentAsync();
+    //     }
+    //   
+    // }
+    //
+    private async Task GeneratePdf(string referenceNo,string matricNo)
+    {
+        List<PaymentDto> rPaymentDto=new List<PaymentDto>();
+        StudentEnrolmentDto rStudentDto=new StudentEnrolmentDto();
+        List<ReceiptItemDTO> currentReceipt = new List<ReceiptItemDTO>();
+        foreach (var currentPay in rPaymentDto)
+        {
+            currentReceipt.Add(new ReceiptItemDTO()
+            {
+                CategoryDescription = currentPay.tran_name,
+                Amount = currentPay.Amount
+            });
+        }
+       
+        var receiptData = new SchoolReceiptDTO()
+        {
+            SchoolName = "Ajayi Crowther University",
+            Address = "123 School Lane, Education City",
+            Date = rPaymentDto.FirstOrDefault().CreatedDate,
+            StudentName = rStudentDto.Student.FirstName+" "+rStudentDto.Student.LastName,
+            Level = rStudentDto.Level.Name,
+                
+            Items = new List<ReceiptItemDTO>
+            {
+                new ReceiptItemDTO() { CategoryDescription = "Tuition Fee", Amount = 500.00m },
+                new ReceiptItemDTO() { CategoryDescription = "Library Fee", Amount = 50.00m },
+            },
+            QRCodeData = "Sample QR Code Data"
+        };
+    // Use the service to generate the PDF
+        using var pdfStream = new MemoryStream();
+        PDFReceipts.GenerateReceiptPDF(receiptData,pdfStream);
+        
+    // Convert the PDF stream to a byte array
+        var pdfBytes = pdfStream.ToArray();
+    // Convert byte array to base64 string
+        var base64 = Convert.ToBase64String(pdfBytes);
+    // Create a URL for the PDF
+        var url = $"data:application/pdf;base64,{base64}";
+    // Use JavaScript to trigger the download
+        await JSRuntime.InvokeVoidAsync("console.log", url);
+    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+        await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "downloaded.pdf");
+        
+    }
+
+   
+}

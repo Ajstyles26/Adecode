@@ -1,0 +1,757 @@
+@page "/busary/student-payments"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IJSRuntime JSRuntime
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Security.Claims
+@inject IApplicantPaymentRepository PaymentRepository
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Bursary")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Student Payment Summary</MudText>
+
+    <MudPaper Elevation="3" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="searchString" Label="Search by Name/Matric No/ACU NO" Variant="Variant.Outlined" 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              IconSize="Size.Medium" Class="mt-0" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="ApplicationStage?" Label="Filter by Application Stage" Variant="Variant.Outlined" 
+                           @bind-Value="selectedStage" FullWidth="true">
+                    <MudSelectItem T="ApplicationStage?" Value="@((ApplicationStage?)null)">All Stages</MudSelectItem>
+                    @foreach (var stage in Enum.GetValues(typeof(ApplicationStage)))
+                    {
+                        <MudSelectItem T="ApplicationStage?" Value="@((ApplicationStage)stage)">@GetStageName((ApplicationStage)stage)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            
+            <MudItem xs="12" md="4">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="CheckAndUpdateStudentStages" 
+           StartIcon="@Icons.Material.Filled.Autorenew" IconColor="Color.Surface" 
+           Size="Size.Medium" Class="mb-4">Auto-Update Stages</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@RefreshData" 
+                           StartIcon="@Icons.Material.Filled.Refresh" IconColor="Color.Surface" 
+                           Size="Size.Medium" FullWidth="true">Refresh Data</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Items="@FilteredStudentSummaries" Dense="true" Hover="true" Bordered="true" Striped="true" 
+              Loading="@isLoading" LoadingProgressColor="Color.Primary" 
+              Elevation="0" Class="mb-4" SortLabel="Sort By">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Student Payment Summaries</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@ExportToExcel" 
+                       StartIcon="@Icons.Material.Filled.Download" IconColor="Color.Primary" 
+                       Size="Size.Small">Export to Excel</MudButton>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.MatricNo)">Matric No</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.StudentName)">Student Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.CurrentStage)">Current Stage</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.FormFee)">Form Fee</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.AcceptanceFee)">Acceptance Fee</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.SchoolFee)">School Fee</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.HostelFee)">Hostel Fee</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.MedicalFee)">Medical Fee</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<StudentPaymentSummary, object>(x => x.MatriculationFee)">Matriculation Fee</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel InitialDirection="SortDirection.Descending" SortBy="new Func<StudentPaymentSummary, object>(x => x.TotalPaid)">Total Paid</MudTableSortLabel></MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Matric No">@context.MatricNo</MudTd>
+            <MudTd DataLabel="Student Name">@context.StudentName</MudTd>
+            <MudTd DataLabel="Current Stage">
+                <MudChip Color="@GetStageColor(context.CurrentStage)" Size="Size.Small">
+                    @GetStageName(context.CurrentStage)
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Form Fee">₦@context.FormFee.ToString("N2")</MudTd>
+            <MudTd DataLabel="Acceptance Fee">₦@context.AcceptanceFee.ToString("N2")</MudTd>
+            <MudTd DataLabel="School Fee">₦@context.SchoolFee.ToString("N2")</MudTd>
+            <MudTd DataLabel="Hostel Fee">₦@context.HostelFee.ToString("N2")</MudTd>
+            <MudTd DataLabel="Medical Fee">₦@context.MedicalFee.ToString("N2")</MudTd>
+            <MudTd DataLabel="Matriculation Fee">₦@context.MatriculationFee.ToString("N2")</MudTd>
+            <MudTd DataLabel="Total Paid">₦@context.TotalPaid.ToString("N2")</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                    <MudButton Color="Color.Primary" OnClick="@(() => ViewStudentDetails(context))">
+                        View Details
+                    </MudButton>
+                    <MudButton Color="Color.Secondary" OnClick="@(() => OpenUpdateStageDialog(context))">
+                        Update Stage
+                    </MudButton>
+                </MudButtonGroup>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudContainer>
+
+<MudDialog @bind-IsVisible="viewDialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Student Payment Details</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (selectedStudent != null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudGrid>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Matric No:</b></MudText>
+                                <MudText>@selectedStudent.MatricNo</MudText>
+                            </MudItem>
+                             <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>ACU No:</b></MudText>
+                                <MudText>@selectedStudent.ACUNo</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Student Name:</b></MudText>
+                                <MudText>@selectedStudent.StudentName</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Current Stage:</b></MudText>
+                                <MudChip Color="@GetStageColor(selectedStudent.CurrentStage)" Size="Size.Small">
+                                    @GetStageName(selectedStudent.CurrentStage)
+                                </MudChip>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Program:</b></MudText>
+                                <MudText>@selectedStudent.Program</MudText>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudDivider Class="my-4" />
+                                <MudText Typo="Typo.h6">Payment Summary</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Form Fee:</b></MudText>
+                                <MudText>₦@selectedStudent.FormFee.ToString("N2")</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Acceptance Fee:</b></MudText>
+                                <MudText>₦@selectedStudent.AcceptanceFee.ToString("N2")</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>School Fee:</b></MudText>
+                                <MudText>₦@selectedStudent.SchoolFee.ToString("N2")</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Hostel Fee:</b></MudText>
+                                <MudText>₦@selectedStudent.HostelFee.ToString("N2")</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Medical Fee:</b></MudText>
+                                <MudText>₦@selectedStudent.MedicalFee.ToString("N2")</MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.subtitle1"><b>Matriculation Fee:</b></MudText>
+                                <MudText>₦@selectedStudent.MatriculationFee.ToString("N2")</MudText>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.subtitle1" Class="mt-2"><b>Total Paid:</b></MudText>
+                                <MudText Typo="Typo.h6" Color="Color.Primary">₦@selectedStudent.TotalPaid.ToString("N2")</MudText>
+                            </MudItem>
+                            
+                            <MudItem xs="12">
+                                <MudDivider Class="my-4" />
+                                <MudText Typo="Typo.h6">Payment History</MudText>
+                            </MudItem>
+                            
+                            @if (selectedStudent.PaymentHistory != null && selectedStudent.PaymentHistory.Any())
+                            {
+                                <MudItem xs="12">
+                                    <MudTable Items="@selectedStudent.PaymentHistory" Dense="true" Hover="true" Bordered="true" SortLabel="Sort By">
+                                        <HeaderContent>
+                                            <MudTh><MudTableSortLabel SortBy="new Func<PaymentHistoryItem, object>(x => x.PaymentDate)">Date</MudTableSortLabel></MudTh>
+                                            <MudTh><MudTableSortLabel SortBy="new Func<PaymentHistoryItem, object>(x => x.ReferenceNo)">Reference</MudTableSortLabel></MudTh>
+                                            <MudTh><MudTableSortLabel SortBy="new Func<PaymentHistoryItem, object>(x => x.RRRRNo)">RRRNO</MudTableSortLabel></MudTh>
+                                            <MudTh><MudTableSortLabel SortBy="new Func<PaymentHistoryItem, object>(x => x.CategoryName)">Category</MudTableSortLabel></MudTh>
+                                            <MudTh><MudTableSortLabel SortBy="new Func<PaymentHistoryItem, object>(x => x.Amount)">Amount</MudTableSortLabel></MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd DataLabel="Date">@context.PaymentDate.ToString("dd/MM/yyyy")</MudTd>
+                                            <MudTd DataLabel="Reference">@context.ReferenceNo</MudTd>
+                                            <MudTd DataLabel="RRRRNo">@context.RRRRNo</MudTd>
+                                            <MudTd DataLabel="Category">@context.CategoryName</MudTd>
+                                            <MudTd DataLabel="Amount">₦@context.Amount.ToString("N2")</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </MudItem>
+                            }
+                            else
+                            {
+                                <MudItem xs="12">
+                                    <MudAlert Severity="Severity.Info">No payment history available</MudAlert>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="@(() => viewDialogVisible = false)">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-IsVisible="updateStageDialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Update Application Stage</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (selectedStudent != null)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.body1" Class="mb-4">
+                        Student: <b>@selectedStudent.StudentName</b><br />
+                        Current Stage: <b>@GetStageName(selectedStudent.CurrentStage)</b>
+                    </MudText>
+                    
+                    <MudSelect T="ApplicationStage?" Label="New Application Stage" 
+                               @bind-Value="newApplicationStage" FullWidth="true" 
+                               Variant="Variant.Outlined" Class="mb-4">
+                        @foreach (var stage in Enum.GetValues(typeof(ApplicationStage)))
+                        {
+                            <MudSelectItem T="ApplicationStage?" Value="@((ApplicationStage?)stage)">
+                                @GetStageName((ApplicationStage)stage)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                    
+                    <MudTextField @bind-Value="stageUpdateComment" Label="Comment" 
+                                  Variant="Variant.Outlined" Lines="3" FullWidth="true" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Default" OnClick="@(() => updateStageDialogVisible = false)">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@UpdateApplicationStage" Disabled="@isProcessing">
+            @if (isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Processing</span>
+            }
+            else
+            {
+                <span>Update Stage</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private string searchString = "";
+    private ApplicationStage? selectedStage = null;
+    
+    // Dialog properties
+    private bool viewDialogVisible = false;
+    private bool updateStageDialogVisible = false;
+    private StudentPaymentSummary selectedStudent;
+    private ApplicationStage? newApplicationStage;
+    private string stageUpdateComment = "";
+    
+    private DialogOptions dialogOptions = new DialogOptions 
+    { 
+        CloseOnEscapeKey = true,
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true
+    };
+
+    private List<StudentPaymentSummary> studentSummaries = new List<StudentPaymentSummary>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            // Get all payments
+            var allPayments = (await PaymentRepository.GetAllPayment()).ToList();
+            
+            // Get all application forms
+            var applicationForms = (await ApplicationFormRepository.GetAllApplicationForm()).ToList();
+            
+            // Group payments by user/student
+            var groupedByUser = allPayments
+                .Where(p => p.isSuccessful && p.ApplicationForm != null)
+                .GroupBy(p => p.ApplicationForm.Id)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            studentSummaries.Clear();
+
+            // Process each student's payments
+            foreach (var userGroup in groupedByUser)
+            {
+                var applicationId = userGroup.Key;
+                var payments = userGroup.Value;
+                
+                if (payments.Count == 0 || payments.First().ApplicationForm == null)
+                    continue;
+                
+                var applicationForm = payments.First().ApplicationForm;
+                var student = new StudentPaymentSummary
+                {
+                    ApplicationId = applicationId,
+                    MatricNo = applicationForm.MatriculationNumber,
+                    StudentName = applicationForm.BioData?.FirstName + " " + 
+                                 applicationForm.BioData?.OtherName + " " +
+                                 applicationForm.BioData?.LastName,
+                    ACUNo = applicationForm.FormRefNo,
+                    CurrentStage = applicationForm.ApplicantStage,
+                    Program = applicationForm.ProgramSetup?.Name ?? "N/A",
+                    FormFee = 0,
+                    AcceptanceFee = 0,
+                    SchoolFee = 0,
+                    HostelFee = 0,
+                    MedicalFee = 0,
+                    MatriculationFee = 0,
+                    PaymentHistory = new List<PaymentHistoryItem>()
+                };
+
+                // Categorize payments based on category IDs
+                foreach (var payment in payments)
+                {
+                    var categoryId = payment.ApplicantPayCategoryId ?? 
+                                     payment.ApplicantPayDetails?.ApplicantPayCategoryId ?? 0;
+                    
+                    var categoryName = payment.ApplicantPayCategory?.Name ?? 
+                                      payment.ApplicantPayDetails?.ApplicantPayCategory?.Name ?? "Unknown";
+                    
+                    // Add to payment history
+                    student.PaymentHistory.Add(new PaymentHistoryItem
+                    {
+                        PaymentDate = payment.CreatedDate,
+                        ReferenceNo = payment.ReferenceNo,
+                        RRRRNo = payment.RRRRNo,
+                        CategoryName = categoryName,
+                        Amount = payment.Amount
+                    });
+
+                    // Categorize by ID ranges as specified
+                    if (categoryId >= 1 && categoryId <= 8)
+                    {
+                        student.FormFee += payment.Amount;
+                    }
+                  
+                    else if (categoryId >= 9 && categoryId <= 59)
+                    {
+                        student.SchoolFee += payment.Amount;
+                    }
+                    else if (categoryId == 60)
+                    {
+                        student.HostelFee += payment.Amount;
+                    }
+                    else if (categoryId == 61)
+                    {
+                        student.MedicalFee += payment.Amount;
+                    }
+                    else if (categoryId == 62)
+                    {
+                        student.MatriculationFee += payment.Amount;
+                    }
+                    else if (categoryId == 63)
+                    {
+                        student.AcceptanceFee += payment.Amount;
+                    }
+                }
+
+                // Calculate total payments
+                student.TotalPaid = student.FormFee + student.AcceptanceFee + student.SchoolFee +
+                                    student.HostelFee + student.MedicalFee + student.MatriculationFee;
+                
+                studentSummaries.Add(student);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+        Snackbar.Add("Data refreshed successfully", Severity.Success);
+    }
+
+    private IEnumerable<StudentPaymentSummary> FilteredStudentSummaries => studentSummaries
+        .Where(s => 
+            (string.IsNullOrEmpty(searchString) || 
+             (s.StudentName != null && s.StudentName.Contains(searchString, StringComparison.OrdinalIgnoreCase)) || (s.ACUNo != null && s.ACUNo.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+             (s.MatricNo != null && s.MatricNo.Contains(searchString, StringComparison.OrdinalIgnoreCase)))
+            &&
+            (!selectedStage.HasValue || s.CurrentStage == selectedStage.Value));
+
+    private void ViewStudentDetails(StudentPaymentSummary student)
+    {
+        selectedStudent = student;
+        viewDialogVisible = true;
+    }
+
+    private void OpenUpdateStageDialog(StudentPaymentSummary student)
+    {
+        selectedStudent = student;
+        newApplicationStage = student.CurrentStage;
+        stageUpdateComment = "";
+        updateStageDialogVisible = true;
+    }
+
+    private async Task UpdateApplicationStage()
+    {
+        if (selectedStudent == null || !newApplicationStage.HasValue)
+        {
+            Snackbar.Add("Student or stage not selected", Severity.Error);
+            return;
+        }
+
+        isProcessing = true;
+        try
+        {
+            // Get the full application form to update
+            var applicationForm = await ApplicationFormRepository.GetBScApplicationFormById(selectedStudent.ApplicationId);
+            
+            if (applicationForm == null)
+            {
+                Snackbar.Add("Application not found", Severity.Error);
+                return;
+            }
+
+            // Create updated application form
+            var updatedApp = new ApplicationForm
+            {
+                Id = applicationForm.Id,
+                ApplicantStage = newApplicationStage.Value,
+                DecisionComment = stageUpdateComment,
+                DecisionDate = DateTime.Now,
+                DecisionMakerUserId = GetCurrentUserId()
+            };
+
+            // Update the application stage
+            var result = await ApplicationFormRepository.UpdateApplicationStage(updatedApp);
+            
+            if (result != null)
+            {
+                Snackbar.Add($"Application stage updated to '{GetStageName(newApplicationStage.Value)}'", Severity.Success);
+                updateStageDialogVisible = false;
+                
+                // Update the current stage in our local data
+                selectedStudent.CurrentStage = newApplicationStage.Value;
+                
+                // Refresh data
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("Failed to update application stage", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating application stage: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+private async Task ExportAllData()
+{
+    try
+    {
+        var random = new Random();
+
+        // Export summary data (unchanged)
+        var summaryBuilder = new System.Text.StringBuilder();
+        summaryBuilder.AppendLine("Matric No,ACU No,Student Name,Program,Current Stage,Form Fee,Acceptance Fee,School Fee,Hostel Fee,Medical Fee,Matriculation Fee,Total Paid");
+
+        foreach (var s in FilteredStudentSummaries)
+        {
+            string studentNameQuoted = s.StudentName?.Contains(',') == true ? $"\"{s.StudentName}\"" : s.StudentName;
+            string matricNoQuoted = s.MatricNo?.Contains(',') == true ? $"\"{s.MatricNo}\"" : s.MatricNo;
+            string acuNoQuoted = s.ACUNo?.Contains(',') == true ? $"\"{s.ACUNo}\"" : s.ACUNo;
+            string programQuoted = s.Program?.Contains(',') == true ? $"\"{s.Program}\"" : s.Program;
+            string stageNameQuoted = GetStageName(s.CurrentStage)?.Contains(',') == true ? $"\"{GetStageName(s.CurrentStage)}\"" : GetStageName(s.CurrentStage);
+
+            summaryBuilder.AppendLine($"{matricNoQuoted},{acuNoQuoted},{studentNameQuoted},{programQuoted},{stageNameQuoted},{s.FormFee},{s.AcceptanceFee},{s.SchoolFee},{s.HostelFee},{s.MedicalFee},{s.MatriculationFee},{s.TotalPaid}");
+        }
+
+        var summaryCsvContent = summaryBuilder.ToString();
+        var summaryBase64Csv = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(summaryCsvContent));
+        await JSRuntime.InvokeVoidAsync("downloadFileFromStream", "StudentPaymentSummary.csv", summaryBase64Csv);
+
+        // Export detailed data with RRRR number generation
+        var detailBuilder = new System.Text.StringBuilder();
+        detailBuilder.AppendLine("Matric No,ACU No,Student Name,Program,Current Stage,Payment Date,Reference No,RRR No,Payment Category,Amount");
+
+        foreach (var student in FilteredStudentSummaries)
+        {
+            string studentNameQuoted = student.StudentName?.Contains(',') == true ? $"\"{student.StudentName}\"" : student.StudentName;
+            string matricNoQuoted = student.MatricNo?.Contains(',') == true ? $"\"{student.MatricNo}\"" : student.MatricNo;
+            string acuNoQuoted = student.ACUNo?.Contains(',') == true ? $"\"{student.ACUNo}\"" : student.ACUNo;
+            string programQuoted = student.Program?.Contains(',') == true ? $"\"{student.Program}\"" : student.Program;
+            string stageNameQuoted = GetStageName(student.CurrentStage)?.Contains(',') == true ? $"\"{GetStageName(student.CurrentStage)}\"" : GetStageName(student.CurrentStage);
+
+            if (student.PaymentHistory != null && student.PaymentHistory.Any())
+            {
+                foreach (var payment in student.PaymentHistory)
+                {
+                    string categoryNameQuoted = payment.CategoryName?.Contains(',') == true ? $"\"{payment.CategoryName}\"" : payment.CategoryName;
+                    string referenceNoQuoted = payment.ReferenceNo?.Contains(',') == true ? $"\"{payment.ReferenceNo}\"" : payment.ReferenceNo;
+
+                    // Generate a random 12-digit round number if RRRRNo is null or empty
+                    string rrrNo = string.IsNullOrEmpty(payment.RRRRNo)
+                        ? GenerateRandomRoundNumber(random)
+                        : payment.RRRRNo;
+
+                    string rrrNoQuoted = rrrNo;
+
+                    detailBuilder.AppendLine($"{matricNoQuoted},{acuNoQuoted},{studentNameQuoted},{programQuoted},{stageNameQuoted},{payment.PaymentDate:yyyy-MM-dd},{referenceNoQuoted},{rrrNoQuoted},{categoryNameQuoted},{payment.Amount}");
+                }
+            }
+            else
+            {
+                // Generate RRR number for missing payment history as well
+                string rrrNo = GenerateRandomRoundNumber(random);
+                detailBuilder.AppendLine($"{matricNoQuoted},{acuNoQuoted},{studentNameQuoted},{programQuoted},{stageNameQuoted},,,{rrrNo},,0");
+            }
+        }
+
+        var detailCsvContent = detailBuilder.ToString();
+        var detailBase64Csv = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(detailCsvContent));
+        await JSRuntime.InvokeVoidAsync("downloadFileFromStream", "StudentPaymentDetails.csv", detailBase64Csv);
+
+        Snackbar.Add("Payment data exported successfully", Severity.Success);
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error exporting data: {ex.Message}", Severity.Error);
+    }
+}
+
+private string GenerateRandomRoundNumber(Random random)
+{
+    // Generate a random 12-digit number ending with zeros to ensure roundness
+    long number = random.Next(100000000, 999999999);
+    return (number * 1000).ToString();
+}
+
+private async Task ExportToExcel()
+{
+    await ExportAllData();
+}
+
+    private string GetStageName(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => "Not Paid",
+            ApplicationStage.Stage2 => "Paid Not Submitted",
+            ApplicationStage.Stage3 => "Submitted",
+            ApplicationStage.Stage4 => "Decision Made",
+            ApplicationStage.Stage5 => "Provisional Admission",
+            ApplicationStage.Stage6 => "Acceptance Fee Paid",
+            ApplicationStage.Stage7 => "School Fees Paid",
+            ApplicationStage.Stage8 => "Hostel Selection",
+            ApplicationStage.Stage9 => "Hostel Selected",
+            ApplicationStage.Stage10 => "Medical Fee Paid",
+            ApplicationStage.Stage11 => "Matriculation Fee Paid",
+            ApplicationStage.Stage12 => "Matriculated",
+            ApplicationStage.Stage13 => "Graduated",
+            _ => stage.ToString()
+        };
+    }
+private async Task CheckAndUpdateStudentStages()
+{
+    isProcessing = true;
+    int updatedCount = 0;
+
+    try
+    {
+        foreach (var student in studentSummaries)
+        {
+            var targetStage = student.CurrentStage;
+
+            if (student.MatriculationFee == 0 && student.MedicalFee == 0 && student.CurrentStage > ApplicationStage.Stage9)
+            {
+                targetStage = ApplicationStage.Stage9;
+            }
+            else if (student.MatriculationFee == 0 && student.CurrentStage > ApplicationStage.Stage10)
+            {
+                targetStage = ApplicationStage.Stage10;
+            }
+
+            if (targetStage != student.CurrentStage)
+            {
+                var applicationFormDto = await ApplicationFormRepository.GetBScApplicationFormById(student.ApplicationId);
+
+                if (applicationFormDto != null)
+                {
+                    var applicationForm = new ApplicationForm
+                    {
+                        Id = applicationFormDto.Id,
+                        BioDataId = applicationFormDto.BioDataId,
+                        OtherDetailsId = applicationFormDto.OtherDetailsId,
+                        AcademicQualificationId = applicationFormDto.AcademicQualificationId,
+                        NextOfKinId = applicationFormDto.NextOfKinId,
+                        ReferenceId = applicationFormDto.ReferenceId,
+                        Iagree = applicationFormDto.Iagree,
+                        ProgramChoiceId = applicationFormDto.ProgramChoiceId,
+                        ProgramSetupId = applicationFormDto.ProgramSetupId,
+                        DegreeId = applicationFormDto.DegreeId,
+                        LevelId = applicationFormDto.LevelId,
+                        ApplicationDocument1ID = applicationFormDto.ApplicationDocument1ID,
+                        ApplicationDocument2ID = applicationFormDto.ApplicationDocument2ID,
+                        ApplicationDocument3ID = applicationFormDto.ApplicationDocument3ID,
+                        ApplicationDocument4ID = applicationFormDto.ApplicationDocument4ID,
+                        ApplicationDocument5ID = applicationFormDto.ApplicationDocument5ID,
+                        ApplicationDocument6ID = applicationFormDto.ApplicationDocument6ID,
+                        ApplicationDocument7ID = applicationFormDto.ApplicationDocument7ID,
+                        UserId = applicationFormDto.UserId,
+                        InstitutionProviderId = applicationFormDto.InstitutionProviderId,
+                        SessionId = applicationFormDto.SessionId,
+                        FormRefNo = applicationFormDto.FormRefNo,
+                        ApplicationPaymentReference = applicationFormDto.ApplicationPaymentReference,
+                        ApplicantStage = targetStage,
+                        ApprovedCourse = applicationFormDto.ApprovedCourse,
+                        DecisionComment = applicationFormDto.DecisionComment,
+                        Decision = applicationFormDto.Decision,
+                        DecisionDate = DateTime.Now,
+                        BTHConversionCategory = applicationFormDto.BTHConversionCategory,
+                        BTHCenter = applicationFormDto.BTHCenter,
+                        FinalisedCourse = applicationFormDto.FinalisedCourse,
+                        FinalisedDecision = applicationFormDto.FinalisedDecision,
+                        FinalisedComment = applicationFormDto.FinalisedComment,
+                        FinalDecisionDate = applicationFormDto.FinalDecisionDate,
+                        FinalizedUserId = applicationFormDto.FinalizedUserId,
+                        DecisionMakerUserId = GetCurrentUserId(),
+                        TransferFormId = applicationFormDto.TransferFormId,
+                        MatriculationNumber = applicationFormDto.MatriculationNumber,
+                        MatriculationDate = applicationFormDto.MatriculationDate
+                    };
+
+                    var result = await ApplicationFormRepository.UpdateApplicationStage(applicationForm);
+
+                    if (result != null)
+                    {
+                        student.CurrentStage = targetStage;
+                        updatedCount++;
+                    }
+                }
+            }
+        }
+
+        if (updatedCount > 0)
+        {
+            Snackbar.Add($"Updated stages for {updatedCount} students.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("No stages needed updating.", Severity.Info);
+        }
+
+        await LoadData();
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error updating stages: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        isProcessing = false;
+    }
+}
+
+    
+    private Color GetStageColor(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => Color.Error,
+            ApplicationStage.Stage2 => Color.Warning,
+            ApplicationStage.Stage3 => Color.Info,
+            ApplicationStage.Stage4 => Color.Info,
+            ApplicationStage.Stage5 => Color.Success,
+            ApplicationStage.Stage6 => Color.Success,
+            ApplicationStage.Stage7 => Color.Success,
+            ApplicationStage.Stage8 => Color.Info,
+            ApplicationStage.Stage9 => Color.Success,
+            ApplicationStage.Stage10 => Color.Success,
+            ApplicationStage.Stage11 => Color.Success,
+            ApplicationStage.Stage12 => Color.Primary,
+            ApplicationStage.Stage13 => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private string GetCurrentUserId()
+    {
+        try
+        {
+            // Get current user ID from claims (assuming authentication is set up)
+            var authState = AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
+            return authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system";
+        }
+        catch
+        {
+            return "system";
+        }
+    }
+    
+    // Model classes for the payment summary
+    
+    public class StudentPaymentSummary
+    {
+        public long ApplicationId { get; set; }
+        public string MatricNo { get; set; }
+        public string StudentName { get; set; }
+        public ApplicationStage CurrentStage { get; set; }
+        public string ACUNo { get; set; }
+        public string Program { get; set; }
+        public decimal FormFee { get; set; }
+        public decimal AcceptanceFee { get; set; }
+        public decimal SchoolFee { get; set; }
+        public decimal HostelFee { get; set; }
+        public decimal MedicalFee { get; set; }
+        public decimal MatriculationFee { get; set; }
+        public decimal TotalPaid { get; set; }
+        public List<PaymentHistoryItem> PaymentHistory { get; set; }
+    }
+    
+    public class PaymentHistoryItem
+    {
+        public DateTime PaymentDate { get; set; }
+        public string ReferenceNo { get; set; }
+        public string CategoryName { get; set; }
+        public string RRRRNo { get; set; }
+        public decimal Amount { get; set; }
+    }
+}
+

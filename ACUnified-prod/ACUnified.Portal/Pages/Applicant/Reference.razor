@@ -1,0 +1,243 @@
+@page "/applicant/reference"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Pages.Applicant.Validator
+@using ACUnified.Data.DTOs;
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository biodataRepository
+@inject IReferenceRepository ReferenceRepository
+@inject NavigationManager Navigation
+@inject IApplicationFormRepository applicationForm
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+@* <h4><MudIcon Icon="@Icons.Material.Filled.School" /> Personal Details</h4> *@
+<div class="ml-5 py-4">
+
+
+    <!--timeline -->
+   <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Other Details</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Next of kin</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Credentials</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Reference Info</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+     <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Warning">Credential Upload</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+</MudTimeline>
+    <!-- end timeline -->
+    <!--row 1-->
+    <MudForm Model="@currentReference" @ref="@Referenceform" Validation="@(referenceValidator.ValidateValue)" ValidationDelay="0" >
+    <MudGrid Class="mr-5">
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField Variant="Variant.Outlined" @bind-Value="currentReference.FullName"
+                    For="@(()=>currentReference.FullName)"T="string" Label="Referee  Full Name"></MudTextField>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Designation"
+                    For="@(()=>currentReference.Designation)"Label="Designation"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Residential"
+                    For="@(()=>currentReference.Residential)" Label="Residential Address"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Email"
+                    For="@(()=>currentReference.Email)" Label="Email"></MudTextField>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined"  @bind-Value="currentReference.MobileNumber"
+                    For="@(()=>currentReference.MobileNumber)" Label="Phone Number"></MudTextField>
+        </MudItem>
+    </MudGrid>
+    <!-- end row 1-->
+    <!-- row 2-->
+     <MudText Typo="Typo.h6" text-center>Referee Two</MudText>
+    <MudGrid Class="mr-5">
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField Variant="Variant.Outlined" @bind-Value="currentReference.FullName2"
+                    For="@(()=>currentReference.FullName2)"T="string" Label="Referee Full Name"></MudTextField>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Designation2"
+                    For="@(()=>currentReference.Designation2)"Label="Designation"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Residential2"
+                    For="@(()=>currentReference.Residential2)" Label="Residential Address"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Email2"
+                    For="@(()=>currentReference.Email2)" Label="Email"></MudTextField>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined"  @bind-Value="currentReference.MobileNumber2"
+                    For="@(()=>currentReference.MobileNumber2)" Label="Phone Number"></MudTextField>
+        </MudItem>
+    </MudGrid>
+    <MudText Typo="Typo.h6" text-center>Referee  Three</MudText>
+     <MudGrid Class="mr-5">
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField Variant="Variant.Outlined" @bind-Value="currentReference.FullName3"
+                    For="@(()=>currentReference.FullName3)"T="string" Label="Referee Full Name"></MudTextField>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Designation3"
+                    For="@(()=>currentReference.Designation3)"Label="Designation"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Residential3"
+                    For="@(()=>currentReference.Residential3)" Label="Residential Address"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentReference.Email3"
+                    For="@(()=>currentReference.Email3)" Label="Email"></MudTextField>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined"  @bind-Value="currentReference.MobileNumber3"
+                    For="@(()=>currentReference.MobileNumber3)" Label="Phone Number"></MudTextField>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        <div class="d-flex align-center justify-space-between ml-auto">
+                <MudButton OnClick="@HandleSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mr-3">
+                    Previous</MudButton>
+                <MudButton OnClick="@OnValidSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Save
+                    & Continue</MudButton>
+        </div>
+    </MudGrid>
+</MudForm>
+</div>
+
+
+@code {
+
+    ReferenceDto currentReference = new ReferenceDto();
+
+    MudForm Referenceform;
+  
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ReferenceValidator referenceValidator = new ReferenceValidator();
+    public bool _loading { get; set; }
+    protected async override Task OnInitializedAsync()
+    {
+        
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            var tcurrentReference = await ReferenceRepository.GetReference(userId);
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+                if (tcurrentReference != null)
+                {
+                    currentReference = tcurrentReference;
+                }
+            }
+            else
+            {
+                snackBar.Add("Please pay mandatory fees ", Severity.Error);
+                Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+            }
+
+        }
+        else
+        {
+            snackBar.Add("Please pay mandatory fees ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+        }
+        _loading = false;
+    }
+
+    private async Task OnValidSubmit(){
+        //Navigate to the next page
+        // Console.WriteLine("Save the record and move to the next phase");
+        // StateHasChanged();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+       await Referenceform.Validate();
+        if (Referenceform.IsValid)
+        {
+            currentReference.UserId = userId;
+            var updatedReference = await ReferenceRepository.UpdateReference(currentReference);
+            if (updatedReference != null)
+            {
+                var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                currentApplicationForm.ReferenceId = updatedReference.Id;
+                await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                   snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/uploadDocuments");
+            }
+            else{
+                snackBar.Add("Error: Failed to save records", Severity.Error);
+            }
+
+        }
+        else
+        {
+            snackBar.Add("Error Please ensure the fields are properly filled", Severity.Error);
+        }
+
+        }
+        private async Task HandleSubmit()
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+           await Referenceform.Validate();
+        if (Referenceform.IsValid)
+        {
+            currentReference.UserId = userId;
+            var updatedReference = await ReferenceRepository.UpdateReference(currentReference);
+            if (updatedReference != null)
+            {
+                var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                currentApplicationForm.ReferenceId = updatedReference.Id;
+                await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                   snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/academicqualification");
+            }
+            else{
+                snackBar.Add("Error: Failed to save records", Severity.Error);
+            }
+
+        }
+        else
+        {
+            snackBar.Add("Error Please ensure the fields are properly filled", Severity.Error);
+        }
+
+        }
+
+    }

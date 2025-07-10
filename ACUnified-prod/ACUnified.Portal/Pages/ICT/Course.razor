@@ -1,0 +1,808 @@
+@page "/ict/courses"
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using System.IO
+@using System.Text
+@using System.Globalization
+@using CsvHelper
+@using CsvHelper.Configuration
+@inject IDepartmentRepository DepartmentRepository
+@inject IJSRuntime JS
+@layout ACUnifiedLayout
+@inject ICourseRepository CourseRepository
+@inject IProgramSetupRepository ProgramSetupRepository
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="Course List">
+            <MudCard>
+                <MudCardHeader>
+                    <MudText Typo="Typo.h5">Course Management</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="long" Label="Select Department"
+                                Value="selectedDepartmentId"
+                                ValueChanged="OnDepartmentChanged"
+                                FullWidth="true"
+                                Class="mb-4">
+                            @foreach (var dept in departments)
+                            {
+                                <MudSelectItem Value="@dept.Id">@dept.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="searchString"
+                                          Placeholder="Search"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          IconSize="Size.Medium"
+                                          Class="mt-0"></MudTextField>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudTable Items="@GetFilteredCourses()" Dense="false" Hover="true" Loading="@loading"
+                              LoadingProgressColor="Color.Primary">
+                        <HeaderContent>
+                            <MudTh>Course Name</MudTh>
+                            <MudTh>Course Code</MudTh>
+                            <MudTh>Units</MudTh>
+                            <MudTh>Semester</MudTh>
+                            <MudTh>Department</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Course Name">@context.Name</MudTd>
+                            <MudTd DataLabel="Course Code">@context.CourseCode</MudTd>
+                            <MudTd DataLabel="Units">@context.CourseUnit</MudTd>
+                            <MudTd DataLabel="Semester">@context.Semester</MudTd>
+                            <MudTd DataLabel="Department">@(context.Department?.Name ?? "-")</MudTd>
+                            <MudTd DataLabel="Status">@context.Status</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => EditCourse(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               OnClick="@(() => DeleteCourseDialog(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                        <NoRecordsContent>
+                            <MudText>No courses found</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+        <MudTabPanel Text="Manual Entry">
+            <MudCard>
+                <MudCardHeader>
+                    <MudText Typo="Typo.h5">Add New Course</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudForm @ref="form" @bind-IsValid="@success">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Course Name"
+                                              @bind-Value="courseDto.Name"
+                                              Required="true"
+                                              RequiredError="Course name is required!" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Course Code"
+                                              @bind-Value="courseDto.CourseCode"
+                                              Required="true"
+                                              RequiredError="Course code is required!" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudNumericField T="int"
+                                                 Label="Course Unit"
+                                                 @bind-Value="courseDto.CourseUnit"
+                                                 Required="true"
+                                                 Min="1"
+                                                 Max="6" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="SemesterType"
+                                           Label="Semester"
+                                           @bind-Value="courseDto.Semester"
+                                           Required="true">
+                                    @foreach (var semester in Enum.GetValues(typeof(SemesterType)))
+                                    {
+                                        <MudSelectItem Value="@((SemesterType)semester)">@semester</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="CourseCategory"
+                                           Label="Course Category"
+                                           @bind-Value="courseDto.courseCategory"
+                                           Required="true">
+                                    @foreach (var category in Enum.GetValues(typeof(CourseCategory)))
+                                    {
+                                        <MudSelectItem Value="@((CourseCategory)category)">@category</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="ProgramSetupDto"
+                                           Label="Program Setup"
+                                           Value="selectedProgramSetup"
+                                           ValueChanged="ProgramSetupChanged"
+                                           Required="true"
+                                           ToStringFunc="@(p => p?.Name ?? string.Empty)">
+                                    @if (programSetups != null)
+                                    {
+                                        @foreach (var program in programSetups)
+                                        {
+                                            <MudSelectItem Value="@program">@program.Name</MudSelectItem>
+                                        }
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Selected Program Setup"
+                                              Value="@(selectedProgramSetup?.Name ?? string.Empty)"
+                                              ReadOnly="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Faculty"
+                                              Value="@(selectedProgramSetup?.Faculty?.Name ?? string.Empty)"
+                                              ReadOnly="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Department"
+                                              Value="@(selectedProgramSetup?.Department?.Name ?? string.Empty)"
+                                              ReadOnly="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudNumericField T="long"
+                                                 Label="Degree ID"
+                                                 @bind-Value="courseDto.DegreeId"
+                                                 Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudNumericField T="long"
+                                                 Label="Level ID"
+                                                 @bind-Value="courseDto.LevelId"
+                                                 Required="true" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudTextField T="string"
+                                              Label="Description"
+                                              @bind-Value="courseDto.Description"
+                                              Lines="3"
+                                              Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Prerequisites"
+                                              @bind-Value="courseDto.Prerequisite" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string"
+                                              Label="Status"
+                                              @bind-Value="courseDto.Status" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudNumericField T="long?"
+                                                 Label="Institution Provider ID"
+                                                 @bind-Value="courseDto.InstitutionProviderId" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudForm>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Class="ml-auto"
+                               OnClick="@(async () => await Submit())"
+                               Disabled="@(!success || processing)">
+                        @if (processing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Processing</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Add Course</MudText>
+                        }
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudTabPanel>
+
+        <MudTabPanel Text="CSV Upload">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h5">Import Courses from CSV</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   OnClick="DownloadCsvTemplate"
+                                   StartIcon="@Icons.Material.Filled.Download">
+                            Download Template
+                        </MudButton>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Class="mb-4">
+                        Upload a CSV file containing course information. Download the template for the correct format.
+                    </MudText>
+
+                    <InputFile id="fileInput" OnChange="OnInputFileChanged" Accept=".csv" />
+
+                    @if (csvErrors.Any())
+                    {
+                        <MudAlert Severity="Severity.Error" Class="mt-3">
+                            <MudText>Errors found in CSV:</MudText>
+                            <MudList Dense="true">
+                                @foreach (var error in csvErrors)
+                                {
+                                    <MudListItem>@error</MudListItem>
+                                }
+                            </MudList>
+                        </MudAlert>
+                    }
+
+                    @if (parsedCourses.Any())
+                    {
+                        <MudTable Items="@parsedCourses" Dense="true" Hover="true" Class="mt-3">
+                            <HeaderContent>
+                                <MudTh>Course Name</MudTh>
+                                <MudTh>Course Code</MudTh>
+                                <MudTh>Units</MudTh>
+                                <MudTh>Semester</MudTh>
+                                <MudTh>Status</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Name</MudTd>
+                                <MudTd>@context.CourseCode</MudTd>
+                                <MudTd>@context.CourseUnit</MudTd>
+                                <MudTd>@context.Semester</MudTd>
+                                <MudTd>@context.Status</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   OnClick="ImportCourses"
+                                   Disabled="@(processing || csvErrors.Any())"
+                                   Class="mt-3">
+                            @if (processing)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                <MudText Class="ms-2">Processing</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Import Courses</MudText>
+                            }
+                        </MudButton>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+<!-- Edit Dialog -->
+<MudDialog @bind-IsVisible="editDialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Edit Course</MudText>
+    </TitleContent>
+    <DialogContent>
+    <MudForm @ref="form" @bind-IsValid="@success">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Course Name" @bind-Value="editingCourse.Name"
+                    Required="true" RequiredError="Course name is required!" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Course Code" @bind-Value="editingCourse.CourseCode"
+                    Required="true" RequiredError="Course code is required!" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField T="int" Label="Course Unit" @bind-Value="editingCourse.CourseUnit"
+                    Required="true" Min="1" Max="6" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="SemesterType" Label="Semester" @bind-Value="editingCourse.Semester" Required="true">
+                    @foreach (var semester in Enum.GetValues(typeof(SemesterType)))
+                    {
+                        <MudSelectItem Value="@((SemesterType)semester)">@semester</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="long" Label="Department" @bind-Value="editingCourse.DepartmentId" Required="true">
+                    @foreach (var dept in departments)
+                    {
+                        <MudSelectItem Value="@dept.Id">@dept.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="ProgramSetupDto" Label="Program Setup"
+                    Value="selectedProgramSetup"
+                    ValueChanged="EditingProgramSetupChanged"
+                    ToStringFunc="@(p => p?.Name ?? string.Empty)"
+                    Required="true">
+                    @if (programSetups != null)
+                    {
+                        @foreach (var program in programSetups)
+                        {
+                            <MudSelectItem Value="@program">@program.Name</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField T="long" Label="Level ID" @bind-Value="editingCourse.LevelId" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudNumericField T="long" Label="Degree ID" @bind-Value="editingCourse.DegreeId" Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="Description" @bind-Value="editingCourse.Description"
+                    Lines="3" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Prerequisites" @bind-Value="editingCourse.Prerequisite" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Status" @bind-Value="editingCourse.Status" />
+            </MudItem>
+        </MudGrid>
+    </MudForm>
+</DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseEditDialog">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveCourse">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Delete Confirmation Dialog -->
+<MudDialog @bind-IsVisible="deleteDialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Delete Course</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>Are you sure you want to delete this course?</MudText>
+        <MudText Typo="Typo.subtitle1">@(courseToDelete?.Name)</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDeleteDialog">Cancel</MudButton>
+        <MudButton Color="Color.Error" OnClick="DeleteCourse">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    private MudForm form;
+    private bool success;
+    private bool processing;
+    private CourseDto courseDto = new CourseDto();
+    private IEnumerable<ProgramSetupDto> programSetups;
+    private ProgramSetupDto selectedProgramSetup;
+    private List<CourseDto> parsedCourses = new();
+    private List<string> csvErrors = new();
+    private List<CourseDto> courses = new();
+    private bool loading = true;
+    private long selectedDepartmentId;
+    private string searchString = "";
+    private bool editDialogVisible;
+    private bool deleteDialogVisible;
+    private CourseDto editingCourse = new();
+    private List<DepartmentDto> departments = new();
+    private CourseDto courseToDelete;
+    private DialogOptions dialogOptions = new() { FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loading = true;
+            programSetups = await ProgramSetupRepository.GetAllProgramSetup();
+            await LoadDepartments();
+            
+            if (departments.Any())
+            {
+                selectedDepartmentId = departments.First().Id;
+                await LoadCourses();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error initializing page: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            departments = (await DepartmentRepository.GetAllDepartment()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading departments: " + ex.Message, Severity.Error);
+        }
+    }
+  
+
+   private async Task OnDepartmentChanged(long departmentId)
+    {
+        selectedDepartmentId = departmentId;
+        await LoadCourses();
+        StateHasChanged(); // Ensure UI updates
+    }
+
+private async Task LoadCourses()
+    {
+        loading = true;
+        try
+        {
+            if (selectedDepartmentId > 0) // Add validation
+            {
+                var result = await CourseRepository.GetCoursesByDepartment(selectedDepartmentId);
+                courses = result.ToList();
+            }
+            else
+            {
+                courses.Clear(); // Clear courses if no department is selected
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading courses: " + ex.Message, Severity.Error);
+            courses.Clear(); // Clear courses on error
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged(); // Ensure UI updates
+        }
+    }
+
+    private IEnumerable<CourseDto> GetFilteredCourses()
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return courses;
+
+        return courses.Where(x =>
+            x.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+            x.CourseCode.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+            (x.Department?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+        );
+    }
+
+    private void EditCourse(CourseDto course)
+    {
+        editingCourse = new CourseDto
+        {
+            Id = course.Id,
+            Name = course.Name,
+            CourseCode = course.CourseCode,
+            CourseUnit = course.CourseUnit,
+            Semester = course.Semester,
+            Description = course.Description,
+            Prerequisite = course.Prerequisite,
+            Status = course.Status,
+            DepartmentId = course.DepartmentId,
+            FacultyId = course.FacultyId,
+            ProgramSetupId = course.ProgramSetupId,
+            DegreeId = course.DegreeId,
+            LevelId = course.LevelId,
+            courseCategory = course.courseCategory
+        };
+
+        // Set the selected program setup
+        selectedProgramSetup = programSetups?.FirstOrDefault(p => p.Id == course.ProgramSetupId);
+        
+        editDialogVisible = true;
+    }
+
+    private void EditingProgramSetupChanged(ProgramSetupDto programSetup)
+    {
+        selectedProgramSetup = programSetup;
+        if (programSetup != null)
+        {
+            editingCourse.ProgramSetupId = programSetup.Id;
+            editingCourse.DepartmentId = programSetup.DepartmentId;
+            editingCourse.FacultyId = programSetup.FacultyId;
+        }
+    }
+
+    private async Task SaveCourse()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                // Ensure all required IDs are set
+                if (editingCourse.DepartmentId <= 0)
+                {
+                    Snackbar.Add("Department must be selected", Severity.Error);
+                    return;
+                }
+
+                if (editingCourse.ProgramSetupId <= 0)
+                {
+                    Snackbar.Add("Program Setup must be selected", Severity.Error);
+                    return;
+                }
+
+                if (editingCourse.LevelId <= 0 || editingCourse.DegreeId <= 0)
+                {
+                    Snackbar.Add("Level ID and Degree ID must be valid", Severity.Error);
+                    return;
+                }
+
+                // Ensure FacultyId is set from the selected program setup
+                if (selectedProgramSetup != null)
+                {
+                    editingCourse.FacultyId = selectedProgramSetup.FacultyId;
+                }
+
+                var result = await CourseRepository.UpdateCourse(editingCourse);
+                if (result != null)
+                {
+                    Snackbar.Add("Course updated successfully!", Severity.Success);
+                    await LoadCourses();
+                    CloseEditDialog();
+                }
+                else
+                {
+                    Snackbar.Add("Failed to update course.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void DeleteCourseDialog(CourseDto course)
+    {
+        courseToDelete = course;
+        deleteDialogVisible = true;
+    }
+
+    private async Task DeleteCourse()
+    {
+        try
+        {
+            await CourseRepository.DeleteCourse(courseToDelete.Id);
+            Snackbar.Add("Course deleted successfully!", Severity.Success);
+            await LoadCourses();
+            CloseDeleteDialog();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CloseEditDialog() => editDialogVisible = false;
+    private void CloseDeleteDialog() => deleteDialogVisible = false;
+
+    private void ProgramSetupChanged(ProgramSetupDto programSetup)
+    {
+        selectedProgramSetup = programSetup;
+        if (programSetup != null)
+        {
+            courseDto.ProgramSetupId = programSetup.Id;
+            courseDto.DepartmentId = programSetup.DepartmentId;
+            courseDto.FacultyId = programSetup.FacultyId;
+        }
+    }
+    private async Task DownloadCsvTemplate()
+    {
+        var csvContent = new StringBuilder();
+
+        // Header row
+        csvContent.AppendLine("Name,CourseCode,CourseUnit,Semester,courseCategory,DepartmentId,LevelId,DegreeId,Description,Prerequisite,Status");
+
+        // Example row
+        csvContent.AppendLine("Example Course,CSC101,3,First,1,1,1,1,Course Description,None,Active");
+
+        var bytes = Encoding.UTF8.GetBytes(csvContent.ToString());
+        await JS.InvokeVoidAsync("downloadFileFromStream", "course_template.csv", Convert.ToBase64String(bytes));
+    }
+
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            processing = true;
+            try
+            {
+                var result = await CourseRepository.CreateCourse(courseDto);
+                if (result != null)
+                {
+                    Snackbar.Add("Course added successfully!", Severity.Success);
+                    NavigationManager.NavigateTo("/courses");
+                }
+                else
+                {
+                    Snackbar.Add("Failed to add course.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                processing = false;
+            }
+        }
+    }
+    private async Task OnInputFileChanged(InputFileChangeEventArgs e)
+    {
+        csvErrors.Clear();
+        parsedCourses.Clear();
+
+        var file = e.File;
+        if (file == null) return;
+
+        try
+        {
+            using var stream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(stream);
+            stream.Position = 0;
+
+            using var reader = new StreamReader(stream);
+            using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    HasHeaderRecord = true,
+                    MissingFieldFound = null
+                });
+
+            // Validate headers
+            await csv.ReadAsync();
+            csv.ReadHeader();
+            var headers = csv.HeaderRecord;
+            var requiredHeaders = new[] {
+            "Name", "CourseCode", "CourseUnit", "Semester", "courseCategory",
+            "DepartmentId","LevelId", "DegreeId", "Description", "Prerequisite", "Status"
+        };
+
+            foreach (var header in requiredHeaders)
+            {
+                if (!headers.Contains(header))
+                {
+                    csvErrors.Add($"Missing required column: {header}");
+                }
+            }
+
+            if (csvErrors.Any()) return;
+
+            // Read and validate records
+            while (await csv.ReadAsync())
+            {
+                try
+                {
+                    var course = new CourseDto
+                        {
+                            Name = csv.GetField("Name"),
+                            CourseCode = csv.GetField("CourseCode"),
+                            CourseUnit = csv.GetField<int>("CourseUnit"),
+                            Semester = Enum.Parse<SemesterType>(csv.GetField("Semester")),
+                            courseCategory = Enum.Parse<CourseCategory>(csv.GetField("courseCategory")),
+                            DepartmentId = csv.GetField<long>("DepartmentId"),
+                            LevelId = csv.GetField<long>("LevelId"),
+                            DegreeId = csv.GetField<long>("DegreeId"),
+                            Description = csv.GetField("Description"),
+                            Prerequisite = csv.GetField("Prerequisite"),
+                            Status = csv.GetField("Status")
+                        };
+
+                    // Basic validation
+                    if (string.IsNullOrWhiteSpace(course.Name))
+                    {
+                        csvErrors.Add($"Row {csv.CurrentIndex + 1}: Course name cannot be empty");
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(course.CourseCode))
+                    {
+                        csvErrors.Add($"Row {csv.CurrentIndex + 1}: Course code cannot be empty");
+                        continue;
+                    }
+
+                    if (course.CourseUnit < 0 || course.CourseUnit > 6)
+                    {
+                        csvErrors.Add($"Row {csv.CurrentIndex + 1}: Course unit must be between 1 and 6");
+                        continue;
+                    }
+
+                    if (course.DepartmentId <= 0)
+                    {
+                        csvErrors.Add($"Row {csv.CurrentIndex + 1}: Department ID must be greater than 0");
+                        continue;
+                    }
+                    if (course.LevelId <= 0)
+                    {
+                        csvErrors.Add($"Row {csv.CurrentIndex + 1}: Level ID must be greater than 0");
+                        continue;
+                    }
+                    if (course.DegreeId <= 0)
+                    {
+                        csvErrors.Add($"Row {csv.CurrentIndex + 1}: Degree ID must be greater than 0");
+                        continue;
+                    }
+
+                    parsedCourses.Add(course);
+                }
+                catch (Exception ex)
+                {
+                    csvErrors.Add($"Error in row {csv.CurrentIndex + 1}: {ex.Message}");
+                }
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            csvErrors.Add($"Error reading CSV file: {ex.Message}");
+        }
+    }
+
+    private async Task ImportCourses()
+    {
+        if (!parsedCourses.Any() || csvErrors.Any()) return;
+
+        processing = true;
+        try
+        {
+            var importedCount = 0;
+            foreach (var course in parsedCourses)
+            {
+                // Set default values for required fields (except DepartmentId which comes from CSV)
+                course.ProgramSetupId = 1;
+                course.FacultyId = 1;
+
+
+                var result = await CourseRepository.CreateCourse(course);
+                if (result != null)
+                {
+                    importedCount++;
+                }
+            }
+
+            Snackbar.Add($"Successfully imported {importedCount} courses!", Severity.Success);
+            NavigationManager.NavigateTo("/ict/Dashboard");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error importing courses: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            processing = false;
+        }
+    }
+}

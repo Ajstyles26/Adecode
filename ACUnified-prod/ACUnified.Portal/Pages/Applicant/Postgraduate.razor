@@ -1,0 +1,311 @@
+﻿@page "/applicant/Postgraduate"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using FluentValidation
+@layout ACUnifiedLayout
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@using System.Security.Claims
+
+@inject ISnackbar snackBar
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IApplicationFormRepository applicationForm
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IPDFRepository pdfRepository
+@inject IJSRuntime JSRuntime
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+<MudContainer>
+    @if (currentApplicationForm == null)
+    {
+        <MudGrid>
+            @foreach (var item in paymentsetup)
+            {
+                <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                    <MudPaper Elevation="5" Class="menu-paper">
+                        <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                        <MudText Typo="Typo.h6">@item.Name</MudText>
+                        <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPaymentPage(item.Name, item.Amount)" FullWidth="true">Pay Now</MudButton>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+      
+    }
+    @if (currentApplicationForm != null)
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Application Form
+                    <MudCardActions>
+                        <MudButton ButtonType="ButtonType.Submit" Disabled="@(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Download</MudButton>
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Admission Letter
+                    <MudCardActions>
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto">Pending</MudButton> @(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage4)  *@
+                        <MudButton ButtonType="ButtonType.Submit" Disabled="false" OnClick="@(() => DownloadLetter())" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Download</MudButton>
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Acceptance Fee
+                    <MudCardActions>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Disabled="@(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage4)" Color="Color.Warning" Class="ml-auto">Make payment</MudButton>
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Download</MudButton> *@
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    TUITION FEES
+                    <MudCardActions>
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Disabled="@(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage4)" Class="ml-auto">Make Payment</MudButton>
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto">Make payment</MudButton> *@
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Download</MudButton> *@
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Hostel Allocated
+                    <MudCardActions>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Disabled="@(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage4)" Color="Color.Warning" Class="ml-auto">Make Payment</MudButton>
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success"  Class="ml-auto">Download</MudButton>  *@
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Process to Student Portal
+                    <MudCardActions>
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto">Pending</MudButton>  *@
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Disabled="@(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage4)" Color="Color.Success" Class="ml-auto">Continue</MudButton>
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+
+    <style>
+        .progress-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001; /* Ensure it's above the overlay */
+        }
+
+        .menu-item {
+            padding: 15px;
+        }
+
+        .menu-paper {
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+            .menu-paper:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            }
+
+        .menu-icon {
+            margin-bottom: 10px;
+        }
+    </style>
+</MudContainer>
+
+
+
+
+
+
+
+
+
+
+
+@code {
+    [Inject] ISnackbar Snackbar { get; set; }
+    private bool IsOverlayVisible = false;
+    MudForm form;
+    public bool _loading { get; set; }
+    public ApplicationFormDto currentApplicationForm = null;
+
+    ApplicantRegistrationModelFluentValidator orderValidator = new ApplicantRegistrationModelFluentValidator();
+
+
+    ApplicantRegistrationModel model = new ApplicantRegistrationModel();
+    List<ApplicationPaymentSetup> paymentsetup = new List<ApplicationPaymentSetup>();
+
+    private string GetIconForCategory(string category)
+    {
+        return category switch
+        {
+            "MSC" => Icons.Material.Filled.School,
+            "PHD" => Icons.Material.Filled.Book,
+            "PGD" => Icons.Material.Filled.LibraryBooks,
+            "DBA" => Icons.Material.Filled.LaptopChromebook,
+            _ => Icons.Material.Filled.School // default icon
+        };
+    }
+
+    public class ApplicantRegistrationModel
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+
+    }
+
+    public class ApplicationPaymentSetup
+    {
+        public string Name { get; set; }
+        public decimal Amount { get; set; }
+        public ApplicationPaymentSetup(string Name, decimal Amount)
+        {
+            this.Name = Name;
+            this.Amount = Amount;
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //var cuser=UserManager.GetUserName(User);
+        paymentsetup = new List<ApplicationPaymentSetup>()
+        {
+            new ApplicationPaymentSetup("MSC", 15000m),
+            new ApplicationPaymentSetup("PHD", 15000m),
+            new ApplicationPaymentSetup("PGD", 15000m),
+            new ApplicationPaymentSetup("MBA", 15000m),
+            new ApplicationPaymentSetup("DBA", 15000m),
+        };
+
+        if (userId != null)
+        {
+
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+
+            }
+        }
+        else
+        {
+            snackBar.Add("Please Login ", MudBlazor.Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+        }
+
+
+        //var user = await UserManager.GetUserAsync(Context.User);
+        //var customFieldValue = user?.;
+
+    }
+
+
+    private async Task Submit()
+    {
+        IsOverlayVisible = true;
+
+        await form.Validate();
+        await Task.Delay(3000);
+        if (form.IsValid)
+        {
+            Snackbar.Add("Submitted!", MudBlazor.Severity.Success);
+            Navigation.NavigateTo("/");  // Redirects to the home page
+        }
+        IsOverlayVisible = false;
+    }
+
+    void NavigateToPaymentPage(string name, decimal amount)
+    {
+        var url = $"/PayGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    private async Task DownloadLetter()
+    {
+        // Use the service to generate the PDF
+        LetterSettingsDto currentInfo=new LetterSettingsDto();
+        currentInfo.SchoolAddress="P.M.B 1066, Oyo Town, Oyo State, Nigeria.";
+        currentInfo.SchoolName = "Ajayi Crowther University";
+        using var pdfStream = new MemoryStream();
+        pdfRepository.GenerateAdmissionLetterPDF(currentApplicationForm, currentInfo, pdfStream);
+
+
+        // Convert the PDF stream to a byte array
+        var pdfBytes = pdfStream.ToArray();
+        // Convert byte array to base64 string
+        var base64 = Convert.ToBase64String(pdfBytes);
+        // Create a URL for the PDF
+        var url = $"data:application/pdf;base64,{base64}";
+        // Use JavaScript to trigger the download
+        await JSRuntime.InvokeVoidAsync("console.log", url);
+        // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+        await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "AdmissionLetter.pdf");
+    }
+
+    /// <summary>
+    /// A standard AbstractValidator which contains multiple rules and can be shared with the back end API
+    /// </summary>
+    /// <typeparam name="ApplicantRegistrationModel"></typeparam>
+    public class ApplicantRegistrationModelFluentValidator : AbstractValidator<ApplicantRegistrationModel>
+    {
+        public ApplicantRegistrationModelFluentValidator()
+        {
+            RuleFor(x => x.FirstName)
+                .NotEmpty()
+                .Length(1, 100);
+
+            RuleFor(x => x.LastName)
+               .NotEmpty()
+               .Length(1, 100);
+
+            RuleFor(x => x.PhoneNumber)
+              .NotEmpty()
+              .Length(1, 100);
+
+            RuleFor(x => x.Email)
+        .Cascade(CascadeMode.Stop)
+        .NotEmpty()
+        .EmailAddress()
+        .MustAsync(async (value, cancellationToken) => await IsUniqueAsync(value));
+
+
+
+
+
+        }
+
+        private async Task<bool> IsUniqueAsync(string email)
+        {
+            // Simulates a long running http call
+            await Task.Delay(2000);
+            return email.ToLower() != "test@test.com";
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<ApplicantRegistrationModel>.CreateWithOptions((ApplicantRegistrationModel)model, x => x.IncludeProperties(propertyName)));
+            if (result.IsValid)
+                return Array.Empty<string>();
+            return result.Errors.Select(e => e.ErrorMessage);
+        };
+    }
+}
+

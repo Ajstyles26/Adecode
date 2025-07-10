@@ -1,0 +1,267 @@
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@inject IProgramSetupRepository programSetupService
+@inject IApplicationFormRepository ApplicationFormDtoService
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository BiodataRepository
+@inject IAcademicQualificationRepository AcademicQualificationRepository
+@inject IOtherDetailsRepository OtherDetailsRepository
+@inject INextOfKinRepository NextOfKinRepository
+@inject IReferenceRepository ReferenceRepository
+@inject ILGARepository LGARepository
+@inject ICountryRepository CountryRepository
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILGARepository LGARepository
+@inject IProgramSetupRepository ProgramSetupRepository
+@attribute [Authorize(Roles = "AdmissionOfficePG")]
+
+<MudDialog>
+    <DialogContent>
+         <MudTabs>
+                    <MudTabPanel Text="Personal Information">
+                         <MudPaper Class="pa-4">
+                    @if (ApplicationFormDto != null)
+                    {
+
+
+                        <MudForm>
+
+                            <MudTextField T="string" Label="Surname" Value="@ApplicationFormDto.BioData.LastName" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="FirstName" Value="@ApplicationFormDto.BioData.FirstName" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Othernames" Value="@ApplicationFormDto.BioData.OtherName" Variant="Variant.Outlined" ReadOnly="true" />
+                             <MudTextField T="string" Label="Date Of Birth" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Gender" Value="@ApplicationFormDto.BioData.Gender" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Residential Address" Value="@ApplicationFormDto.BioData.Address" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Email" Value="@ApplicationFormDto.BioData.Email" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="State of Origin" Value="@ApplicationFormDto.BioData.State" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Local Government" Value="@ApplicationFormDto.BioData.LGA" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Nationality" Value="@ApplicationFormDto.BioData.Nationality" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Phone Number" Value="@ApplicationFormDto.BioData.MobileNumber" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Label="Marital Status" Value="@ApplicationFormDto.BioData.MaritalStatus" Variant="Variant.Outlined" ReadOnly="true" />
+
+                        </MudForm>
+                    }
+                </MudPaper>
+                    </MudTabPanel>
+                     <MudTabPanel Text="Otherdetails">
+                     <MudPaper Class="pa-4">
+                        @if (ApplicationFormDto != null)
+                        {
+                            <MudForm>
+                       <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.RedAddress" Label="Residential Address" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.PostalAddress" Label="Postal Address" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.ParentEmail" Label="Parent Email" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.PhoneNumber"Label="Phone No" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.Denomination"Label="Denomination" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.ParentName"Label="Parent Full Name" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.ContactAddress"Label="Contact Address" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.FatherNo"Label="Father's Phone Number" Variant="Variant.Outlined"/>
+                    <MudTextField T="string" Value="@ApplicationFormDto.OtherDetails.MotherNo"Label="Mother's Phone Number" Variant="Variant.Outlined"/>
+                            </MudForm>
+                        }
+                    </MudPaper>
+                </MudTabPanel>
+                                 <MudTabPanel Text="Next of Kin">
+                     <MudPaper Class="pa-4">
+                        @if (ApplicationFormDto != null)
+                        {
+                            <MudForm>
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.LastName" Label="Lastname" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.FirstName" Label="Firstname" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.OtherName" Label="Othernames" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.MobileNumber" Label="Phone Number" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.Email" Label="Email Address" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.Gender" Label="Gender" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.Occupation" Label="Occupation" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.Address" Label="Residential Address" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.LGA" Label="Local Government" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.NextOfKin.Relationship" Label="Relationship" Variant="Variant.Outlined" />
+                            </MudForm>
+                        }
+                    </MudPaper>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Reference">
+                   
+                     <MudPaper Class="pa-4">
+                        @if (ApplicationFormDto != null)
+                        {
+                            <MudForm>
+                <MudTextField T="string" Value="@ApplicationFormDto.References.FullName" Label="FullName" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Designation" Label="Designation" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Residential" Label="Residential" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.MobileNumber" Label="Phone Number" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Email" Label="Email Address" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.FullName2" Label="FullName" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Designation2" Label="Designation" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Residential2" Label="Residential" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.MobileNumber2" Label="Phone Number" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Email2" Label="Email Address" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.FullName3" Label="FullName" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Designation3" Label="Designation" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Residential3" Label="Residential" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.MobileNumber3" Label="Phone Number" Variant="Variant.Outlined" />
+                <MudTextField T="string" Value="@ApplicationFormDto.References.Email3" Label="Email Address" Variant="Variant.Outlined" />
+                            </MudForm>
+                        }
+                    </MudPaper>
+                </MudTabPanel>
+                
+                
+  
+                <MudTabPanel Text="Academic Information">
+                   
+                     <MudPaper Class="pa-4">
+                        @if (ApplicationFormDto != null)
+                        {
+                            <MudForm>
+                                <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.ExamType" Label="Exam Type" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.ExamNumber" Label="Exam Number" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="int" Value="@ApplicationFormDto.AcademicQualification.UTMEScore" Label="UTME Score" Variant="Variant.Outlined" ReadOnly="true" />
+                             <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.UTMESubject1" Label="UTME Subject" Variant="Variant.Outlined" ReadOnly="true" />
+                             <MudTextField T="int" Value="@ApplicationFormDto.AcademicQualification.UTMESubscore1" Label="UTME score" Variant="Variant.Outlined" ReadOnly="true" />
+                              <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.UTMESubject2" Label="UTME Subject" Variant="Variant.Outlined" ReadOnly="true" />
+                             <MudTextField T="int" Value="@ApplicationFormDto.AcademicQualification.UTMESubscore2" Label="UTME score" Variant="Variant.Outlined" ReadOnly="true" />
+                              <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.UTMESubject3" Label="UTME Subject" Variant="Variant.Outlined" ReadOnly="true" />
+                             <MudTextField T="int" Value="@ApplicationFormDto.AcademicQualification.UTMESubscore3" Label="UTME score" Variant="Variant.Outlined" ReadOnly="true" />
+                              <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.UTMESubject4" Label="UTME Subject" Variant="Variant.Outlined" ReadOnly="true" />
+                             <MudTextField T="int" Value="@ApplicationFormDto.AcademicQualification.UTMESubscore4" Label="UTME score" Variant="Variant.Outlined" ReadOnly="true" />
+                           <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Subject1 + " " + ApplicationFormDto.AcademicQualification.Grade1)"Label="O'level Subject" Variant="Variant.Outlined"ReadOnly="true" />
+                            <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Subject2 + " " + ApplicationFormDto.AcademicQualification.Grade2)"Label="O'level Subject" Variant="Variant.Outlined"ReadOnly="true" />
+                             <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Subject3 + " " + ApplicationFormDto.AcademicQualification.Grade3)"Label="O'level Subject" Variant="Variant.Outlined"ReadOnly="true" />
+                              <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Subject4 + " " + ApplicationFormDto.AcademicQualification.Grade4)"Label="O'level Subject" Variant="Variant.Outlined"ReadOnly="true" />
+                               <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Subject5 + " " + ApplicationFormDto.AcademicQualification.Grade5)"Label="O'level Subject" Variant="Variant.Outlined"ReadOnly="true" />
+                                <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Secondsubject1 + " " + ApplicationFormDto.AcademicQualification.Secondgrade1)"Label="O'level Second Sitting" Variant="Variant.Outlined"ReadOnly="true" />
+                            <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Secondsubject2 + " " + ApplicationFormDto.AcademicQualification.Secondgrade2)"Label="O'level Second Sitting" Variant="Variant.Outlined"ReadOnly="true" />
+                            <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Secondsubject3 + " " + ApplicationFormDto.AcademicQualification.Secondgrade3)"Label="O'level Second Sitting" Variant="Variant.Outlined"ReadOnly="true" />
+                            <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Secondsubject4 + " " + ApplicationFormDto.AcademicQualification.Secondgrade4)"Label="O'level Second Sitting" Variant="Variant.Outlined"ReadOnly="true" />
+                            <MudTextField T="string"Value="@(ApplicationFormDto.AcademicQualification.Secondsubject5 + " " + ApplicationFormDto.AcademicQualification.Secondgrade5)"Label="O'level Second Sitting" Variant="Variant.Outlined"ReadOnly="true" />
+                            <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.Choice1" Label="1st Choice" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudTextField T="string" Value="@ApplicationFormDto.AcademicQualification.Choice2" Label="2nd Choice" Variant="Variant.Outlined" ReadOnly="true" />
+                        </MudForm>
+                        }
+                    </MudPaper>
+                </MudTabPanel>
+
+
+
+                    
+                    <MudTabPanel Text="Action Taken">
+                         <MudPaper Class="pa-4">
+                             @if (ApplicationFormDto != null)
+                            {
+                                <MudItem xs="12" sm="6" md="4">
+                                <MudTextField T="string" Value="@ApplicationFormDto.Decision" Label="Decision" Variant="Variant.Outlined"ReadOnly="true" />
+                                <MudTextField T="string" Value="@ApplicationFormDto.DecisionComment" Label=" Comment" Variant="Variant.Outlined" ReadOnly="true" />
+                                <MudTextField T="string" Value="@ApplicationFormDto.ApprovedCourse" Label="Course" Variant="Variant.Outlined" ReadOnly="true" />
+                                </MudItem>  
+                                <MudItem xs="12" sm="6" md="4">
+                            <MudSelect Dense T="string" @bind-Value="@ApplicationFormDto.FinalisedDecision" Label="Decision Made" Variant="Variant.Outlined" Immediate="true">
+                                <MudSelectItem Value="@("Admitted")" />
+                                <MudSelectItem Value="@("Not Admitted ")" />
+                            </MudSelect>
+                            <MudTextField Dense T="string" Variant="Variant.Outlined" @bind-Value="@ApplicationFormDto.FinalisedComment"  Label="Comment" Immediate="true"></MudTextField>
+                            <MudSelect Dense T="string" Label="Approved Course" @bind-Value="@ApplicationFormDto.FinalisedCourse" Variant="Variant.Outlined">
+                                @foreach (var programSetup in ProgramSetups)
+                                {
+                                    <MudSelectItem Value="programSetup.Name" />
+                                }
+                            </MudSelect>
+                        </MudItem>
+                            }
+                         </MudPaper>
+                    </MudTabPanel>
+                    <!-- Add more tabs as needed -->
+                </MudTabs>
+                <MudButton OnClick="@CloseDialog">Close</MudButton>
+       
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    //[Parameter] public ProgramSetupDto ProgramSetup { get; set; }
+    public IEnumerable<BioDataDto> BioDataDto;
+
+
+    public ProgramSetupDto[] ProgramSetups;
+
+    [CascadingParameter]
+    MudDialogInstance DialogService { get; set; }
+    ApplicationFormDto ApplicationFormDto = new ApplicationFormDto();
+
+    [Parameter]
+    public string userId { get; set; }//= "435ea0ca-73ed-48ab-9d3a-1ad7c5183822";
+
+    public bool isDialogOpen;
+
+    private async Task Save()
+    {
+        try
+        {
+            var FinalProgram = ProgramSetups.Where(x => x.Name == ApplicationFormDto.FinalisedCourse).FirstOrDefault();
+            ApplicationFormDto.ProgramSetupId = FinalProgram.Id;
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            ApplicationFormDto.FinalizedUserId = userId;
+            ApplicationFormDto.FinalDecisionDate = DateTime.Now;
+            if (ApplicationFormDto.FinalisedDecision == "Admitted")
+            {
+                //Give the status of provisional Admission
+                ApplicationFormDto.ApplicantStage = ACUnified.Data.Enum.ApplicationStage.Stage5;
+            }
+            if (ApplicationFormDto.AcademicQualification.Modeofentry == "UTME")
+            {
+                //Give the status of provisional Admission
+                ApplicationFormDto.LevelId = 1;
+            }
+
+             if (ApplicationFormDto.AcademicQualification.Modeofentry == "DE")
+            {
+                //Give the status of provisional Admission
+                ApplicationFormDto.LevelId = 2;
+            }
+
+            await ApplicationFormRepository.UpdateApplicationForm(ApplicationFormDto);
+
+            snackBar.Add("Admission Finalization Saved.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+
+            snackBar.Add("Error saving records try again.", Severity.Error);
+        }          
+       
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(DialogResult.Cancel());
+    }
+
+    void CloseDialog()
+    {
+        isDialogOpen = false;
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        ApplicationFormDto = await ApplicationFormDtoService.GetApplicationFormByUserId(userId);
+        ProgramSetups=(await ProgramSetupRepository.GetAllProgramSetup()).ToArray();
+    }
+
+}
+    

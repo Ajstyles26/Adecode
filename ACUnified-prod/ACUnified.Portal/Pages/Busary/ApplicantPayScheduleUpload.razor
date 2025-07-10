@@ -1,0 +1,215 @@
+﻿@page "/busary/ApplicantPayScheduleUpload"
+@using System.Net.Http.Json
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Business.Services
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using Hangfire
+@inject IDialogService DialogService
+
+
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject IApplicantPayCategoryRepository PayCategoryRepository
+@inject IApplicantPayUploadCategoryBatchRepository PayUploadCategoryRepository
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "Bursary")]
+<MudContainer>
+    <MudText Typo="Typo.h6">Applicant Schedule Upload Management</MudText>
+    <MudTable ServerData="@(new Func<TableState, Task<TableData<ApplicantPayUploadCategoryBatchDto>>>(ServerReload))"
+              Dense="true" Hover="true" @ref="table">
+        <ToolBarContent>
+            <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
+                <ButtonTemplate>
+                    <MudButton HtmlTag="label"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Accept=".csv"
+                               StartIcon="@Icons.Material.Outlined.Add"
+                               for="@context.Id">
+                        Upload Excel Format Only
+                    </MudButton>
+                </ButtonTemplate>
+            </MudFileUpload>
+
+            <MudSpacer />
+            <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortLabel="name_field" T="ApplicantPayUploadCategoryBatch">Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="action_field0" T="ApplicantPayUploadCategoryBatch"></MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="action_field" T="ApplicantPayUploadCategoryBatch">Action</MudTableSortLabel></MudTh>
+            @* <MudTh><MudTableSortLabel SortLabel="department_field" T="PayCategory">Matric</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="programsetup_field" T="PayCategory">Amount</MudTableSortLabel></MudTh> *@
+            @* <MudTh><MudTableSortLabel SortLabel="position_field" T="PayCategory">Position</MudTableSortLabel></MudTh> *@
+            @* <MudTh><MudTableSortLabel SortLabel="mass_field" T="PayCategory">Molar mass</MudTableSortLabel></MudTh> *@
+        </HeaderContent>
+        <RowTemplate>
+            @if (@context != null)
+            {
+                <MudTd DataLabel="Name">
+                    <div @onclick="@(()=>NavigateToDetail(@context.Id))">@context.Name </div>
+                </MudTd>
+                <MudTd>
+                    <div @onclick="@(()=>NavigateToDetail1(@context.Id))">View Applicants</div>
+                </MudTd>
+                <MudTd>
+                    <MudIconButton @onclick="@(()=>DeleteBatch(@context.Id))" Icon="@Icons.Material.TwoTone.Delete"></MudIconButton>
+                </MudTd>
+               @*  <MudTd DataLabel="Matric">@context.ProgramSetup.Department.Name</MudTd>
+                <MudTd DataLabel="Amount">@context.ProgramSetup.Name</MudTd> *@
+                @* <MudTd DataLabel="Position">@context.Position</MudTd> *@
+                @* <MudTd DataLabel="Molar mass">@context.Molar</MudTd> *@
+            }
+
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudText>Loading...</MudText>
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+    @if (files != null)
+    {
+        <MudText Typo="@Typo.h6">@files.Count() File@(files.Count() == 1 ? "" : "s"):</MudText>
+        <MudList>
+            @foreach (var file in files)
+            {
+                <MudListItem Icon="@Icons.Material.Filled.AttachFile" @key="@file">
+                    @file.Name <code>@file.Size bytes</code>
+                </MudListItem>
+            }
+        </MudList>
+        <MudButton OnClick="ProcessSchedule" Disabled="@(!files.Any())" Variant="Variant.Filled" Color="Color.Primary">Process Schedule</MudButton>
+    }
+</MudContainer>
+
+
+@code {
+    private IEnumerable<ApplicantPayUploadCategoryBatchDto> pagedData;
+    private MudTable<ApplicantPayUploadCategoryBatchDto> table;
+    private int totalItems;
+    private string searchString = null;
+    IList<IBrowserFile> files = new List<IBrowserFile>();
+    public bool uploadDialogVisible = false;
+
+    private IEnumerable<ApplicantPayUploadCategoryBatchDto> data;
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllPayCategorysAsync();
+    }
+
+    private async Task GetAllPayCategorysAsync()
+    {
+        data = (await PayUploadCategoryRepository.GetAllPayUploadCategoryBatch()).ToList();
+    }
+    private async Task NavigateToDetail(long ApplicantPayCategoryId)
+    {
+        Navigation.NavigateTo($"/busary/applicantpayScheduleUploadDetails/{ApplicantPayCategoryId}");
+
+    }
+
+    private async Task NavigateToDetail1(long ApplicantPayCategoryId)
+    {
+        Navigation.NavigateTo($"/busary/applicantpayScheduleUploadDetailsStudent/{ApplicantPayCategoryId}");
+
+    }
+
+    private async Task DeleteBatch(long ApplicantPayCategoryId)
+    {
+        
+        var parameters = new DialogParameters<ConfirmationDialog>();
+        parameters.Add(x => x.ContentText, "Do you really want to delete these records? This process cannot be undone.");
+        parameters.Add(x => x.ButtonText, "Delete");
+        parameters.Add(x => x.Color, Color.Error);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall };
+
+        DialogService.Show<ConfirmationDialog>("Delete", parameters, options);
+    }
+
+
+    /// <summary>
+    /// Here we simulate getting the paged, filtered and ordered data from the server
+    /// </summary>
+    private async Task<TableData<ApplicantPayUploadCategoryBatchDto>> ServerReload(TableState state)
+    {
+        IEnumerable<ApplicantPayUploadCategoryBatchDto> data = (await PayUploadCategoryRepository.GetAllPayUploadCategoryBatch()).ToList();
+        await Task.Delay(300);
+
+        if (data != null)
+        {
+            data = data.Where(element =>
+       {
+           if (string.IsNullOrWhiteSpace(searchString))
+               return true;
+           if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+               return true;
+           // if (element.ProgramSetup.Department.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           // if (element.ProgramSetup.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           return false;
+       }).ToArray();
+            totalItems = data.Count();
+            switch (state.SortLabel)
+            {
+                case "name_field":
+                    data = data.OrderByDirection(state.SortDirection, o => o.Name);
+                    break;
+                // case "department_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Department.Name);
+                //     break;
+                // case "programsetup_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Name);
+                //     break;
+                    // case "position_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+                    //     break;
+                    // case "mass_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+                    //     break;
+            }
+
+            pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+            return new TableData<ApplicantPayUploadCategoryBatchDto>() { TotalItems = totalItems, Items = pagedData };
+        }
+        else return null;
+    }
+
+    private void OnSearch(string text)
+    {
+        searchString = text;
+        table.ReloadServerData();
+    }
+   
+    private void UploadFiles(IBrowserFile file)
+    {
+        files.Add(file);
+        //TODO upload the files to the server
+    }
+    private async void ProcessSchedule(){
+        //check if file count is greater than one throw exception
+        if(files.Count>1 || files.Count==0){
+            snackBar.Add("Error Processing Schedule. You can only process one schedule", Severity.Error);
+        }
+        else{
+
+            var currentfile = files.First();         
+            var stream = new MemoryStream();
+            await currentfile.OpenReadStream(maxAllowedSize: 1024 * 1024 * 50).CopyToAsync(stream);
+            var streamArray = stream.ToArray();
+            files = new List<IBrowserFile>();
+            // Enqueue the background job
+            var jobId = BackgroundJob.Enqueue<ApplicantPayScheduleService>(x => x.ProcessCSV(streamArray));
+           
+            snackBar.Add("Processing Schedule...", Severity.Success);
+
+        }
+    }
+}

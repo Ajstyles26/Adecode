@@ -1,0 +1,497 @@
+@page "/applicant/uploadDocuments"
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Enum
+@layout ACUnifiedLayout
+@inject IWebHostEnvironment WebHostEnvironment
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository biodataRepository
+@inject IApplicationDocumentRepository applicationDocumentRepository
+@inject IApplicationFormRepository applicationForm
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+<h4><MudIcon Icon="@Icons.Material.Filled.School" /> Upload Documents: ReUpload all Documents</h4>
+<div class="ml-5 py-4">
+<!--timeline -->
+   <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Other Details</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Next of kin</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Credentials</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Reference Info</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+     <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Credential Upload</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+</MudTimeline>
+<!-- end timeline -->
+<!--row 1-->
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudFileUpload T="IBrowserFile" Accept=".pdf" FilesChanged="UploadFiles1" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload Your O'Level
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudFileUpload T="IBrowserFile" Accept=".pdf" FilesChanged="UploadFiles2" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload 2nd Sitting (Optional)
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+
+        <MudFileUpload T="IBrowserFile" Accept=".pdf" FilesChanged="UploadFiles3" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload Jamb Result
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+
+        <MudFileUpload T="IBrowserFile" Accept=".jpg" FilesChanged="UploadFiles4" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload Passport
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudFileUpload T="IBrowserFile" Accept=".jpg,.png,.jpeg,.pdf" FilesChanged="UploadFiles5" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload  Reference 1
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudFileUpload T="IBrowserFile" Accept=".jpg,.png,.jpeg,.pdf" FilesChanged="UploadFiles6" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload  Reference 2
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudFileUpload T="IBrowserFile" Accept=".jpg,.png,.jpeg,.pdf" FilesChanged="UploadFiles7" MaximumFileCount="2">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    Upload  Reference 3
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+    </MudItem>
+     
+</MudGrid>
+<!-- end row 1-->
+<!-- row 2-->
+@if (files != null)
+    {
+<MudList>
+    @foreach (var file in files)
+            {
+    <MudListItem Icon="@Icons.Material.Filled.AttachFile">
+        @file.Name <code>@file.Size bytes</code>
+    </MudListItem>
+            }
+</MudList>
+    }
+<MudDivider />
+<br />
+<p>
+    I hereby declare that i wish to enter the University for the current session. The Particulars given in this form are correct
+    to the best of my knowledge and belief. If admitted to the University. I shall regard myself as bound by the ordinance, code of conduct,
+    statutes and regulations of the university as far as they affect me.
+</p>
+
+</div>
+
+  <MudGrid>
+            <div class="d-flex align-center justify-space-between ml-auto mt-2">
+               <MudButton @onclick="OpenDialog"Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary">
+   Finalise Application
+</MudButton>
+            </div>
+        </MudGrid>
+@code
+{
+    public IEnumerable<BioDataDto> BioDataDto;
+    IList<IBrowserFile> files = new List<IBrowserFile>();
+    public bool _loading { get; set; }
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+
+    public ApplicationDocumentDto Document1 = new ApplicationDocumentDto();
+    public ApplicationDocumentDto Document2 = new ApplicationDocumentDto();
+    public ApplicationDocumentDto Document3 = new ApplicationDocumentDto();
+    public ApplicationDocumentDto Document4 = new ApplicationDocumentDto();
+    public ApplicationDocumentDto Document5 = new ApplicationDocumentDto();
+    public ApplicationDocumentDto Document6 = new ApplicationDocumentDto();
+    public ApplicationDocumentDto Document7 = new ApplicationDocumentDto();
+    bool license_accepted = false;
+
+
+    private void UploadFiles(IReadOnlyList<IBrowserFile> files)
+    {
+        foreach (var file in files)
+        {
+            this.files.Add(file);
+        }
+        //TODO upload the files to the server
+    }
+    private async Task UploadFiles1(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document1.filename=fileName;
+        Document1.filepath = filePath;
+        Document1.ApplicationDocumentType = DocumentType.FirstOlevel;
+        Document1.UserId = userId;
+        var applicationDocumentVar=await applicationDocumentRepository.CreateApplicationDocument(Document1);
+        currentApplicationForm.ApplicationDocument1ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+    private async Task UploadFiles2(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document2.filename=fileName;
+        Document2.filepath = filePath;
+        Document2.ApplicationDocumentType = DocumentType.SecondOlevel;
+        Document2.UserId = userId;
+        var applicationDocumentVar = await applicationDocumentRepository.CreateApplicationDocument(Document2);
+        currentApplicationForm.ApplicationDocument2ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+
+    private async Task UploadFiles3(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document3.filename=fileName;
+        Document3.filepath = filePath;
+        Document3.ApplicationDocumentType = DocumentType.JAMB;
+        Document3.UserId = userId;
+        var applicationDocumentVar = await applicationDocumentRepository.CreateApplicationDocument(Document3);
+        currentApplicationForm.ApplicationDocument3ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+
+    private async Task UploadFiles5(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document5.filename = fileName;
+        Document5.filepath = filePath;
+        Document5.ApplicationDocumentType = DocumentType.References1;
+        Document5.UserId = userId;
+        var applicationDocumentVar = await applicationDocumentRepository.CreateApplicationDocument(Document5);
+        currentApplicationForm.ApplicationDocument5ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+private async Task UploadFiles4(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document4.filename = fileName;
+        Document4.filepath = filePath;
+        Document4.ApplicationDocumentType = DocumentType.Passport;
+        Document4.UserId = userId;
+        var applicationDocumentVar = await applicationDocumentRepository.CreateApplicationDocument(Document4);
+        currentApplicationForm.ApplicationDocument4ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+
+    private async Task UploadFiles6(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name) + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document6.filename = fileName;
+        Document6.filepath = filePath;
+        Document6.ApplicationDocumentType = DocumentType.References2;
+        Document6.UserId = userId;
+        var applicationDocumentVar = await applicationDocumentRepository.CreateApplicationDocument(Document6);
+        currentApplicationForm.ApplicationDocument6ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+
+     private async Task UploadFiles7(IBrowserFile file)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        files.Add(file);
+
+        var folderName = "Applications"; // Specify the name of the folder you want inside wwwroot
+        var folderPath = Path.Combine(WebHostEnvironment.WebRootPath, folderName);
+
+        // Check if the folder exists, and if not, create it
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        // Create a unique file name to avoid overwriting existing files
+        var fileName = $"{Guid.NewGuid()}" + Path.GetExtension(file.Name);
+        var filePath = Path.Combine(folderPath, fileName);
+
+        // Save the file to the specified folder
+        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await file.OpenReadStream().CopyToAsync(fileStream);
+        Document7.filename=fileName;
+        Document7.filepath = filePath;
+        Document7.ApplicationDocumentType = DocumentType.References3;
+        Document7.UserId = userId;
+        var applicationDocumentVar = await applicationDocumentRepository.CreateApplicationDocument(Document7);
+        currentApplicationForm.ApplicationDocument7ID = applicationDocumentVar.Id;
+        await applicationForm.UpdateApplicationForm(currentApplicationForm);
+        snackBar.Add("File Upload Completed", Severity.Info);
+    }
+    private async Task SomeMethodAsync()
+    {
+        //var user = await UserManager.GetUserAsync(Context.User);
+        //var customFieldValue = user?.CustomField;
+        // ... other code ...
+        //var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        //currentUser = authState.User;
+
+        //if (currentUser.Identity.IsAuthenticated)
+        //{
+        //    // The user is authenticated, and you can access their claims here.
+        //}
+    }
+
+    protected override async Task  OnInitializedAsync()
+    {
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            var BioDataDto = await biodataRepository.GetBioData(userId);
+        }
+        else
+        {
+            snackBar.Add("Please pay mandatory fees ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard",forceLoad:true);
+        }
+
+        if (userId != null)
+        {
+           
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+                var BioDataDto = await biodataRepository.GetBioData(userId);
+            }
+            else
+            {
+                snackBar.Add("Please pay mandatory fees ", Severity.Error);
+                Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+            }
+
+        }
+        else
+        {
+            snackBar.Add("Please pay mandatory fees ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+        }
+        _loading = false;
+        
+    }
+    private void OpenDialog()
+    {
+        var options = new DialogOptions { 
+            CloseOnEscapeKey = true
+        };
+        DialogService.Show<FinaliseApplicationModal> ("Finalise Application", options);
+    }
+    
+}

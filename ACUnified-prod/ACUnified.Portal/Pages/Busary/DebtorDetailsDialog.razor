@@ -1,0 +1,199 @@
+@* @using ACUnified.Data.DTOs
+@attribute [Authorize(Roles = "Bursary")]
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 600px; overflow-y: scroll">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Personal Information</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudField Label="Full Name" Variant="Variant.Text">@Debtor.FullName</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudField Label="Email" Variant="Variant.Text">@Debtor.Email</MudField>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Academic Information</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Program" Variant="Variant.Text">@Debtor.ProgramSetup?.Name</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Session" Variant="Variant.Text">@Debtor.Session?.Name</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Semester" Variant="Variant.Text">@Debtor.Semester?.Name</MudField>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Payment Information</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Expected Amount" Variant="Variant.Text">₦@Debtor.ExpectedAmount.ToString("N2")</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Paid Amount" Variant="Variant.Text">₦@Debtor.PaidAmount.ToString("N2")</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Outstanding Amount" Variant="Variant.Text">
+                                        <MudText Color="@(Debtor.OutstandingAmount > 0 ? Color.Error : Color.Success)">
+                                            ₦@Debtor.OutstandingAmount.ToString("N2")
+                                        </MudText>
+                                    </MudField>
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudText>Payment Progress</MudText>
+                                    <MudProgressLinear Color="@(Debtor.IsFullyPaid ? Color.Success : Color.Warning)" 
+                   Value="@((double)Debtor.PercentagePaid)" 
+                   Class="my-2">
+    <MudText Typo="Typo.body2">@Debtor.PercentagePaid.ToString("N0")%</MudText>
+</MudProgressLinear>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Payment Schedule</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" md="3">
+                                    <MudField Label="Installment 1" Variant="Variant.Text">₦@Debtor.PayInstalment1.ToString("N2")</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="3">
+                                    <MudField Label="Installment 2" Variant="Variant.Text">₦@Debtor.PayInstalment2.ToString("N2")</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="3">
+                                    <MudField Label="Installment 3" Variant="Variant.Text">₦@Debtor.PayInstalment3.ToString("N2")</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="3">
+                                    <MudField Label="Installment 4" Variant="Variant.Text">₦@Debtor.PayInstalment4.ToString("N2")</MudField>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Transaction Details</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Reference No" Variant="Variant.Text">@Debtor.ReferenceNo</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="RRR No" Variant="Variant.Text">@Debtor.RRRNo</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudField Label="Transaction ID" Variant="Variant.Text">@Debtor.TransactionId</MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudField Label="Transaction Status" Variant="Variant.Text">
+                                        <MudChip Color="@GetStatusColor(Debtor.TransactionStatus)">
+                                            @Debtor.TransactionStatus
+                                        </MudChip>
+                                    </MudField>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudField Label="Last Payment Date" Variant="Variant.Text">
+                                        @Debtor.LastPaymentDate.ToString("dd/MM/yyyy HH:mm")
+                                    </MudField>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                @if (!string.IsNullOrEmpty(Debtor.Description) || !string.IsNullOrEmpty(Debtor.Comments))
+                {
+                    <MudItem xs="12">
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">Additional Information</MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudGrid>
+                                    @if (!string.IsNullOrEmpty(Debtor.Description))
+                                    {
+                                        <MudItem xs="12">
+                                            <MudField Label="Description" Variant="Variant.Text">@Debtor.Description</MudField>
+                                        </MudItem>
+                                    }
+                                    @if (!string.IsNullOrEmpty(Debtor.Comments))
+                                    {
+                                        <MudItem xs="12">
+                                            <MudField Label="Comments" Variant="Variant.Text">@Debtor.Comments</MudField>
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public ApplicantDebtorListDto Debtor { get; set; }
+
+    private void Close() => MudDialog.Close();
+
+    private Color GetStatusColor(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "success" or "completed" or "paid" => Color.Success,
+            "pending" or "processing" => Color.Warning,
+            "failed" or "declined" => Color.Error,
+            _ => Color.Default
+        };
+    }
+} *@

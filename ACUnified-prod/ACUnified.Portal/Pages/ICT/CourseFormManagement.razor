@@ -1,0 +1,191 @@
+@page "/ict/CourseFormManagement"
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@layout ACUnifiedLayout
+@inject ICourseRegistrationRepository CourseRegistrationService
+@inject IApplicationFormRepository ApplicationFormService
+@inject ISnackbar Snackbar
+@inject IAcademicSessionRepository AcademicSessionService
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "ICT")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudCard Elevation="4">
+        <MudCardHeader>
+            <MudText Typo="Typo.h5">Course Form Management</MudText>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="searchFormRef"
+                                  Label="Search by Form Reference Number"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  @onkeyup="@((e) => SearchApplicationForm())" />
+                </MudItem>
+                <MudItem xs="12">
+                    @if (registrations != null && registrations.Any())
+                    {
+                        <MudTable Items="@registrations" Dense="true" Hover="true" Bordered="true">
+                            <HeaderContent>
+                                <MudTh>Course Code</MudTh>
+                                <MudTh>Course Name</MudTh>
+                                <MudTh>Units</MudTh>
+                                <MudTh>Level</MudTh>
+                                <MudTh>Department</MudTh>
+                                <MudTh>Category</MudTh>
+                                <MudTh>Semester Type</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Course?.CourseCode</MudTd>
+                                <MudTd>@context.Course?.Name</MudTd>
+                                <MudTd>@context.Course?.CourseUnit</MudTd>
+                                <MudTd>@context.Course?.Level?.Name</MudTd>
+                                <MudTd>@context.Course?.Department?.Name</MudTd>
+                                <MudTd>@context.Course?.courseCategory.ToString()</MudTd>
+                                <MudTd>@context.Course?.Semester.ToString()</MudTd>
+                                <MudTd>@context.Course?.Status</MudTd>
+                                <MudTd>
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Error"
+                                               OnClick="@(async () => await DeleteCourseRegistration(context))"
+                                               Size="Size.Small">
+                                        Delete
+                                    </MudButton>
+                                </MudTd>
+                            </RowTemplate>
+                            <FooterContent>
+                                <MudTd colspan="9">
+                                    <MudText Typo="Typo.body2">
+                                        Total Courses: @registrations.Count() |
+                                        Total Units: @registrations.Sum(r => r.Course?.CourseUnit ?? 0)
+                                    </MudText>
+                                </MudTd>
+                            </FooterContent>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No courses found for this application.</MudAlert>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="@(async () => await OpenAddCourseDialog())"
+                       Disabled="@(string.IsNullOrEmpty(searchFormRef))">
+                Add Course
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private string searchFormRef = "";
+    private IEnumerable<CourseRegistrationDto> registrations;
+    private bool isLoading = false;
+    private ApplicationFormDto currentApplicationForm;
+
+    private async Task SearchApplicationForm()
+    {
+        if (string.IsNullOrWhiteSpace(searchFormRef))
+            return;
+
+        isLoading = true;
+        try
+        {
+            var applications = await ApplicationFormService.GetAll();
+            currentApplicationForm = applications?.FirstOrDefault(x => x.FormRefNo == searchFormRef);
+
+            if (currentApplicationForm == null)
+            {
+                Snackbar.Add("Application form not found.", Severity.Warning);
+                registrations = null;
+                return;
+            }
+
+            registrations = await CourseRegistrationService.GetCourseRegistrationByApplicationFormId(currentApplicationForm.Id);
+
+            if (registrations == null || !registrations.Any())
+            {
+                Snackbar.Add("No courses found for this application.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading courses: " + ex.Message, Severity.Error);
+            registrations = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteCourseRegistration(CourseRegistrationDto registration)
+    {
+        if (registration.ApplicationFormId == null)
+        {
+            Snackbar.Add("Invalid course registration data: Missing application form", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            { "ContentText", "Are you sure you want to delete this course registration?" },
+            { "ButtonText", "Delete" },
+            { "Color", Color.Error }
+        };
+
+        var dialog = await DialogService.Show<ConfirmDialog>("Confirm Delete", parameters).Result;
+        if (!dialog.Canceled)
+        {
+            try
+            {
+                await CourseRegistrationService.DeleteCourseRegistrationByApplicationFormAndCourse(
+                    registration.ApplicationFormId.Value,
+                    registration.CourseId
+                );
+                Snackbar.Add("Course registration deleted successfully", Severity.Success);
+                await SearchApplicationForm();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error deleting course registration: " + ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenAddCourseDialog()
+    {
+        if (currentApplicationForm == null)
+        {
+            await SearchApplicationForm();
+            if (currentApplicationForm == null) return;
+        }
+
+        try
+        {
+            var parameters = new DialogParameters
+            {
+                { "ApplicationFormId", currentApplicationForm.Id },
+                { "FormRefNo", currentApplicationForm.FormRefNo }
+            };
+
+            var dialog = await DialogService.Show<AddCourseDialog>("Add Course", parameters).Result;
+            if (!dialog.Canceled)
+            {
+                await SearchApplicationForm();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error opening dialog: " + ex.Message, Severity.Error);
+        }
+    }
+}

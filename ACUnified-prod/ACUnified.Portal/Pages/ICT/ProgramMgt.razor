@@ -1,0 +1,101 @@
+@page "/ict/programgt"
+@layout ACUnifiedLayout
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@inject ISnackbar snackBar
+@inject IProgramSetupRepository programSetupService
+@inject IDepartmentRepository DepartmentRepository
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "ICT")]
+<h3>Program Management</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Add / Edit Program</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="programSetup.Name" Label=" Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        @* <MudTextField @bind-Value="programSetup.Faculty.Name" Label="Faculty Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField> *@
+        @* <MudTextField @bind-Value="programSetup.Department.Name" Label="Department Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField> *@
+        
+        <br />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Save">Save Program</MudButton>
+    </MudCardContent>
+</MudCard>
+<br />
+<MudTable Elevation="25"  Filter="new Func<ProgramSetupDto, bool>(Search)" @bind-Items="programSetups">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Program Name</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search for Program..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Faculty</MudTh>
+        <MudTh>Department</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Faculty">@context.Faculty.Name</MudTd>
+        <MudTd DataLabel="Department">@context.Department.Name</MudTd>
+        @* <MudTd DataLabel="Description">@context.Description</MudTd> *@
+        <MudTd DataLabel="">
+            <MudFab @onclick="@(()=>OpenEditDialog(@context.Id))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>Delete(@context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+</div>
+@code{
+    private string searchString = "";
+    private ProgramSetupDto programSetup = new ProgramSetupDto();
+    private List<ProgramSetupDto> programSetups = new List<ProgramSetupDto>();
+    protected override async Task OnInitializedAsync()
+    {
+        await GetProgramSetupAsync();
+    }
+    private async Task GetProgramSetupAsync()
+    {
+        programSetups = (await programSetupService.GetAllProgramSetup()).ToList();
+
+    }
+    private bool Search(ProgramSetupDto programSetup)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return programSetup.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        await programSetupService.CreateProgramSetup(programSetup);
+        programSetup = new ProgramSetupDto();
+        snackBar.Add("program setup Saved.", Severity.Success);
+        await GetProgramSetupAsync();
+    }
+    private async Task Edit(long id)
+    {
+        programSetup = await programSetupService.GetProgramSetup(id);
+    }
+    private async Task Delete(long id)
+    {
+        await programSetupService.DeleteProgramSetup(id);
+        snackBar.Add("Program Setup Deleted.", Severity.Success);
+        await GetProgramSetupAsync();
+    }
+    private async Task OpenEditDialog(long id)
+    {
+        var parameters = new DialogParameters { ["ProgramSetup"] = await programSetupService.GetProgramSetup(id) };
+        var dialog =  DialogService.Show<EditProgramMgtDialog>("Edit Program Setup", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await GetProgramSetupAsync();
+        }
+
+    }
+}

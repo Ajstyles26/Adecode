@@ -1,0 +1,189 @@
+@page "/bsc-applications/{stage:int}"
+@using Microsoft.AspNetCore.Components
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Business.Repository.IRepository
+@using MudBlazor
+@layout ACUnifiedLayout
+@using global::ACUnified.Business.Repository.IRepository
+@using global::ACUnified.Data.Enum
+@using global::ACUnified.Data.Models
+@using global::ACUnified.Data.DTOs
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+
+
+<MudCard Elevation="3" Class="mt-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <div class="d-flex align-center">
+                <MudButton Color="Color.Primary" 
+                          OnClick="NavigateBack"
+                          StartIcon="@Icons.Material.Filled.ArrowBack" 
+                          Size="Size.Small" 
+                          Class="mr-4">
+                    Back
+                </MudButton>
+                <MudText Typo="Typo.h5">BSc Applications - @GetStageName((ApplicationStage)Stage)</MudText>
+            </div>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTable Items="@applications" Dense="true" Hover="true" Bordered="true" Striped="true" 
+                  Loading="@isLoading" LoadingProgressColor="Color.Info" 
+                  Filter="new Func<ApplicationDetailsViewModel,bool>(FilterFunc)">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Applications Overview</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Form Reference</MudTh>
+                <MudTh>Name</MudTh>
+                <MudTh>Gender</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh>Finalized Course</MudTh>
+                <MudTh Style="text-align:center">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Form Reference">@context.FormRefNo</MudTd>
+                <MudTd DataLabel="Name">@context.FullName</MudTd>
+                <MudTd DataLabel="Gender">@context.Gender</MudTd>
+                <MudTd DataLabel="Email">@context.Email</MudTd>
+                <MudTd DataLabel="Finalized Course">@context.FinalisedCourse</MudTd>
+                <MudTd Style="text-align:center">
+                    <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                        <MudButton OnClick="@(() => ViewDetails(context.Id))"
+                                 StartIcon="@Icons.Material.Filled.Visibility"
+                                 Color="Color.Primary">
+                            Details
+                        </MudButton>
+                    </MudButtonGroup>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter]
+    public int Stage { get; set; }
+
+    private bool isLoading = true;
+    private string searchString = "";
+    private List<ApplicationDetailsViewModel> applications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApplications();
+    }
+
+    private async Task LoadApplications()
+    {
+        try
+        {
+            isLoading = true;
+            var stage = (ApplicationStage)Stage;
+            IEnumerable<ApplicationFormDto> applicationDtos = null;
+
+            // Get applications based on stage
+             applicationDtos = stage switch
+            {
+                ApplicationStage.Stage1 => await ApplicationFormRepository.GetBScNotPaidApplications(),
+                ApplicationStage.Stage2 => await ApplicationFormRepository.GetBScPaidNotSubmittedApplications(),
+                ApplicationStage.Stage3 => await ApplicationFormRepository.GetBScSubmittedApplications(),
+                ApplicationStage.Stage4 => await ApplicationFormRepository.GetBScDecisionMadeApplications(),
+                ApplicationStage.Stage5 => await ApplicationFormRepository.GetBScProvisionalAdmissionApplications(),
+                ApplicationStage.Stage6 => await ApplicationFormRepository.GetBScAcceptanceFeePaidApplications(),
+                ApplicationStage.Stage7 => await ApplicationFormRepository.GetBScSchoolFeesPaidApplications(),
+                ApplicationStage.Stage8 => await ApplicationFormRepository.GetBScHostelSelectionInProgressApplications(),
+                ApplicationStage.Stage9 => await ApplicationFormRepository.GetBScHostelSelectedApplications(),
+                ApplicationStage.Stage10 => await ApplicationFormRepository.GetBScMedicalFeePaidApplications(),
+                ApplicationStage.Stage11 => await ApplicationFormRepository.GetBScMatriculationFeePaidApplications(),
+                _ => throw new ArgumentException($"Invalid application stage: {stage}")
+            };
+
+            if (applicationDtos != null)
+            {
+                applications = applicationDtos.Select(app => new ApplicationDetailsViewModel
+                {
+                    Id = app.Id,
+                    FormRefNo = app.FormRefNo,
+                    FullName = GetFullName(app.BioData),
+                    Gender = app.BioData?.Gender,
+                    Email = app.BioData?.Email,
+                    FinalisedCourse = app.FinalisedCourse
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageBox("Error", $"Error loading applications: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetFullName(BioData bioData)
+    {
+        if (bioData == null) return string.Empty;
+        return $"{bioData.LastName} {bioData.FirstName} {bioData.OtherName}".Trim();
+    }
+
+    private bool FilterFunc(ApplicationDetailsViewModel application)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        return application.FormRefNo?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               application.FullName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               application.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               application.FinalisedCourse?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
+    }
+ 
+ private void NavigateBack()
+{
+    NavigationManager.NavigateTo("/ict/rolesmangement");
+}
+    private string GetStageName(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => "Not Paid",
+            ApplicationStage.Stage2 => "Paid Not Submitted",
+            ApplicationStage.Stage3 => "Submitted",
+            ApplicationStage.Stage4 => "Decision Made",
+            ApplicationStage.Stage5 => "Provisional Admission",
+            ApplicationStage.Stage6 => "Acceptance Fee Paid",
+            ApplicationStage.Stage7 => "School Fees Paid",
+            ApplicationStage.Stage8 => "Hostel Selection",
+            ApplicationStage.Stage9 => "Hostel Confirmed",
+            ApplicationStage.Stage10 => "Medical",
+            ApplicationStage.Stage11 => "Matriculation",
+            _ => "Unknown Stage"
+        };
+    }
+
+    private async Task ViewDetails(long applicationId)
+    {
+        // Navigate to details page
+        NavigationManager.NavigateTo($"/application-details/{applicationId}");
+    }
+
+    public class ApplicationDetailsViewModel
+    {
+        public long Id { get; set; }
+        public string FormRefNo { get; set; }
+        public string FullName { get; set; }
+        public string Gender { get; set; }
+        public string Email { get; set; }
+        public string FinalisedCourse { get; set; }
+    }
+}

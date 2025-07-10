@@ -1,0 +1,203 @@
+@page "/ict/calculator"
+@using System.Globalization
+@layout ACUnifiedLayout
+@using System.IO
+@using System.Linq
+@using System.Threading.Tasks
+@using System.IO.Compression
+@using CsvHelper
+@using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JS
+
+<h3>CSV Processor</h3>
+
+<div>
+    <h4>Upload Files</h4>
+    <p>1. Upload department mapping file (CSV with Form Ref No and Department)</p>
+    <p>2. Upload grade files (CSVs with student grades)</p>
+    
+    <InputFile multiple OnChange="@OnInputFileChange" />
+    <p>You can upload up to 10 files at once (1 department mapping file + up to 9 grade files)</p>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p style="color: red;">@errorMessage</p>
+    }
+</div>
+
+@if (formattedFiles.Any())
+{
+    <h4>Formatted Files</h4>
+    <div>
+        @foreach (var (fileName, content) in formattedFiles)
+        {
+            <button @onclick="() => DownloadFile(fileName, content)" class="m-1">
+                Download @fileName
+            </button>
+        }
+        
+        <div class="mt-3">
+            <button @onclick="DownloadAllFiles" class="btn btn-primary">
+                Download All Files
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private Dictionary<string, List<(string LastName, string FirstName, string Grade10)>> gradeCache = new();
+    private Dictionary<string, string> departmentMappings = new(); // Maps Form Ref No to Department
+    private List<(string FileName, byte[] Content)> formattedFiles = new();
+    private string? errorMessage;
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        gradeCache.Clear();
+        departmentMappings.Clear();
+        formattedFiles.Clear();
+        errorMessage = null;
+
+        var files = e.GetMultipleFiles(10); // Allow up to 10 files: department mapping + up to 9 grade files
+        if (files.Count < 2)
+        {
+            errorMessage = "Please upload at least 2 CSV files (1 department mapping file and at least 1 grade file).";
+            StateHasChanged();
+            return;
+        }
+
+        // First, process the department mapping file (assuming it's the first file)
+        try
+        {
+            var deptFile = files[0];
+            using var stream = deptFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+
+            await csv.ReadAsync();
+            csv.ReadHeader();
+
+            // Assuming the department file has "Form Ref No" and "Department" columns
+            while (await csv.ReadAsync())
+            {
+                var formRefNo = csv.GetField("Form Ref No") ?? "";
+                var department = csv.GetField("Finalised Course") ?? ""; // Using "Finalised Course" as Department
+                
+                if (!string.IsNullOrEmpty(formRefNo))
+                {
+                    departmentMappings[formRefNo] = department;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing department mapping file: {ex.Message}";
+            StateHasChanged();
+            return;
+        }
+
+        // Process the grade files (the remaining two files)
+        for (int i = 1; i < files.Count; i++)
+        {
+            var file = files[i];
+            try
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var reader = new StreamReader(stream);
+                using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+
+                await csv.ReadAsync();
+                csv.ReadHeader();
+
+                var records = new List<(string LastName, string FirstName, string Grade10)>();
+                while (await csv.ReadAsync())
+                {
+                    var lastName = csv.GetField("Last name") ?? "";
+                    var firstName = csv.GetField("First name") ?? "";
+                    var grade10 = csv.GetField("Grade/10.00") ?? "0.00";
+                    records.Add((lastName, firstName, grade10));
+                }
+
+                gradeCache[file.Name] = records;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error processing {file.Name}: {ex.Message}";
+                StateHasChanged();
+                return;
+            }
+        }
+
+        await FormatCachedCsvs();
+    }
+
+    private async Task FormatCachedCsvs()
+    {
+        foreach (var (fileName, records) in gradeCache)
+        {
+            using var memoryStream = new MemoryStream();
+            using var writer = new StreamWriter(memoryStream);
+            using var csvWriter = new CsvWriter(writer, CultureInfo.InvariantCulture);
+
+            // Write headers
+            csvWriter.WriteField("Last name");
+            csvWriter.WriteField("First name");
+            csvWriter.WriteField("Department");  // New header for department
+            csvWriter.WriteField("Grade/70");
+            csvWriter.WriteField("Grade/100");
+            await csvWriter.NextRecordAsync();
+
+            // Write records
+            foreach (var record in records)
+            {
+                double grade10 = double.TryParse(record.Grade10, NumberStyles.Any, CultureInfo.InvariantCulture, out double val) ? val : 0.0;
+                string grade70 = (grade10 * 7).ToString("F2", CultureInfo.InvariantCulture);
+                string grade100 = (grade10 * 10).ToString("F2", CultureInfo.InvariantCulture);
+
+                // Look up department from mapping - using firstName as the key (which corresponds to Form Ref No)
+                string department = "";
+                if (departmentMappings.TryGetValue(record.FirstName, out var dept))
+                {
+                    department = dept;
+                }
+
+                csvWriter.WriteField(record.LastName);
+                csvWriter.WriteField(record.FirstName);
+                csvWriter.WriteField(department);  // Add department to the output
+                csvWriter.WriteField(grade70);
+                csvWriter.WriteField(grade100);
+                await csvWriter.NextRecordAsync();
+            }
+
+            await writer.FlushAsync();
+            formattedFiles.Add(($"Formatted_{fileName}", memoryStream.ToArray()));
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task DownloadFile(string fileName, byte[] content)
+    {
+        var base64String = Convert.ToBase64String(content);
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, base64String);
+    }
+    
+    private async Task DownloadAllFiles()
+    {
+        if (!formattedFiles.Any())
+            return;
+            
+        using var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            foreach (var (fileName, content) in formattedFiles)
+            {
+                var entry = archive.CreateEntry(fileName);
+                using var entryStream = entry.Open();
+                await entryStream.WriteAsync(content, 0, content.Length);
+            }
+        }
+        
+        var zipContent = memoryStream.ToArray();
+        var base64String = Convert.ToBase64String(zipContent);
+        await JS.InvokeVoidAsync("downloadFileFromStream", "AllFormattedFiles.zip", base64String);
+    }
+}

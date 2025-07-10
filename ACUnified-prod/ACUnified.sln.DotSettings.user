@@ -1,0 +1,14 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002EFingerCode3_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAfis_002EImageContainer_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002EQualityCheck_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002EFourprintSegmentation_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAfis_002EImageIO_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002ENFIQ_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAfis_002ENistQualityCheck_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002ETwoPrintSegmentation_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EImaging_002ECapturing_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002ECM_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=_002FUsers_002Fapple_002FDownloads_002FDarmalog_002FServer_002FDermalog_002EAFIS_002EDrawing_002ECompression_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:String x:Key="/Default/Environment/Hierarchy/Build/BuildTool/CustomBuildToolPath/@EntryValue">/usr/local/share/dotnet/sdk/7.0.311/MSBuild.dll</s:String>
+	</wpf:ResourceDictionary>

@@ -1,0 +1,309 @@
+@page "/Payment/ProcessTransactionLogReceipt7"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@using System.Text.RegularExpressions
+@using ACUnified.Data.Payloads
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentRepository paymentRepository
+@inject IApplicantPaymentLogRepository paymentRepositoryLog
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject IHostelRoomsRepository HostelRoomsRepository
+@inject IHostelAllocationRepository HostelAllocationRepository
+@inject HttpClient Http
+
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using ACUnified.Portal.Pages
+
+@inject SignInManager<ApplicationUser> SignInManager
+@attribute [Authorize]
+
+<LoadingOverlay IsLoading="@_loading" />
+<MudBlazor.MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Payment Receipt</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@RRR" Label="RRR" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="@OrderID" Label="Order ID" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="decimal?" @bind-Value="@RRResponse.amount" Label="Amount" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    @if(RRResponse.status=="00"){
+                        <MudField Label="Status" ReadOnly="true">Successful Transaction</MudField>
+                    }
+                    @if (RRResponse.status != "00")
+                    {
+                        <MudField Label="Status" ReadOnly="true">Pending/Failed Transaction</MudField>
+                    }
+                </MudItem>
+                @if(RRResponse.status=="00"){
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnSuccessClickAsync" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Continue</MudButton>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+    </MudGrid>
+</MudBlazor.MudContainer>
+
+@code {
+    private string RRR { get; set; } = "";
+    private string OrderID { get; set; } = "";
+    public bool _loading { get; set; }
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentDto currentApplicantPayment = new ApplicantPaymentDto();
+    PaymentResponse RRResponse = new PaymentResponse();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        
+        await CleanupPendingAllocations();
+        
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+
+        if (queryParams.TryGetValue("RRR", out var rrrValue))
+        {
+            RRR = rrrValue;
+        }
+
+        if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        {
+            OrderID = orderIDValue;
+        }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string serviceTypeId = "14649764100"; 
+
+        string apiHashString = RRR+apiKey+merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+
+            // ONLY proceed with updates if payment is EXPLICITLY successful (status "00")
+            if (RRResponse.status == "00")
+            {
+                currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                if (currentApplicationForm != null)
+                {
+                    // Update application stage ONLY after successful payment
+                    currentApplicationForm.ApplicantStage = ApplicationStage.Stage13;
+                    await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                    // Complete room allocation ONLY after successful payment
+                    await CompleteRoomAllocation();
+
+                    if (currentSession.Count() > 0)
+                    {
+                        currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+                    }
+                    else
+                    {
+                        currentApplicationForm.SessionId = 14;
+                    }
+
+                    var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(OrderID);
+                    var payLogItem = paylog.FirstOrDefault();
+
+                    if (payLogItem != null)
+                    {
+                        currentApplicantPayment = new ApplicantPaymentDto
+                        {
+                            ReferenceNo = OrderID,
+                            Amount = payLogItem.Amount,
+                            email = payLogItem.email,
+                            client_name = payLogItem.client_name,
+                            Comments = payLogItem.Comments,
+                            isSuccessful = true,
+                            RRRRNo = RRResponse.RRR,
+                            ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                            ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                            UserId = userId,
+                            ApplicationFormId = currentApplicationForm.Id
+                        };
+                        var currentSessionList = await currentAcademicSession.GetActiveApplicantSession();
+                        currentApplicantPayment.SessionId = currentSessionList.FirstOrDefault().Id;
+
+                        var payVerify = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+                        if (payVerify.Count() == 0)
+                        {
+                            await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"No application form found for user {userId}");
+                    snackBar.Add("No application form found.", Severity.Error);
+                }
+            }
+            else
+            {
+                // Handle unsuccessful or pending transactions
+                snackBar.Add($"Payment not successful. Status: {RRResponse.status}", Severity.Error);
+                
+                // Optionally, revert any pending allocations
+                await RevertPendingAllocations(userId);
+            }
+
+            Console.WriteLine("+++ RRR Status Response: " + response);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing payment: {ex.Message}");
+            snackBar.Add($"Error processing payment: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+    }
+
+    // New method to revert pending allocations if payment fails
+    private async Task RevertPendingAllocations(string userId)
+    {
+        try 
+        {
+            var applicationFormDto = await applicationForm.GetApplicationFormByUserId(userId);
+            if (applicationFormDto == null) return;
+
+            var allocations = await HostelAllocationRepository.GetAllocationsByApplicationFormId(applicationFormDto.Id);
+            var pendingAllocation = allocations.FirstOrDefault(a => a.CurrentStatus == AllocationStatus.Pending);
+
+            if (pendingAllocation != null)
+            {
+                var room = await HostelRoomsRepository.GetRoomById(pendingAllocation.HostelRoomId);
+
+                if (room != null)
+                {
+                    // Revert room status
+                    room.OccupancyStatus = OccupancyStatus.Vacant;
+                    room.Capacity += 1;
+                    await HostelRoomsRepository.UpdateHostelRooms(room);
+
+                    // Delete or cancel the pending allocation
+                    await HostelAllocationRepository.DeleteHostelAllocation(pendingAllocation.Id);
+
+                    Console.WriteLine($"Reverted pending allocation for user {userId}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reverting pending allocations: {ex.Message}");
+        }
+    }
+
+    private async Task CleanupPendingAllocations()
+{
+    try 
+    {
+        var twentyFourHoursAgo = DateTime.Now.AddHours(-24);
+        var pendingAllocations = await HostelAllocationRepository.GetPendingAllocationsOlderThan(twentyFourHoursAgo);
+
+        foreach (var allocation in pendingAllocations)
+        {
+            var room = await HostelRoomsRepository.GetRoomById(allocation.HostelRoomId);
+
+            if (room != null)
+            {
+                room.OccupancyStatus = OccupancyStatus.Vacant;
+                room.Capacity += 1;
+                await HostelRoomsRepository.UpdateHostelRooms(room);
+
+                await HostelAllocationRepository.DeleteHostelAllocation(allocation.Id);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error cleaning up pending allocations: {ex.Message}");
+    }
+}
+
+private async Task CompleteRoomAllocation()
+{
+    try 
+    {
+        // Retrieve the pending allocation
+        var allocations = await HostelAllocationRepository.GetAllocationsByApplicationFormId(currentApplicationForm.Id);
+        var pendingAllocation = allocations.FirstOrDefault(a => a.CurrentStatus == AllocationStatus.Pending);
+
+        if (pendingAllocation != null)
+        {
+            var room = await HostelRoomsRepository.GetRoomById(pendingAllocation.HostelRoomId);
+
+            if (room != null)
+            {
+                // Change allocation status to Active
+                pendingAllocation.CurrentStatus = AllocationStatus.Active;
+                await HostelAllocationRepository.UpdateHostelAllocation(pendingAllocation);
+
+                // Update room occupancy status
+                room.OccupancyStatus = OccupancyStatus.Occupied;
+                room.Capacity -= 1;
+                await HostelRoomsRepository.UpdateHostelRooms(room);
+
+                Console.WriteLine($"Room {room.RoomNumber} successfully allocated");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error completing room allocation: {ex.Message}");
+    }
+}
+
+private async Task OnSuccessClickAsync()
+{
+
+       await CompleteRoomAllocation();
+        
+        Navigation.NavigateTo("/applicant/dashboard");
+}
+}

@@ -1,0 +1,37 @@
+
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@inject IProgramSetupRepository programSetupService
+@inject ISnackbar snackBar
+@attribute [Authorize(Roles = "ICT")]
+<MudDialog>
+    <DialogContent>
+        <MudForm>
+            <MudTextField @bind-Value="ProgramSetup.Name" Label="Program Name" Variant="Variant.Outlined" Margin="Margin.Normal" />
+            @* <MudTextField @bind-Value="ProgramSetup.Department.Name" Label="Department" Variant="Variant.Outlined" Margin="Margin.Normal" /> *@
+            @* <MudTextField @bind-Value="ProgramSetup.Faculty.Name" Label="Faculty" Variant="Variant.Outlined" Margin="Margin.Normal" /> *@
+           
+            <!-- Add other fields as necessary -->
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public ProgramSetupDto ProgramSetup { get; set; }
+    [CascadingParameter] MudDialogInstance DialogService { get; set; }
+    private async Task Save()
+    {
+        await programSetupService.UpdateProgramSetup(ProgramSetup);
+        DialogService.Close(DialogResult.Ok(true));
+        snackBar.Add("Program Setup Saved.", Severity.Success);
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(DialogResult.Cancel());
+    }
+}

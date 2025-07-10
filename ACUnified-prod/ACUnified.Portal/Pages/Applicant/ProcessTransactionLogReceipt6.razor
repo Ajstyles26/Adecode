@@ -1,0 +1,207 @@
+@page "/applicant/ProcessTransactionLogReceipt6"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using System.Net.Http
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentRepository paymentRepository
+@inject IApplicantPaymentLogRepository paymentRepositoryLog
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject IApplicantDebtorListRepository debtorRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject HttpClient Http
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+
+@attribute [Authorize]
+<LoadingOverlay IsLoading="@_loading" />
+<MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Payment Receipt</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@RRR" Label="RRR" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="@OrderID" Label="Order ID" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Value="@(RRResponse.amount.ToString("N2"))" Label="Amount" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                   @if(RRResponse.status=="00"){
+                        <MudField Label="Status" ReadOnly="true">Successful Transaction</MudField>
+                    }
+                    else
+                    {
+                        <MudField Label="Status" ReadOnly="true">Pending Transaction</MudField>
+                    }
+                </MudItem>
+                @if(RRResponse.status=="00"){
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnSuccessClickAsync" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Continue</MudButton>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private string RRR { get; set; } = "";
+    private string OrderID { get; set; } = "";
+    public bool _loading { get; set; }
+
+    private ApplicationFormDto currentApplicationForm = new();
+    private ApplicantPaymentDto currentApplicantPayment = new();
+    private PaymentResponse RRResponse = new();
+    private IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        try 
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+            if (queryParams.TryGetValue("RRR", out var rrrValue))
+            {
+                RRR = rrrValue;
+            }
+
+            if (queryParams.TryGetValue("orderID", out var orderIDValue))
+            {
+                OrderID = orderIDValue;
+            }
+
+            // Verify payment with Remita
+            string merchantId = "2268484533";
+            string apiKey = "018543";
+            string LIVE = "https://login.remita.net";
+
+            string apiHashString = RRR + apiKey + merchantId;
+            using var sha512 = System.Security.Cryptography.SHA512.Create();
+            var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+            string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+            string rrrStatusPath = $"/remita/exapp/api/v1/send/api/echannelsvc/{merchantId}/{RRR}/{apiHash}/status.reg";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{LIVE}{rrrStatusPath}");
+            request.Headers.Add("Content-Type", "application/json");
+            request.Headers.Add("Authorization", $"remitaConsumerKey={merchantId},remitaConsumerToken={apiHash}");
+
+            var response = await Http.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(responseContent);
+
+            if (RRResponse.status == "00")
+            {
+                // Get application form
+                currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                if (currentApplicationForm != null)
+                {
+                    // Update application stage
+                    currentApplicationForm.ApplicantStage = ApplicationStage.Stage12;
+                    await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                    // Get payment log
+                    var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(OrderID);
+                    var payLogItem = paylog.FirstOrDefault();
+
+                    if (payLogItem != null)
+                    {
+                        // Get current session
+                        currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                        var sessionId = currentSession.FirstOrDefault()?.Id ?? 14;
+
+                        // Create payment record
+                        currentApplicantPayment = new ApplicantPaymentDto
+                        {
+                            ReferenceNo = OrderID,
+                            Amount = payLogItem.Amount,
+                            email = payLogItem.email,
+                            client_name = payLogItem.client_name,
+                            Comments = payLogItem.Comments,
+                            isSuccessful = true,
+                            RRRRNo = RRResponse.RRR,
+                            ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                            ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                            ApplicationFormId = currentApplicationForm.Id,
+                            UserId = userId,
+                            SessionId = sessionId
+                        };
+
+                        // Save payment if it doesn't exist
+                        var payVerify = await paymentRepository.GetAllPaymentByReferenceNo(OrderID);
+                        if (!payVerify.Any())
+                        {
+                            await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+
+                            // Update debtor record
+                            var debtorRecords = await debtorRepository.GetByApplicationFormIdAsync(currentApplicationForm.Id);
+                            var debtorRecord = debtorRecords.FirstOrDefault();
+
+                            if (debtorRecord != null)
+                            {
+                                // Create updated debtor record
+                                var updatedDebtor = new ApplicantDebtorList
+                                {
+                                    Id = debtorRecord.Id,
+                                    ApplicationFormId = debtorRecord.ApplicationFormId,
+                                    OutstandingAmount = debtorRecord.OutstandingAmount - payLogItem.Amount,
+                                    DueDate = DateTime.Now.AddMonths(1),
+                                    PaymentPlan = OrderID.Contains("SecondInstalment") ? 
+                                        (debtorRecord.OutstandingAmount - payLogItem.Amount > 0 ? PayPlan.SecondInstalment : PayPlan.SecondThirdInstalment) 
+                                        : PayPlan.SecondThirdInstalment,
+                                    SemesterId = debtorRecord.SemesterId,
+                                    SessionId = sessionId,
+                                    InstitutionProviderId = debtorRecord.InstitutionProviderId
+                                };
+
+                                // Update the record
+                                await debtorRepository.UpdateAsync(updatedDebtor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            snackBar.Add($"Error processing payment: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error details: {ex}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSuccessClickAsync()
+    {
+        Navigation.NavigateTo("/applicant/dashboard");
+    }
+
+    public class PaymentResponse
+    {
+        public string status { get; set; }
+        public string RRR { get; set; }
+        public decimal amount { get; set; }
+    }
+}

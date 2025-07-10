@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <COMReference Include="{d37e2a3e-8545-3a39-9f4f-31827c9124ab}">
+      <WrapperTool>tlbimp</WrapperTool>
+      <VersionMinor>4</VersionMinor>
+      <VersionMajor>2</VersionMajor>
+      <Guid>d37e2a3e-8545-3a39-9f4f-31827c9124ab</Guid>
+    </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Dermalog.AFIS.CM">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.CM.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.AFIS.Drawing.Compression">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.Drawing.Compression.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.Afis.FingerCode3">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.FingerCode3.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.AFIS.FourprintSegmentation">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.FourprintSegmentation.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.Afis.ImageContainer">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.Afis.ImageContainer.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.Afis.ImageIO">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.Afis.ImageIO.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.AFIS.NFIQ">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.NFIQ.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.Afis.NistQualityCheck">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.Afis.NistQualityCheck.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.Afis.QualityCheck">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.QualityCheck.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.AFIS.TwoPrintSegmentation">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.AFIS.TwoPrintSegmentation.dll</HintPath>
+    </Reference>
+    <Reference Include="Dermalog.Imaging.Capturing">
+      <HintPath>..\..\DermalogResources\Server\Dermalog.Imaging.Capturing.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

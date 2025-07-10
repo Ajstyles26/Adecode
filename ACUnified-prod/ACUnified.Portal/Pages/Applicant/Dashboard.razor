@@ -1,0 +1,1489 @@
+﻿@page "/applicant/Dashboard"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Business.Services.IServices
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using FluentValidation
+@layout ACUnifiedLayout
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@inject IHostelAllocationRepository HostelAllocationRepository
+@using System.Security.Claims
+@using System;
+@using System.IO;
+@using System.Drawing.Imaging;
+@using MudBlazor
+@inject IHTMLTemplateFileService _HTMLTemplate;
+@inject IHTML2PDFService _HTML2PDFService;
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@inject IProgramSetupRepository ProgramSetupRepository
+@inject ISnackbar snackBar
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IApplicationFormRepository applicationForm
+@inject IApplicationDocumentRepository appdocs
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IPDFRepository pdfRepository
+@inject IJSRuntime JSRuntime
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+<MudContainer>
+    @if (currentApplicationForm == null)
+    {
+        <MudGrid>
+            @foreach (var item in paymentsetup)
+            {
+                @if (item.Name == "Postgraduate")
+                {
+                    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                        <MudPaper Elevation="5" Class="menu-paper">
+                            <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">@item.Name</MudText>
+                            <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+@*                             <MudButton  Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPostgraduate()" FullWidth="true">Pay Now</MudButton>
+ *@                        </MudPaper>
+                    </MudItem>
+                }
+                else if (item.Name == "Part-Time")
+                {
+                    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                        <MudPaper Elevation="5" Class="menu-paper">
+                            <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">@item.Name</MudText>
+                            <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPartTime()" FullWidth="true">Pay Now</MudButton>
+                        </MudPaper>
+                    </MudItem>
+                }
+                 else if (item.Name == "Undergraduate")
+                {
+                    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                        <MudPaper Elevation="5" Class="menu-paper">
+                            <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">@item.Name</MudText>
+                            <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                             <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPaymentPage(item.Name, item.Amount)" FullWidth="true">Pay Now</MudButton> 
+                          @* <MudButton Variant="Variant.Filled" Color="Color.Info"  FullWidth="true">Closed </MudButton>  *@
+                         
+                        </MudPaper>
+                    </MudItem>
+                }
+                  else if (item.Name == "Transfer")
+                {
+                    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                        <MudPaper Elevation="5" Class="menu-paper">
+                            <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">@item.Name</MudText>
+                            <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                            @* <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPaymentPage(item.Name, item.Amount)" FullWidth="true">Pay Now</MudButton> *@
+                            <MudButton Variant="Variant.Filled" Color="Color.Info" FullWidth="true">Closed </MudButton>
+
+                        </MudPaper>
+                    </MudItem>
+                }
+                
+                  else if (item.Name == "JUPEB")
+                {
+                    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                        <MudPaper Elevation="5" Class="menu-paper">
+                            <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">@item.Name</MudText>
+                            <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Info" FullWidth="true">Closed </MudButton>
+
+                            @* <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPaymentPage(item.Name, item.Amount)" FullWidth="true">Pay Now</MudButton> *@
+                        </MudPaper>
+                    </MudItem>
+                }
+
+                else
+                {
+                    
+                    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                        <MudPaper Elevation="5" Class="menu-paper">
+                            <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">@item.Name</MudText>
+                            <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                            @item.Name 
+                            @* <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPaymentPage(item.Name, item.Amount)" FullWidth="true">Pay Now</MudButton> *@
+                        </MudPaper>
+                    </MudItem>
+                }
+
+
+            }
+        </MudGrid>
+
+    }
+    @if (currentApplicationForm != null)
+    {
+        <MudGrid>
+        <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Application Form
+                       <MudCardActions>
+                    <MudButton ButtonType="ButtonType.Submit" Disabled="@(currentApplicationForm.ApplicantStage < ACUnified.Data.Enum.ApplicationStage.Stage3)" OnClick="@(() => DownloadLetter1())" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Download</MudButton>
+                </MudCardActions>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    Admission Letter
+                    <MudCardActions>
+
+                    
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto">Pending</MudButton> @(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage4)  *@
+                        @* <MudButton ButtonType="ButtonType.Submit" Disabled="@(currentApplicationForm.ApplicantStage!=ACUnified.Data.Enum.ApplicationStage.Stage5)" OnClick="@(() => DownloadLetter())" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Download</MudButton> *@
+                        <MudButton ButtonType="ButtonType.Submit" Disabled="@(currentApplicationForm.ApplicantStage < ACUnified.Data.Enum.ApplicationStage.Stage5)" Variant="Variant.Filled" OnClick="@(()=>DownloadAdmissionLetter())" Color="Color.Success" Class="ml-auto">Download</MudButton>
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+           <MudItem xs="12" sm="4" md="4" Class="menu-item">
+    <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+        Acceptance Fee
+        <MudCardActions>
+            @if (currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage5)
+            {
+                @if (currentApplicationForm.DegreeId == 2 || currentApplicationForm.DegreeId == 8 || currentApplicationForm.DegreeId == 5 )
+                {
+                    @if (currentApplicationForm.FinalisedCourse == "Nursing")
+                    {
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToAcceptancePaymentPage("AcceptanceBSCSpecial", 60000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                    }
+                    else if (currentApplicationForm.FinalisedCourse == "Medical Laboratory Science")
+                    {
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToAcceptancePaymentPage("AcceptanceBSCSpecial", 60000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                    }
+                    else if (currentApplicationForm.FinalisedCourse == "Law")
+                    {
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToAcceptancePaymentPage("AcceptanceBSCSpecial", 60000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                    }
+                    else if (currentApplicationForm.FinalisedCourse == "Radiography and radiation Science")
+                    {
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToAcceptancePaymentPage("AcceptanceBSCSpecial", 60000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToAcceptancePaymentPage("AcceptanceBSC", 45000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                    }
+                }
+                @if(currentApplicationForm.DegreeId == 10)
+                {
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToAcceptancePaymentPage("AcceptanceBTHBA", 20000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                }
+            }
+            @if (currentApplicationForm.ApplicantStage >= ACUnified.Data.Enum.ApplicationStage.Stage6)
+            {
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Class="ml-auto">Paid</MudButton>
+            }
+        </MudCardActions>
+    </MudPaper>
+</MudItem>
+    <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+                    TUITION FEES
+                    <MudCardActions>
+         @if (currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage5 || 
+    currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage6)
+            {
+                                @if (currentApplicationForm.DegreeId == 2 || currentApplicationForm.DegreeId == 5)
+                        {                           
+                                    @if (currentApplicationForm.FinalisedCourse == "Agricultural Economics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Agricultural Economics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Agricultural Extension"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Agricultural Extension",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Crop Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Crop Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Animal Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Animal Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Environmental Health Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Environmental Health Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Medical Laboratory Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Medical Laboratory Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Nursing"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Nursing",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Radiography and radiation Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Radiography and radiation Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Mass Communication"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Mass Communication",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Library and Information Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Library and Information Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Business Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Business Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Economics Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Economics Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "English Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("English Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Guidance and Counseling"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Guidance and Counseling",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Computer Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Civil Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Civil Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Computer Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Electrical Electronics Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Electrical Electronics Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Mechanical Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Mechanical Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Architecture"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Architecture",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Estate Management"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Estate Management",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "English"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("English",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "History & International Studies"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("History & International Studies",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Performing Arts"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Performing Arts",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Religious Studies"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Religious Studies",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Law"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Law",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Accounting"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Accounting",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Banking and Finance"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Banking and Finance",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Business Administration"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Business Administration",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Industrial Relations and Personnel Management"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Industrial Relations and Personnel Management",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Computer Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Science(ICT Option)"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Computer Science(ICT Option)",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Industrial Chemistry"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Industrial Chemistry",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Physics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Physics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Geology"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Geology",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Microbiology"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Microbiology",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Biochemistry"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Biochemistry",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Mathematics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Mathematics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Statistics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Statistics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Economics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Economics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Political Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToTuitionPaymentPage("Political Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Peace Studies and Conflict Resolution"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Peace Studies and Conflict Resolution",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Surveying and Geoinformatics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Surveying and Geoinformatics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Music"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Music",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Entrepreneurship"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage("Entrepreneurship",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+                                }
+                                @if (currentApplicationForm.DegreeId == 8)
+                        {                           
+                                    @if (currentApplicationForm.FinalisedCourse == "Agricultural Economics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Agricultural Economics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Agricultural Extension"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Agricultural Extension",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Crop Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Crop Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Animal Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Animal Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Environmental Health Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Environmental Health Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Medical Laboratory Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Medical Laboratory Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Nursing"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Nursing",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Radiography and radiation Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Radiography and radiation Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Mass Communication"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Mass Communication",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Library and Information Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Library and Information Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Business Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Business Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Economics Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Economics Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "English Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("English Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Guidance and Counseling"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Guidance and Counseling",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Education"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Computer Education",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Civil Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Civil Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Computer Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Electrical Electronics Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Electrical Electronics Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Mechanical Engineering"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Mechanical Engineering",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Architecture"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Architecture",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Estate Management"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Estate Management",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "English"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("English",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "History & International Studies"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("History & International Studies",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Performing Arts"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Performing Arts",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Religious Studies"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Religious Studies",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Law"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Law",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Accounting"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Accounting",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Banking and Finance"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Banking and Finance",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Business Administration"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Business Administration",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Industrial Relations and Personnel Management"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Industrial Relations and Personnel Management",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Computer Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Computer Science(ICT Option)"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Computer Science(ICT Option)",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Industrial Chemistry"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Industrial Chemistry",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Physics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Physics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Geology"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Geology",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Microbiology"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Microbiology",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Biochemistry"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Biochemistry",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Mathematics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Mathematics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Statistics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Statistics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Economics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Economics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Political Science"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" OnClick="@(() => NavigateToTuitionPaymentPage1("Political Science",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Peace Studies and Conflict Resolution"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Peace Studies and Conflict Resolution",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Surveying and Geoinformatics"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Surveying and Geoinformatics",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Music"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Music",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+
+                                    @if (currentApplicationForm.FinalisedCourse == "Entrepreneurship"){
+                                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToTuitionPaymentPage1("Entrepreneurship",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    }
+                                }
+                            
+                            }
+                        @if (currentApplicationForm.DegreeId == 10)
+                        {
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Disabled="@(currentApplicationForm.ApplicantStage != ACUnified.Data.Enum.ApplicationStage.Stage5)" OnClick="@(() => NavigateToTuitionPaymentPage("BTHBA", 225000M))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+
+                        }
+                        
+                        @* <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto">Make payment</MudButton> *@
+                                    @if (currentApplicationForm.ApplicantStage >= ACUnified.Data.Enum.ApplicationStage.Stage7)
+{
+    <MudButton ButtonType="ButtonType.Submit" 
+               Variant="Variant.Filled" 
+               
+               Color="Color.Success" 
+               Class="ml-auto">Paid</MudButton>
+}
+                    </MudCardActions>
+                </MudPaper>
+            </MudItem>
+                            
+          <MudItem xs="12" sm="4" md="4" Class="menu-item">
+<MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+    Hostel Allocated
+    <MudCardActions>
+        @if (currentApplicationForm.DegreeId == 2 || currentApplicationForm.DegreeId == 8 || currentApplicationForm.DegreeId == 5)
+        {
+            @* @if (currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage7)
+            {
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"  OnClick="@(() => NavigateToHostelPaymentPage("BSC",225000M ))" Color="Color.Success" Class="ml-auto">Make payment</MudButton>
+                                    
+            } *@
+            @if (currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage7)
+            {
+                @if (currentApplicationForm.BioData.Gender == "Male")
+                {
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               OnClick="@(() => NavigatePickRoomPage("Male"))"
+                               Color="Color.Success"
+                               Class="ml-auto">Pick room</MudButton>
+                }
+                else if (currentApplicationForm.BioData.Gender == "Female")
+                {
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               OnClick="@(() => NavigatePickRoomPage("Female"))"
+                               Color="Color.Success"
+                               Class="ml-auto">Pick room</MudButton>
+                }
+            }
+            
+             @if (currentApplicationForm.ApplicantStage >= ACUnified.Data.Enum.ApplicationStage.Stage9)
+            {
+                <MudButton ButtonType="ButtonType.Submit" 
+                           Variant="Variant.Filled" 
+                           OnClick="@(()=>DownloadRoom())" 
+                           Color="Color.Success" 
+                           Class="ml-auto">Download</MudButton>
+            } 
+        }
+    </MudCardActions>
+</MudPaper>
+            </MudItem>                   
+
+   <MudItem xs="12" sm="4" md="4" Class="menu-item">
+    <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+        Other FEES
+        <MudCardActions>
+            @if (currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage10)
+            {
+                @if (currentApplicationForm.DegreeId == 2 || currentApplicationForm.DegreeId == 8 || currentApplicationForm.DegreeId == 5)
+                {             
+                        <MudButton ButtonType="ButtonType.Submit" 
+                                  Variant="Variant.Filled"
+                                  Color="Color.Success"
+                                  OnClick="@(() => NavigateToMatricFeePage("BSC", 200000M))"
+                                  Class="ml-auto">
+                            Continue
+                        </MudButton>
+                    
+                }
+            }
+            @if (currentApplicationForm.ApplicantStage >= ACUnified.Data.Enum.ApplicationStage.Stage11)
+            {
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Success"
+                           Class="ml-auto">
+                    Paid
+                </MudButton>
+            }
+        </MudCardActions>
+    </MudPaper>
+</MudItem>
+   <MudItem xs="12" sm="4" md="4" Class="menu-item">
+    <MudPaper Class="d-flex align-center justify-center mud-width-full py-8 pa-4 ml-8">
+        Medical FEE
+        <MudCardActions>
+            @if (currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage8 || currentApplicationForm.ApplicantStage == ACUnified.Data.Enum.ApplicationStage.Stage9)
+            {
+                @if (currentApplicationForm.DegreeId == 2 || currentApplicationForm.DegreeId == 8 || currentApplicationForm.DegreeId == 5)
+                {
+                   
+                        <MudButton ButtonType="ButtonType.Submit"
+                                  Variant="Variant.Filled"
+                                  Color="Color.Success"
+                                  OnClick="@(() => NavigateToMedicalPage("BSC", 225000M))"
+                                  Class="ml-auto">
+                            Continue
+                        </MudButton>
+                }
+            }
+            @if (currentApplicationForm.ApplicantStage >= ACUnified.Data.Enum.ApplicationStage.Stage10)
+            {
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Success"
+                           Class="ml-auto">
+                    Paid
+                </MudButton>
+            }
+        </MudCardActions>
+    </MudPaper>
+</MudItem>
+</MudGrid>
+    }
+<MudText>Note Please come along will all document upload as it will be need for your Registeration also check if all your payment are successful by checking the transcastion history. In case of any admission issue contact the admission officer <strong> (Mr Adedapo:08145920637)</strong> For Undergraduate related issue only and Incase of any payment issue contact the bursary department <strong> (Mr Olabode:07031353073)</strong></MudText>
+    <style>
+        .progress-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001; /* Ensure it's above the overlay */
+        }
+
+        .menu-item {
+            padding: 15px;
+        }
+
+        .menu-paper {
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+            .menu-paper:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            }
+
+        .menu-icon {
+            margin-bottom: 10px;
+        }
+    </style>
+</MudContainer>
+
+
+
+
+
+
+
+
+
+
+
+@code {
+    [Inject] ISnackbar Snackbar { get; set; }
+    private bool IsOverlayVisible = false;
+    MudForm form;
+    public bool _loading { get; set; }
+    public ApplicationFormDto currentApplicationForm = null;
+    public ApplicationDocumentDto currentApplicationDocument = null;
+
+    ApplicantRegistrationModelFluentValidator orderValidator = new ApplicantRegistrationModelFluentValidator();
+
+     public HostelAllocationDto currentHostelAllocation = null;
+
+    ApplicantRegistrationModel model = new ApplicantRegistrationModel();
+    List<ApplicationPaymentSetup> paymentsetup = new List<ApplicationPaymentSetup>();
+
+    private string GetIconForCategory(string category)
+    {
+        return category switch
+        {
+            "Undergraduate" => Icons.Material.Filled.School,
+            "Postgraduate" => Icons.Material.Filled.Book,
+            "JUPEB" => Icons.Material.Filled.LibraryBooks,
+            "Part-Time" => Icons.Material.Filled.LaptopChromebook,
+            "Transfer" => Icons.Material.Filled.Science,
+            "MBA" => Icons.Material.Filled.BusinessCenter,
+            _ => Icons.Material.Filled.School // default icon
+        };
+    }
+
+    public class ApplicantRegistrationModel
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+
+    }
+
+    public class ApplicationPaymentSetup
+    {
+        public string Name { get; set; }
+        public decimal Amount { get; set; }
+        public ApplicationPaymentSetup(string Name, decimal Amount)
+        {
+            this.Name = Name;
+            this.Amount = Amount;
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //var cuser=UserManager.GetUserName(User);
+        paymentsetup = new List<ApplicationPaymentSetup>()
+        {
+            new ApplicationPaymentSetup("Undergraduate", 15000m),
+            //new ApplicationPaymentSetup("Postgraduate", 15000m),
+             new ApplicationPaymentSetup("JUPEB", 15000m),
+             new ApplicationPaymentSetup("Part-Time", 15000m),
+             new ApplicationPaymentSetup("Transfer", 15000m),
+
+        };
+
+        if (userId != null)
+        {
+
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+
+            }
+        }
+        else
+        {
+            snackBar.Add("Please Login ", MudBlazor.Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+        }
+
+
+        //var user = await UserManager.GetUserAsync(Context.User);
+        //var customFieldValue = user?.;
+
+    }
+
+
+    private async Task Submit()
+    {
+        IsOverlayVisible = true;
+
+        await form.Validate();
+        await Task.Delay(3000);
+        if (form.IsValid)
+        {
+            Snackbar.Add("Submitted!", MudBlazor.Severity.Success);
+            Navigation.NavigateTo("/");  // Redirects to the home page
+        }
+        IsOverlayVisible = false;
+    }
+
+    void NavigateToPaymentPage(string name, decimal amount)
+    {
+        var url = $"/PaymentGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+    void NavigateToOtherFeePage(string name, decimal amount)
+    {
+        var url = $"/OtherPaymentGate/{name}";
+        Navigation.NavigateTo(url); 
+    }
+    void NavigateToOtherFeePages(string name, decimal amount)
+    {
+        var url = $"/OtherPaymentGate1/{name}";
+        Navigation.NavigateTo(url); 
+    }
+
+    void NavigateToMedicalPage(string name, decimal amount)
+    {
+        var url = $"/Medicalfee/{name}";
+        Navigation.NavigateTo(url); 
+    }
+    void NavigateToMatricFeePage (string name, decimal amount){
+        var url = $"/MatricFee/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    void NavigateToAcceptancePaymentPage(string name, decimal amount)
+    {
+        var url = $"/AcceptancePaymentGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    void NavigateToTuitionPaymentPage(string name, decimal amount)
+    {
+        var url = $"/TuitionPaymentGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    void NavigateToTuitionPaymentPage1 (string name, decimal amount){
+         var url = $"/TuitionPaymentGate1/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    void NavigateToPostgraduate()
+    {
+        var url = $"/Applicant/Postgraduate";
+        Navigation.NavigateTo(url);
+    }
+
+    void NavigateToPartTime()
+    {
+        var url = $"/Applicant/PartTime";
+        Navigation.NavigateTo(url);
+    }
+    void NavigateToHostelPaymentPage(string name, decimal amount)
+    {
+        var url = $"/HostelPaymentGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    
+     private void NavigatePickRoomPage(string gender)
+{
+    Navigation.NavigateTo($"/PickRoom/{gender}");
+}
+private async Task DownloadRoom(){
+     var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+         currentApplicationForm = await applicationForm.GetCompletedApplicationForm(userId);
+           currentApplicationDocument = await appdocs.Getdocumentbytypeanduserid(DocumentType.Passport, userId);
+         currentHostelAllocation = await HostelAllocationRepository.GetHostelAllocationByApplicationFormId(currentApplicationForm.Id);
+         if (currentHostelAllocation !=null)
+         {
+              var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/Hostel.html");
+               htmlbody = htmlbody.Replace("{{Fullname}}", currentApplicationForm.BioData.LastName+ " " +currentApplicationForm.BioData.FirstName+ " " +currentApplicationForm.BioData.OtherName);
+                              
+                 htmlbody = htmlbody.Replace("{{FinalizatedCourse}}", currentApplicationForm.FinalisedCourse);
+                             htmlbody = htmlbody.Replace("{{FormRefNo}}", currentApplicationForm.FormRefNo);
+                            htmlbody = htmlbody.Replace("{{Session}}", "2024/2025");
+                                htmlbody = htmlbody.Replace("{{}}", DateTime.Now.Year.ToString()); // Assuming current year for Academic Session *@
+                              htmlbody = htmlbody.Replace("{{Hostel}}", currentHostelAllocation.HostelRoom?.HostelBuilding?.Name ?? "N/A");
+                            htmlbody = htmlbody.Replace("{{Roomnumber}}", currentHostelAllocation.HostelRoom?.RoomNumber ?? "N/A");
+                string picspath = string.Empty;
+            string picsname = string.Empty;
+     if (currentApplicationDocument != null)
+        {
+             picsname = currentApplicationDocument.filename;
+             picspath = currentApplicationDocument.filepath;
+            // Image img =null;
+            //     if (File.Exists(picspath))
+            // {
+            //         img = Image.FromFile(picspath);
+            // }
+            // else{
+            //      img =null;
+            // }
+
+            //string imagePath = currentApplicationForm.ApplicationDocument4.filepath;
+            string base64Image = ConvertImageToBase64(picspath);
+                htmlbody = htmlbody.Replace("{{ApplicationDocument4Image}}", picspath);
+        }
+        else
+        {
+            // If there's no image, you can replace with a placeholder or remove the img tag
+            string base64Image = ConvertImageToBase64(picspath);
+                htmlbody = htmlbody.Replace("{{ApplicationDocument4Image}}", picspath);
+        }
+         if (currentApplicationForm.ProgramSetupId.HasValue)
+            {
+                var programSetup = await ProgramSetupRepository.GetProgramSetup(currentApplicationForm.ProgramSetupId.Value);
+                @* Console.WriteLine($"ProgramSetup retrieved: {programSetup != null}"); *@
+                if (programSetup != null)
+                {
+                    @* Console.WriteLine($"Department: {programSetup.Department?.Name}");
+                    Console.WriteLine($"Faculty: {programSetup.Faculty?.Name}"); *@
+
+                    htmlbody = htmlbody.Replace("{{Department}}", programSetup.Department?.Name ?? "N/A");
+                    }
+            }
+    
+    
+    
+     var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "Hostel.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+                    // htmlbody = htmlbody.Replace("{contactInfo.resetLink}", HtmlEncoder.Default.Encode(callbackUrl));
+                
+         }
+}
+
+
+
+       private async Task DownloadLetter1()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        currentApplicationForm = await applicationForm.GetCompletedApplicationForm(userId);
+        currentApplicationDocument = await appdocs.Getdocumentbytypeanduserid(DocumentType.Passport, userId);
+        if (currentApplicationForm != null)
+    {
+        string templatePath;
+        if (currentApplicationForm.DegreeId == 2 ||currentApplicationForm.DegreeId == 8)
+        {
+            templatePath = "Templates/appform.html";
+        }
+        else
+        {
+            templatePath = "Templates/joshua.html";
+        }
+
+        var htmlbody = await _HTMLTemplate.GetTemplateFileAsync(templatePath);
+ htmlbody = htmlbody.Replace("{{Surname}}", currentApplicationForm.BioData.LastName ?? "");
+htmlbody = htmlbody.Replace("{{FirstName}}", currentApplicationForm.BioData.FirstName ?? "");
+htmlbody = htmlbody.Replace("{{Middlename}}", currentApplicationForm.BioData.OtherName ?? "");
+htmlbody = htmlbody.Replace("{{Session}}", "2024/2025");
+htmlbody = htmlbody.Replace("{{Gender}}", currentApplicationForm.BioData.Gender ?? "");
+htmlbody = htmlbody.Replace("{{DOE}}", currentApplicationForm.BioData.DOB.ToString("yyyy-MM-dd"));
+htmlbody = htmlbody.Replace("{{SOO}}", currentApplicationForm.BioData.State ?? "");
+htmlbody = htmlbody.Replace("{{LGA}}", currentApplicationForm.BioData.LGA ?? "");
+htmlbody = htmlbody.Replace("{{Phone}}", currentApplicationForm.BioData.MobileNumber ?? "");
+htmlbody = htmlbody.Replace("{{Marital}}", currentApplicationForm.BioData.MaritalStatus ?? "");
+htmlbody = htmlbody.Replace("{{Address}}", currentApplicationForm.BioData.Address ?? "");
+htmlbody = htmlbody.Replace("{{Email}}", currentApplicationForm.BioData.Email ?? "");
+htmlbody = htmlbody.Replace("{{Nationality}}", currentApplicationForm.BioData.Nationality ?? "");
+htmlbody = htmlbody.Replace("{{Maiden}}", currentApplicationForm.OtherDetails.PhoneNumber ?? "");
+htmlbody = htmlbody.Replace("{{Parente}}", currentApplicationForm.OtherDetails.ParentName ?? "");
+htmlbody = htmlbody.Replace("{{Fatherno}}", currentApplicationForm.OtherDetails.FatherNo ?? "");
+htmlbody = htmlbody.Replace("{{MotherNo}}", currentApplicationForm.OtherDetails.MotherNo ?? "");
+htmlbody = htmlbody.Replace("{{ParentEmail}}", currentApplicationForm.OtherDetails.ParentEmail ?? "");
+htmlbody = htmlbody.Replace("{{Denomination}}", currentApplicationForm.OtherDetails.Denomination ?? "");
+htmlbody = htmlbody.Replace("{{Disbility}}", currentApplicationForm.OtherDetails.Disability ?? "");
+htmlbody = htmlbody.Replace("{{Relationship}}", currentApplicationForm.NextOfKin.Relationship ?? "");
+htmlbody = htmlbody.Replace("{{FSurname}}", currentApplicationForm.NextOfKin.LastName ?? "");
+htmlbody = htmlbody.Replace("{{FFirstName}}", currentApplicationForm.NextOfKin.FirstName ?? "");
+htmlbody = htmlbody.Replace("{{FMiddlename}}", currentApplicationForm.NextOfKin.OtherName ?? "");
+htmlbody = htmlbody.Replace("{{Faddress}}", currentApplicationForm.NextOfKin.Address ?? "");
+
+// Academic Qualifications with grade combinations
+htmlbody = htmlbody.Replace("{{Subject1}}", 
+    $"{currentApplicationForm.AcademicQualification.Subject1 ?? ""} {currentApplicationForm.AcademicQualification.Grade1 ?? ""}".Trim());
+htmlbody = htmlbody.Replace("{{Subject2}}", 
+    $"{currentApplicationForm.AcademicQualification.Subject2 ?? ""} {currentApplicationForm.AcademicQualification.Grade2 ?? ""}".Trim());
+htmlbody = htmlbody.Replace("{{Subject3}}", 
+    $"{currentApplicationForm.AcademicQualification.Subject3 ?? ""} {currentApplicationForm.AcademicQualification.Grade3 ?? ""}".Trim());
+htmlbody = htmlbody.Replace("{{Subject4}}", 
+    $"{currentApplicationForm.AcademicQualification.Subject4 ?? ""} {currentApplicationForm.AcademicQualification.Grade4 ?? ""}".Trim());
+htmlbody = htmlbody.Replace("{{Subject5}}", 
+    $"{currentApplicationForm.AcademicQualification.Subject5 ?? ""} {currentApplicationForm.AcademicQualification.Grade5 ?? ""}".Trim());
+
+htmlbody = htmlbody.Replace("{{ExamType}}", currentApplicationForm.AcademicQualification.ExamType ?? "");
+htmlbody = htmlbody.Replace("{{ExamNumber}}", currentApplicationForm.AcademicQualification.ExamNumber ?? "");
+htmlbody = htmlbody.Replace("{{Modeofentry}}", currentApplicationForm.AcademicQualification.Modeofentry.ToString());
+htmlbody = htmlbody.Replace("{{UTMERegNo}}", currentApplicationForm.AcademicQualification.UTMERegNo ?? "");
+
+// UTME Subjects with scores
+htmlbody = htmlbody.Replace("{{UTMESubject1}}", 
+    $"{currentApplicationForm.AcademicQualification.UTMESubject1 ?? ""} {currentApplicationForm.AcademicQualification.UTMESubscore1.ToString()}".Trim());
+htmlbody = htmlbody.Replace("{{UTMESubject2}}", 
+    $"{currentApplicationForm.AcademicQualification.UTMESubject2 ?? ""} {currentApplicationForm.AcademicQualification.UTMESubscore2.ToString()}".Trim());
+htmlbody = htmlbody.Replace("{{UTMESubject3}}", 
+    $"{currentApplicationForm.AcademicQualification.UTMESubject3 ?? ""} {currentApplicationForm.AcademicQualification.UTMESubscore3.ToString()}".Trim());
+htmlbody = htmlbody.Replace("{{UTMESubject4}}", 
+    $"{currentApplicationForm.AcademicQualification.UTMESubject4 ?? ""} {currentApplicationForm.AcademicQualification.UTMESubscore4.ToString()}".Trim());
+
+htmlbody = htmlbody.Replace("{{UTMEScore}}", currentApplicationForm.AcademicQualification.UTMEScore.ToString());
+htmlbody = htmlbody.Replace("{{Choice1}}", currentApplicationForm.AcademicQualification.Choice1 ?? "");
+htmlbody = htmlbody.Replace("{{Choice2}}", currentApplicationForm.AcademicQualification.Choice2 ?? "");
+
+if (templatePath.EndsWith("joshua.html", StringComparison.OrdinalIgnoreCase))
+{
+    htmlbody = htmlbody.Replace("{{TSurname}}", currentApplicationForm.TransferForm.Surname ?? "");
+    htmlbody = htmlbody.Replace("{{TFirstName}}", currentApplicationForm.TransferForm.FirstName ?? "");
+    htmlbody = htmlbody.Replace("{{TMiddlename}}", currentApplicationForm.TransferForm.Middlename ?? "");
+    htmlbody = htmlbody.Replace("{{TMatricNo}}", currentApplicationForm.TransferForm.MatricNo ?? "");
+    htmlbody = htmlbody.Replace("{{TInstitution}}", currentApplicationForm.TransferForm.Institution ?? "");
+    htmlbody = htmlbody.Replace("{{TLevel}}", currentApplicationForm.TransferForm.Level ?? "");
+    htmlbody = htmlbody.Replace("{{TCgpa}}", currentApplicationForm.TransferForm.Cgpa.ToString("0.00"));
+
+    // Checkboxes
+    htmlbody = htmlbody.Replace("{{OLevelDeficiency}}", currentApplicationForm.TransferForm.OLevelDeficiency.ToString());
+    htmlbody = htmlbody.Replace("{{OLevelSubjectsNotRelevant}}", currentApplicationForm.TransferForm.OLevelSubjectsNotRelevant.ToString());
+    htmlbody = htmlbody.Replace("{{NoJAMBAdmission}}", currentApplicationForm.TransferForm.NoJAMBAdmission.ToString());
+    htmlbody = htmlbody.Replace("{{PoorAcademicPerformance}}", currentApplicationForm.TransferForm.PoorAcademicPerformance.ToString());
+    htmlbody = htmlbody.Replace("{{FinancialReason}}", currentApplicationForm.TransferForm.FinancialReason.ToString());
+    htmlbody = htmlbody.Replace("{{FinancialReasonExplanation}}", currentApplicationForm.TransferForm.FinancialReasonExplanation ?? "");
+
+    // Rustication reasons
+    htmlbody = htmlbody.Replace("{{Crime}}", currentApplicationForm.TransferForm.Crime ?? "");
+    htmlbody = htmlbody.Replace("{{Immorality}}", currentApplicationForm.TransferForm.Immorality ?? "");
+    htmlbody = htmlbody.Replace("{{Cultism}}", currentApplicationForm.TransferForm.Cultism ?? "");
+    htmlbody = htmlbody.Replace("{{OtherReasons}}", currentApplicationForm.TransferForm.OtherReasons ?? "");
+}
+
+             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            htmlbody = htmlbody.Replace("{{GeneratedTimestamp}}", timestamp);
+
+            string picspath = string.Empty;
+            string picsname = string.Empty;
+            if (currentApplicationDocument != null)
+        {
+             picsname = currentApplicationDocument.filename;
+             picspath = currentApplicationDocument.filepath;
+            // Image img =null;
+            //     if (File.Exists(picspath))
+            // {
+            //         img = Image.FromFile(picspath);
+            // }
+            // else{
+            //      img =null;
+            // }
+
+            //string imagePath = currentApplicationForm.ApplicationDocument4.filepath;
+            string base64Image = ConvertImageToBase64(picspath);
+                htmlbody = htmlbody.Replace("{{ApplicationDocument4Image}}", picspath);
+        }
+        else
+        {
+            // If there's no image, you can replace with a placeholder or remove the img tag
+            string base64Image = ConvertImageToBase64(picspath);
+                htmlbody = htmlbody.Replace("{{ApplicationDocument4Image}}", picspath);
+        }
+                   
+
+
+              var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+            var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "Application Form.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+                    // htmlbody = htmlbody.Replace("{contactInfo.resetLink}", HtmlEncoder.Default.Encode(callbackUrl));
+                }
+                
+                else
+                {
+                    snackBar.Add("Error downloading admission letter", MudBlazor.Severity.Error);
+                }
+       
+            }
+              private string ConvertImageToBase64(string imagePath)
+    {
+        try
+        {
+            byte[] imageArray = System.IO.File.ReadAllBytes(imagePath);
+            string base64ImageRepresentation = Convert.ToBase64String(imageArray);
+            return $"data:image/{System.IO.Path.GetExtension(imagePath).TrimStart('.')};base64,{base64ImageRepresentation}";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error converting image to base64: {ex.Message}");
+            return string.Empty;
+        }
+    }
+
+   
+
+    
+            
+  
+
+      private async Task DownloadAdmissionLetter()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //var cuser=UserManager.GetUserName(User);
+
+
+        if (userId != null)
+        {
+
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+                if (currentApplicationForm.DegreeId == 2 ||currentApplicationForm.DegreeId == 5)
+                {
+                    //provide admission letter for undergraduate
+                    // Use the service to generate the PDF
+                    var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetter.html");
+                   htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    htmlbody = htmlbody.Replace("{{Session}}", "2024/2025");
+                     htmlbody = htmlbody.Replace("{{FinalizatedCourse}}", currentApplicationForm.FinalisedCourse);
+                  
+
+                   
+                 string yearsToGrad;
+                 string amountToPay;
+                 
+
+              if (currentApplicationForm.ProgramSetupId.HasValue)
+{
+    var programSetup = await ProgramSetupRepository.GetProgramSetup(currentApplicationForm.ProgramSetupId.Value);
+    if (programSetup != null)
+    {
+        htmlbody = htmlbody.Replace("{{Department}}", programSetup.Department?.Name ?? "N/A");
+        htmlbody = htmlbody.Replace("{{Faculty}}", programSetup.Faculty?.Name ?? "N/A");
+        
+        // Define list of special departments that have longer duration
+        var specialDepartments = new[]
+        {
+            "Nursing",
+            "Civil Engineering",
+            "Electrical/Electronics Engineering",
+            "Mechanical Engineering",
+            "Computer Engineering",
+            "Law",
+            "Estate Management",
+            "Surveying and Geoinformatics",
+            "Medical Laboratory Science",
+            "Radiography and radiation Science"
+        };
+
+        // Check entry mode and set years accordingly
+        if (currentApplicationForm.AcademicQualification?.Modeofentry.ToString() == "DE" || currentApplicationForm.DegreeId == 5)
+        {
+            // Direct Entry mode
+            yearsToGrad = specialDepartments.Contains(programSetup.Department?.Name) 
+                ? "4 years" 
+                : "3 years";
+        }
+        else
+        {
+            // Regular entry mode
+            yearsToGrad = specialDepartments.Contains(programSetup.Department?.Name) 
+                ? "5 years" 
+                : "4 years";
+        }
+
+        // Set amount to pay based on department
+        if (programSetup.Department?.Name == "Law" || 
+            programSetup.Department?.Name == "Nursing" || 
+            programSetup.Department?.Name == "Medical Laboratory Science" || 
+            programSetup.Department?.Name == "Radiography and radiation Science")
+        {
+            amountToPay = "₦60,000.00k";
+        }
+        else
+        {
+            amountToPay = "₦45,000.00k";
+        }
+
+        htmlbody = htmlbody.Replace("{{yearstograd}}", yearsToGrad);
+        htmlbody = htmlbody.Replace("{{amount}}", amountToPay);
+    }
+    else
+    {
+        Console.WriteLine("ProgramSetup is null");
+        htmlbody = htmlbody.Replace("{{Department}}", "Department Information Unavailable");
+        htmlbody = htmlbody.Replace("{{Faculty}}", "Faculty Information Unavailable");
+        htmlbody = htmlbody.Replace("{{yearstograd}}", "Information Unavailable");
+        htmlbody = htmlbody.Replace("{{amount}}", "Amount Unavailable");
+    }
+}
+            else
+            {
+                Console.WriteLine("ProgramSetupId is null");
+                htmlbody = htmlbody.Replace("{{Department}}", "Department Information Unavailable");
+                htmlbody = htmlbody.Replace("{{Faculty}}", "Faculty Information Unavailable");
+                htmlbody = htmlbody.Replace("{{yearstograd}}", "Information Unavailable");
+                htmlbody = htmlbody.Replace("{{amount}}", "Amount Unavailable");
+            }
+                    
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "AdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+                    // htmlbody = htmlbody.Replace("{contactInfo.resetLink}", HtmlEncoder.Default.Encode(callbackUrl));
+                }
+                else if(currentApplicationForm.DegreeId==10)
+                {
+                    //provide admission letter for bth
+                    // Use the service to generate the PDF
+                    var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterBth.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "BTHAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+                    // htmlbody = htmlbody.Replace("{contactInfo.resetLink}", HtmlEncoder.Default.Encode(callbackUrl));
+                }
+            else if(currentApplicationForm.DegreeId==8){
+                @if (currentApplicationForm.FinalisedCourse == "Mass Communication" || currentApplicationForm.FinalisedCourse == "English Education" || currentApplicationForm.FinalisedCourse == "Guidance and Counseling" || currentApplicationForm.FinalisedCourse == "Library and Information Science" ||  currentApplicationForm.FinalisedCourse == "Christian Religious Studies" || currentApplicationForm.FinalisedCourse == "English" ||  currentApplicationForm.FinalisedCourse == "History & International Studies" ||  currentApplicationForm.FinalisedCourse == "Music" ||  currentApplicationForm.FinalisedCourse == "Performing Arts")
+{
+                  var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterArts.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "FYPAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+                    }
+
+                    @if (currentApplicationForm.FinalisedCourse == "Agricultural Economics" ||currentApplicationForm.FinalisedCourse == "Agricultural Extension and Crop Science" ||currentApplicationForm.FinalisedCourse == "Architecture" ||currentApplicationForm.FinalisedCourse == "Estate Management" || currentApplicationForm.FinalisedCourse == "Surveying and Geo-informatics" ||currentApplicationForm.FinalisedCourse == "Biochemistry" || currentApplicationForm.FinalisedCourse == "Computer Science (ICT Optional)" || currentApplicationForm.FinalisedCourse == "Geology" || currentApplicationForm.FinalisedCourse == "Industrial Chemistry" || currentApplicationForm.FinalisedCourse == "Mathematics" || currentApplicationForm.FinalisedCourse == "Microbiology" || currentApplicationForm.FinalisedCourse == "Physics with Electronics" ||currentApplicationForm.FinalisedCourse == "Statistics" || currentApplicationForm.FinalisedCourse == "Computer Education" ||currentApplicationForm.FinalisedCourse == "Computer Science" )
+{
+     var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterScience.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "FYPAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+} 
+@if (currentApplicationForm.FinalisedCourse == "Medical Laboratory Science" ||  currentApplicationForm.FinalisedCourse == "Radiography and radiation Science" || currentApplicationForm.FinalisedCourse == "Environmental Health Science" || currentApplicationForm.FinalisedCourse == "Nursing" || currentApplicationForm.FinalisedCourse == "Civil Engineering" || currentApplicationForm.FinalisedCourse == "Computer Engineering" || currentApplicationForm.FinalisedCourse == "Electrical Electronics Engineering" || currentApplicationForm.FinalisedCourse == "Mechanical Engineering")
+{
+     var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterScienceSpecial.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "FYPAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+                    // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+}
+@if (currentApplicationForm.FinalisedCourse == "Accounting" || currentApplicationForm.FinalisedCourse == "Banking and Finance" || currentApplicationForm.FinalisedCourse == "Business Administration" || currentApplicationForm.FinalisedCourse == "Entrepreneurship" ||  currentApplicationForm.FinalisedCourse == "Industrial Relations and Personal Management" ||  currentApplicationForm.FinalisedCourse == "Business Education")
+{
+     var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterManagementScience.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "FYPAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+}
+@if (currentApplicationForm.FinalisedCourse == "Economics" || currentApplicationForm.FinalisedCourse == "Peace Studies and Conflict Resolution" || currentApplicationForm.FinalisedCourse == "Political Science" || currentApplicationForm.FinalisedCourse == "Economics (Faculty of Education)")
+{
+ var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterSocialScience.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "FYPAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+}
+@if(currentApplicationForm.FinalisedCourse =="Law"){
+ var htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AdmissionLetterArtsSpecial.html");
+                 htmlbody = htmlbody.Replace("{{Date}}", GetFormattedDate(currentApplicationForm.FinalDecisionDate));
+                    htmlbody = htmlbody.Replace("{{Full Name}}", currentApplicationForm.BioData.FirstName + " " + currentApplicationForm.BioData.OtherName + " " + currentApplicationForm.BioData.LastName);
+                    htmlbody = htmlbody.Replace("{{FormRefNo}} ", currentApplicationForm.FormRefNo);
+                    var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+                    // Convert byte array to base64 string
+                     //
+                    var base64 = Convert.ToBase64String(html2pdf);
+                    // Create a URL for the PDF
+                    var url = $"data:application/pdf;base64,{base64}";
+                    // Use JavaScript to trigger the download
+                    await JSRuntime.InvokeVoidAsync("console.log", url);
+                    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+
+                    await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "FYPAdmissionLetter.pdf");
+                    // htmlbody = htmlbody.Replace("{{Session}}", );
+}
+
+
+
+            }
+
+            
+
+                else
+                {
+                    snackBar.Add("Error downloading admission letter", MudBlazor.Severity.Error);
+                }
+            }
+        }
+    }
+   private string GetFormattedDate(DateTime? date)
+{
+    if (!date.HasValue)
+        return string.Empty; // or some default value
+
+    string suffix = GetOrdinalSuffix(date.Value.Day);
+    return date.Value.ToString($"dd'{suffix}' 'of' MMMM yyyy");
+}
+
+    private string GetOrdinalSuffix(int day)
+    {
+        if (new[] {11, 12, 13}.Contains(day % 100)) return "th";
+        
+        return (day % 10) switch
+        {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th"
+        };
+    }
+
+    /// <summary>
+    /// A standard AbstractValidator which contains multiple rules and can be shared with the back end API
+    /// </summary>
+    /// <typeparam name="ApplicantRegistrationModel"></typeparam>
+    public class ApplicantRegistrationModelFluentValidator : AbstractValidator<ApplicantRegistrationModel>
+    {
+        public ApplicantRegistrationModelFluentValidator()
+        {
+            RuleFor(x => x.FirstName)
+                .NotEmpty()
+                .Length(1, 100);
+
+            RuleFor(x => x.LastName)
+               .NotEmpty()
+               .Length(1, 100);
+
+            RuleFor(x => x.PhoneNumber)
+              .NotEmpty()
+              .Length(1, 100);
+
+            RuleFor(x => x.Email)
+        .Cascade(CascadeMode.Stop)
+        .NotEmpty()
+        .EmailAddress()
+        .MustAsync(async (value, cancellationToken) => await IsUniqueAsync(value));
+
+
+
+
+
+        }
+
+        private async Task<bool> IsUniqueAsync(string email)
+        {
+            // Simulates a long running http call
+            await Task.Delay(2000);
+            return email.ToLower() != "test@test.com";
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<ApplicantRegistrationModel>.CreateWithOptions((ApplicantRegistrationModel)model, x => x.IncludeProperties(propertyName)));
+            if (result.IsValid)
+                return Array.Empty<string>();
+            return result.Errors.Select(e => e.ErrorMessage);
+        };
+    }
+}
+

@@ -1,0 +1,153 @@
+@using ACUnified.Data.DTOs
+
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@using ACUnified.Data.Models
+
+@inject IPayConcessionRepository payConcessionService
+@inject ISnackbar snackBar
+@attribute [Authorize(Roles = "Bursary")]
+<MudDialog>
+    <DialogContent>
+        @*  @UserId *@
+        <MudTable Items="@PayConcessionResponse" Dense="false" Hover="true" ReadOnly="false" 
+            CanCancelEdit="true" Filter="new Func<PayConcessionDto,bool>(FilterFunc)"
+             @bind-SelectedItem="selectedItem1" SortLabel="Sort By" CommitEditTooltip="Save Edit"
+                  OnCommitEditClick="@(() => snackBar.Add("Save Edit Handler Invoked"))"
+                  RowEditPreview="@((object item) => BackupItem(item))"                 
+                  RowEditCancel="ResetItemToOriginalValues"
+                  RowEditCommit="ItemHasBeenCommitted" IsEditRowSwitchingBlocked="false" 
+                  ApplyButtonPosition="TableApplyButtonPosition.End" 
+                  EditButtonPosition="TableEditButtonPosition.End"
+                  EditTrigger="@editTrigger">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Concession Edit</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<PayConcessionDto, object>(x=>x.Student.FirstName)">FirstName</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<PayConcessionDto, object>(x=>x.Student.LastName)">LastName</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<PayConcessionDto, object>(x=>x.Amount)">Amount</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="LastName">@context.Student.LastName</MudTd>
+                <MudTd DataLabel="FirstName">@context.Student.FirstName</MudTd>
+                <MudTd DataLabel="Amount">@context.Amount</MudTd>
+            </RowTemplate>
+            <RowEditingTemplate>
+                <MudTd DataLabel="LastName">@context.Student.LastName</MudTd>
+                <MudTd DataLabel="FirstName">
+                    <MudTd DataLabel="LastName">@context.Student.FirstName</MudTd>
+                </MudTd>
+                <MudTd DataLabel="Amount">
+                    <MudTextField @bind-Value="@context.Amount" Required />
+                </MudTd>
+              
+            </RowEditingTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+            <EditButtonContent Context="button">
+                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" Disabled="@button.ButtonDisabled" />
+            </EditButtonContent>
+
+       </MudTable>
+       
+    </DialogContent>
+    <DialogActions>
+      @*   <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton> *@
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<string> editEvents = new();
+    [Parameter] public string UserId { get; set; }
+    [CascadingParameter]
+    MudDialogInstance DialogService { get; set; }
+    private bool Loading = false;
+    
+    public bool isDialogOpen;
+    private string searchString = "";
+    private PayConcessionDto selectedItem1 = null;
+    private PayConcessionDto elementBeforeEdit;
+    IEnumerable<PayConcessionDto> PayConcessionResponse = new List<PayConcessionDto>();
+
+    private HashSet<PayConcessionDto> selectedItems1 = new HashSet<PayConcessionDto>();
+    private TableEditTrigger editTrigger = TableEditTrigger.RowClick;
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Loading = true;
+        PayConcessionResponse = await payConcessionService.GetAllPayByUserIdConcession(UserId);
+        Loading = false;
+    }
+
+    private async Task Save()
+    {
+        //save Concession based on the information.
+        DialogService.Close(DialogResult.Ok(true));
+        snackBar.Add("Saved.", Severity.Success);
+    }
+    private void ClearEventLog()
+    {
+        editEvents.Clear();
+    }
+
+    private void AddEditionEvent(string message)
+    {
+        editEvents.Add(message);
+        StateHasChanged();
+    }
+
+    private void BackupItem(object element)
+    {
+        elementBeforeEdit = new ()
+            {
+
+                //Student.FirstName = ((PayConcessionDto)element).Student.FirstName,
+                //Student.LastName = ((PayConcessionDto)element).Student.LastName,
+                Amount = ((PayConcessionDto)element).Amount,
+
+            };
+        AddEditionEvent($"RowEditPreview event: made a backup of Element {((PayConcessionDto)element).Student.FirstName}");
+    }
+
+    private void ItemHasBeenCommitted(object element)
+    {
+        AddEditionEvent($"RowEditCommit event: Changes to Element {((PayConcessionDto)element).Student.FirstName} committed");
+    }
+
+    private void ResetItemToOriginalValues(object element)
+    {
+        // ((PayConcessionDto)element).Student.FirstName = elementBeforeEdit.Student.FirstName;
+        // ((PayConcessionDto)element).Student.LastName = elementBeforeEdit.Student.LastName;
+        ((PayConcessionDto)element).Amount = elementBeforeEdit.Amount;
+
+        AddEditionEvent($"RowEditCancel event: Editing of Element {((PayConcessionDto)element).Student.FirstName} canceled");
+    }
+
+
+    private void Cancel()
+    {
+        DialogService.Close(DialogResult.Cancel());
+    }
+
+    void CloseDialog()
+    {
+        isDialogOpen = false;
+    }
+
+    private bool FilterFunc(PayConcessionDto currentConcession)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (currentConcession.Student.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (currentConcession.Student.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+}
+    

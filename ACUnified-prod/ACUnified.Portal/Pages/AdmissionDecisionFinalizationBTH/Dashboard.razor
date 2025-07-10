@@ -1,0 +1,243 @@
+@page "/admissionDecisionFinalizationBTH/Dashboard"
+@layout ACUnifiedLayout
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository BiodataRepository
+@inject IAcademicQualificationRepository AcademicQualificationRepository
+@inject IOtherDetailsRepository OtherDetailsRepository
+@inject INextOfKinRepository NextOfKinRepository
+@inject ILGARepository LGARepository
+@inject ICountryRepository CountryRepository
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILGARepository LGARepository
+@inject IDialogService DialogService
+@inject IProgramSetupRepository ProgramSetupRepository
+ @attribute [Authorize(Roles = "AdmissionDecisionFinalizationBTH")] 
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <MudPaper Height="300px" style="background: orange ;position:relative" Width="100%" Square="false" Class="mud-theme-warn ">
+            <div class="ml-10" style="position:relative">
+                <MudText Typo="Typo.h6" Style="color:white">Welcome to Unified Web Portal</MudText>
+                <MudText Typo="Typo.h4" Style="color:white"><b>Admission Portal</b></MudText>
+                <br/><br/><br/><br/>
+                <MudText Typo="Typo.h6"><MudElement Style="color:white">Engage |</MudElement><MudElement Style="color: white">Excel |</MudElement><MudElement Style="color:purple"> Overcome</MudElement></MudText>
+            </div>
+        </MudPaper>
+        <MudItem xs="12" sm="6">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto"></MudPaper>
+                 @if (ApplicationFormRankingsDTO != null){
+                    <MudSimpleTable Style="overflow-x: auto;">
+   <thead>
+        <tr>
+            @foreach (var h in headings)
+            {
+                <th>@h</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in ApplicationFormRankingsDTO)
+        {
+            <tr>
+              
+                    <td>@row.Choice1</td>
+                    <td>@row.Count</td>
+                    <td></td>
+                
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+}
+else
+{
+    <MudText>No data available</MudText>
+}
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="2" Class="pa-4" Style="height:auto ">
+               <MudTable  ServerData="@(new Func<TableState, Task<TableData<ApplicationFormDto>>>(ServerReload))"
+                  Dense="true"   Hover="true" @ref="table">
+            <ToolBarContent>
+                <MudSpacer />
+                <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                   
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortLabel="name_field" T="ApplicationFormDto">Name</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="formref_field" T="ApplicationFormDto">Form Reference</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @if (@context != null)
+                {
+                    <MudTd DataLabel="Name">
+                        <div>@context.BioData.FirstName @context.BioData.LastName </div>
+                    </MudTd>
+                    <MudTd DataLabel="FormRefNo">
+                        <div>@context.FormRefNo </div>
+                    </MudTd>
+                
+                    @*  <MudTd DataLabel="Matric">@context.ProgramSetup.Department.Name</MudTd>
+                <MudTd DataLabel="Amount">@context.ProgramSetup.Name</MudTd> *@
+                    @* <MudTd DataLabel="Position">@context.Position</MudTd> *@
+                    @* <MudTd DataLabel="Molar mass">@context.Molar</MudTd> *@
+                }
+
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No matching records found</MudText>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText>Loading...</MudText>
+            </LoadingContent>
+          
+        </MudTable>   
+             
+             <MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/admissionDecisionFinalizationBTH/AdmissionDecisionFinalization">View More</MudButton>
+        </MudCardActions>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+
+
+
+<div class="ml-5 py-4">
+    <MudContainer>
+    <MudChart ChartType="ChartType.Bar" ChartSeries="@Series" @bind-SelectedIndex="Index" XAxisLabels="@XAxisLabels" Width="100%" Height="350px"></MudChart>
+        
+    </MudContainer>
+</div>
+
+@code {
+        private HashSet<ApplicationFormDto> selectedItems = new HashSet<ApplicationFormDto>();
+        private IEnumerable<ApplicationFormDto> pagedData;
+            
+        private MudTable<ApplicationFormDto> table;
+        private int totalItems;
+        private string searchString = null;
+
+        public IEnumerable<BioDataDto> BioDataDto;
+            public IEnumerable<AcademicQualificationDto> AcademicQualificationDto;
+            public ProgramSetupDto[] ProgramSetups;
+        public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
+        public OtherDetailsDto OtherDetailsDto=new OtherDetailsDto();
+         public IEnumerable<ApplicationFormRankingsDto> ApplicationFormRankingsDTO;
+
+        public bool _loading { get; set; }
+        protected override async Task OnInitializedAsync()
+    {
+        try{
+                 ApplicationFormRankingsDTO = await ApplicationFormRepository.GetAdmittedStudentsBTH(); 
+        BioDataDto=(await BiodataRepository.GetAllBioData());
+       
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+      
+        catch (Exception ex)
+    {
+        Console.WriteLine($"Error in OnInitializedAsync: {ex.Message}");
+        // You could also use a logging framework here
+        snackBar.Add($"An error occurred: {ex.Message}", Severity.Error);
+    }
+        @* if (userId != null)
+        {
+            BioDataDto = await BiodataRepository.GetBioData(userId);
+            OtherDetailsDto = await OtherDetailsRepository.GetOtherDetails(userId);
+            NextOfKinDto = await NextOfKinRepository.GetNextOfKin(userId);
+             AcademicQualificationDto = await AcademicQualificationRepository.GetAcademicQualification(userId); 
+        } *@
+    }
+
+    private void OnSearch(string text)
+    {
+        searchString = text;
+        table.ReloadServerData();
+    }
+
+    private async Task<TableData<ApplicationFormDto>> ServerReload(TableState state)
+    {
+        IEnumerable<ApplicationFormDto> data = (await ApplicationFormRepository.GetAuthorizedApplicationFormBTH()).ToList();
+        await Task.Delay(300);
+
+        if (data != null)
+        {
+            data = data.Where(element =>
+       {
+           if (string.IsNullOrWhiteSpace(searchString))
+               return true;
+           if (element.BioData.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+               return true;
+           // if (element.ProgramSetup.Department.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           // if (element.ProgramSetup.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           return false;
+       }).ToArray();
+            totalItems = data.Count();
+            switch (state.SortLabel)
+            {
+                case "name_field":
+                    data = data.OrderByDirection(state.SortDirection, o => o.BioData.FirstName);
+                    break;
+                    // case "department_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Department.Name);
+                    //     break;
+                    // case "programsetup_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Name);
+                    //     break;
+                    // case "position_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+                    //     break;
+                    // case "mass_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+                    //     break;
+            }
+
+            pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+            return new TableData<ApplicationFormDto>() { TotalItems = totalItems, Items = pagedData };
+        }
+        else return null;
+    }
+   
+
+        string[] headings = { "Courses", "Admitted Students",   };
+    string[] rows = {
+        @"Computer-Science 27 ",
+        @"Mass-Communication 10 ",
+        @"Nursing 12 ",
+        @"Law 1 ",
+        @* @"HIS 14 ",
+        @"English 12 ", *@
+    };
+       
+    private int Index = -1; //default value cannot be 0 -> first selectedindex is 0.
+
+    public List<ChartSeries> Series = new List<ChartSeries>()
+    {
+        new ChartSeries() { Name = "Undgergraduate", Data = new double[] { 40, 20, 25 } },
+        new ChartSeries() { Name = "Masters", Data = new double[] { 19, 24, 35,  } },
+        new ChartSeries() { Name = "PHD", Data = new double[] { 8, 6, 11,  } },
+    };
+    public string[] XAxisLabels = { "2020/2021", "2021/2022", "2022/2023" };
+}

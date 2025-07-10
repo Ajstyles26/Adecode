@@ -1,0 +1,102 @@
+@page "/lecturer/facultymgt"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs;
+@inject ISnackbar snackBar
+@inject IFacultyRepository facultyService
+@inject IDialogService DialogService
+@attribute [Authorize]
+<h3>FacultyManagement</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Add / Edit Faculty</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="faculty.Name" Label="Faculty Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        <MudTextField @bind-Value="faculty.Description" Label="Description" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        <br />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Save">Save Faculty</MudButton>
+    </MudCardContent>
+</MudCard>
+<br />
+<MudTable Elevation="25"  Filter="new Func<FacultyDto, bool>(Search)" @bind-Items="faculties">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Faculty</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search for Faculties..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Description</MudTh>
+
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd DataLabel="">
+            <MudFab @onclick="@(()=>OpenEditDialog(@context.Id))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>Delete(@context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+</div>
+@code{
+    private string searchString = "";
+    private FacultyDto faculty = new FacultyDto();
+    private List<FacultyDto> faculties = new List<FacultyDto>();
+    protected override async Task OnInitializedAsync()
+    {
+         GetFacultyAsync();
+    }
+    private  void  GetFacultyAsync()
+    {
+        try
+        {
+             faculties = ( facultyService.GetAllFaculty().Result).ToList();
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data ");
+        }
+       
+    }
+    private bool Search(FacultyDto faculty)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return faculty.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        await facultyService.CreateFaculty(faculty);
+        faculty = new FacultyDto();
+        snackBar.Add("Faculty Saved.", Severity.Success);
+        GetFacultyAsync();
+    }
+    private async Task Edit(long id)
+    {
+        faculty = await facultyService.GetFaculty(id);
+    }
+    private async Task Delete(long id)
+    {
+        await facultyService.DeleteFaculty(id);
+        snackBar.Add("Faculty Deleted.", Severity.Success);
+        GetFacultyAsync();
+    }
+    private async Task OpenEditDialog(long id)
+    {
+        var parameters = new DialogParameters { ["Faculty"] = await facultyService.GetFaculty(id) };
+        var dialog =  DialogService.Show<EditFacultyDialog>("Edit Faculty", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+             GetFacultyAsync();
+        }
+      
+    }
+}

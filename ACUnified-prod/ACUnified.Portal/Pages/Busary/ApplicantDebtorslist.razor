@@ -1,0 +1,631 @@
+@page "/busary/applicant-debtor-list"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Business.Services.IServices
+@inject IApplicantDebtorListExportService ExportService
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using static System.Net.WebRequestMethods
+@layout ACUnifiedLayout
+@inject IApplicantDebtorListRepository Repository
+@inject ISnackbar Snackbar
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject HttpClient Http
+@inject IApplicantPaymentMigrationService MigrationService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = "Bursary")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5">Payment Migration Tool</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Color="Color.Primary" 
+                          OnClick="LoadExistingData" 
+                          StartIcon="@Icons.Material.Filled.Refresh"
+                          Disabled="@(isRunning || isLoading)">
+                    Refresh Data
+                </MudButton>
+                <MudButton Color="Color.Secondary"
+                   OnClick="ExportToCsv"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   Disabled="@(isRunning || isLoading)">
+                    Export to CSV
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="startId" Label="Start ID" Variant="Variant.Outlined" Min="1" Max="2147483647" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="endId" Label="End ID" Variant="Variant.Outlined" Min="1" Max="2147483647" />
+                </MudItem>
+            </MudGrid>
+
+            <MudSwitch @bind-Checked="skipExistingRecords" Label="Skip existing records (prevent duplicates)" Color="Color.Primary" />
+
+            @if (isRunning)
+            {
+                <MudPaper Class="pa-4 my-4">
+                    <MudText>Migration in progress... Please wait.</MudText>
+                    <MudProgressLinear Color="Color.Primary" 
+                                     Value="@progressValue" 
+                                     Class="my-2" />
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <MudText>Progress: @progressValue.ToString("F1")%</MudText>
+                        </MudItem>
+                        <MudItem xs="6" Class="d-flex justify-end">
+                            <MudText>
+                                @(string.IsNullOrEmpty(timeRemaining) ? "" : $"Estimated time remaining: {timeRemaining}")
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText>
+                                Processed @processedRecords of @totalRecordsToProcess records
+                                @(skippedDuplicates > 0 ? $" (Skipped {skippedDuplicates} duplicates)" : "")
+                            </MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+            else if (isLoading)
+            {
+                <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-4" />
+                <MudText Color="Color.Info">Loading existing data... Please wait.</MudText>
+            }
+
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    @(results != null && results.Any() ? "Migration Results" : "Existing Records")
+                </MudText>
+                
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" 
+                                    ValueChanged="@(s => OnSearch(s))" 
+                                    Placeholder="Search by name, course, or application ID"
+                                    Adornment="Adornment.Start"
+                                    AdornmentIcon="@Icons.Material.Filled.Search"
+                                    IconSize="Size.Medium" 
+                                    Class="mb-4"/>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" Label="Filter by Status" 
+                                 ValueChanged="@(status => FilterByStatus(status))"
+                                 Class="mb-4">
+                            <MudSelectItem Value="@("all")">All Records</MudSelectItem>
+                            <MudSelectItem Value="@("outstanding")">Outstanding Balance</MudSelectItem>
+                            <MudSelectItem Value="@("paid")">Fully Paid</MudSelectItem>
+                            <MudSelectItem Value="@("overdue")">Overdue</MudSelectItem>
+                            <MudSelectItem Value="@("firstInstalment")">First Instalment Paid</MudSelectItem>
+                            <MudSelectItem Value="@("secondInstalment")">Second Instalment Paid</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudTable Items="@(filteredData ?? existingData)" 
+                         Dense="true" 
+                         Hover="true" 
+                         Bordered="true" 
+                         Breakpoint="Breakpoint.Sm"
+                         Loading="@(isLoading || isRunning)"
+                         LoadingProgressColor="Color.Info"
+                         MultiSelection="true"
+                         @bind-SelectedItems="selectedItems"
+                         SortLabel="@sortLabel"
+                         OnSort="@OnSort">
+                    <HeaderContent>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="id" SortBy="@(x => x.Id)">ID</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="application_id" SortBy="@(x => x.ApplicationFormId)">Application ID</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="applicant_name" SortBy="@(x => GetApplicantName(x))">Applicant Name</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="course" SortBy="@(x => x.ApplicationForm?.FinalisedCourse ?? "")">Course</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="level" SortBy="@(x => x.ApplicationForm?.Level?.Name ?? "")">Level</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="matric_no" SortBy="@(x => x.ApplicationForm?.MatriculationNumber ?? "")">Matric_No</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="total_amount" SortBy="@(x => x.TotalAmount)">Total Amount</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="total_paid" SortBy="@(x => x.TotalPaid)">Total Paid</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="outstanding" SortBy="@(x => x.OutstandingAmount)">Outstanding</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="due_date" SortBy="@(x => x.DueDate)">Due Date</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel T="ApplicantDebtorListDto" SortLabel="payment_status" SortBy="@(x => GetPaymentStatus(x.PaymentPlan, x.OutstandingAmount))">Payment Status</MudTableSortLabel>
+                        </MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="ID">@context.Id</MudTd>
+                        <MudTd DataLabel="Application ID">@context.ApplicationFormId</MudTd>
+                        <MudTd DataLabel="Applicant Name">
+                            @if (context.ApplicationForm?.BioData != null)
+                            {
+                                @($"{context.ApplicationForm.BioData.LastName} {context.ApplicationForm.BioData.FirstName} {context.ApplicationForm.BioData.OtherName}".Trim())
+                            }
+                            else
+                            {
+                                <span>N/A</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Course">@(context.ApplicationForm?.FinalisedCourse ?? "N/A")</MudTd>
+                        <MudTd DataLabel="Level">@(context.ApplicationForm?.Level?.Name ?? "N/A")</MudTd>
+                        <MudTd DataLabel="MatriculationNumber">@(context.ApplicationForm?.MatriculationNumber ?? "N/A")</MudTd>
+                        <MudTd DataLabel="Total Amount">@context.TotalAmount.ToString("C")</MudTd>
+                        <MudTd DataLabel="Total Paid">@context.TotalPaid.ToString("C")</MudTd>
+                        <MudTd DataLabel="Outstanding">
+                            <MudText Color="@GetOutstandingColor(context.OutstandingAmount)">
+                                @context.OutstandingAmount.ToString("C")
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Due Date">
+                            <MudText Color="@GetDueDateColor(context.DueDate, context.OutstandingAmount)">
+                                @context.DueDate.ToShortDateString()
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Payment Status">
+                            <MudChip Color="@GetPaymentStatusColor(context.PaymentPlan, context.OutstandingAmount)">
+                                @GetPaymentStatus(context.PaymentPlan, context.OutstandingAmount)
+                            </MudChip>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                    <NoRecordsContent>
+                        <MudText>No records found</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       OnClick="RunMigration" 
+                       Disabled="@(isRunning || isLoading)"
+                       StartIcon="@Icons.Material.Filled.PlayArrow">
+                Start Migration
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Secondary"
+                       OnClick="ResetForm"
+                       Disabled="@(isRunning || isLoading)"
+                       Class="ml-2">
+                Reset
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private int startId = 1;
+    private int endId = 100000;
+    private bool isRunning = false;
+    private bool isLoading = false;
+    private bool skipExistingRecords = true; // Default to true to prevent duplicates
+    private List<ApplicantDebtorListDto> results;
+    private List<ApplicantDebtorListDto> existingData;
+    private List<ApplicantDebtorListDto> filteredData;
+    private HashSet<ApplicantDebtorListDto> selectedItems = new();
+    private string currentStatusFilter = "all";
+    private string searchText = "";
+    private string sortLabel = "";
+    private bool sortAscending = true;
+
+    // Progress tracking fields
+    private double progressValue;
+    private DateTime migrationStartTime;
+    private string timeRemaining = "";
+    private int totalRecordsToProcess;
+    private int processedRecords;
+    private int skippedDuplicates;
+    private System.Threading.CancellationTokenSource cancellationTokenSource;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExistingData();
+    }
+
+    private async Task LoadExistingData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var data = await Repository.GetAllAsync();
+            existingData = data.ToList();
+            
+            ApplyFilters(searchText);
+            
+            if (existingData.Any())
+            {
+                var totalOutstanding = existingData.Sum(x => x.OutstandingAmount);
+                var totalPaid = existingData.Sum(x => x.TotalPaid);
+                var totalAmount = existingData.Sum(x => x.TotalAmount);
+                var overduePayers = existingData.Count(x => x.DueDate < DateTime.Today && x.OutstandingAmount > 0);
+                var fullyPaid = existingData.Count(x => x.OutstandingAmount <= 0);
+                var firstInstalment = existingData.Count(x => x.PaymentPlan == PayPlan.FirstInstalment);
+                var secondInstalment = existingData.Count(x => x.PaymentPlan == PayPlan.SecondInstalment);
+                
+                var summaryMessage = $"Loaded {existingData.Count:N0} records\n" +
+                                   $"Total Paid: {totalPaid:C}\n" +
+                                   $"Fully Paid: {fullyPaid:N0}\n" +
+                                   $"First Instalment: {firstInstalment:N0}\n" +
+                                   $"Second Instalment: {secondInstalment:N0}\n" +
+                                   $"Overdue Accounts: {overduePayers:N0}";
+                
+                Snackbar.Add(summaryMessage, Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateTimeRemaining()
+    {
+        if (processedRecords <= 0) return;
+
+        var elapsed = DateTime.Now - migrationStartTime;
+        var recordsPerSecond = processedRecords / elapsed.TotalSeconds;
+        
+        if (recordsPerSecond <= 0) return;
+
+        var remainingRecords = totalRecordsToProcess - processedRecords;
+        var estimatedSecondsRemaining = remainingRecords / recordsPerSecond;
+        
+        var timeSpan = TimeSpan.FromSeconds(estimatedSecondsRemaining);
+        timeRemaining = timeSpan.TotalHours >= 1 
+            ? $"{timeSpan.Hours}h {timeSpan.Minutes}m {timeSpan.Seconds}s"
+            : timeSpan.TotalMinutes >= 1 
+                ? $"{timeSpan.Minutes}m {timeSpan.Seconds}s"
+                : $"{timeSpan.Seconds}s";
+    }
+
+    private async Task RunMigration()
+    {
+        if (endId < startId)
+        {
+            Snackbar.Add("End ID must be greater than Start ID", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            isRunning = true;
+            progressValue = 0;
+            processedRecords = 0;
+            skippedDuplicates = 0;
+            migrationStartTime = DateTime.Now;
+            totalRecordsToProcess = endId - startId + 1;
+            
+            cancellationTokenSource = new System.Threading.CancellationTokenSource();
+            StateHasChanged();
+
+            // Extract existing Application Form IDs to check for duplicates
+            var existingApplicationIds = existingData?
+                .Select(x => x.ApplicationFormId)
+                .ToHashSet() ?? new HashSet<long>();
+
+            // Start progress monitoring
+            _ = Task.Run(async () =>
+            {
+                while (!cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(1000, cancellationTokenSource.Token);
+                    await InvokeAsync(() =>
+                    {
+                        UpdateTimeRemaining();
+                        StateHasChanged();
+                    });
+                }
+            }, cancellationTokenSource.Token);
+
+            // Get the raw migration results
+            var migrationResults = await MigrationService.MigratePaymentsToDebtorListAsync(
+                startId, 
+                endId,
+                (processed) =>
+                {
+                    processedRecords = processed;
+                    progressValue = (double)processed / totalRecordsToProcess * 100;
+                    InvokeAsync(StateHasChanged);
+                });
+
+            // Filter out duplicates if skipExistingRecords is true
+            if (skipExistingRecords && migrationResults?.Any() == true)
+            {
+                var uniqueResults = new List<ApplicantDebtorListDto>();
+                
+                foreach (var result in migrationResults)
+                {
+                    if (!existingApplicationIds.Contains(result.ApplicationFormId))
+                    {
+                        uniqueResults.Add(result);
+                    }
+                    else
+                    {
+                        skippedDuplicates++;
+                    }
+                }
+                
+                results = uniqueResults;
+            }
+            else
+            {
+                results = migrationResults;
+            }
+
+            await LoadExistingData();
+
+            if (results != null && results.Any())
+            {
+                var totalAmountPaid = results.Sum(x => x.TotalPaid);
+                
+                var successMessage = $"Successfully migrated {results.Count} payments\n" +
+                                   (skippedDuplicates > 0 ? $"Skipped {skippedDuplicates} duplicate records\n" : "") +
+                                   $"Total Amount Paid (Sum): {totalAmountPaid:C}\n\n" +
+                                   "Individual Records:\n";
+                                   
+                foreach (var record in results.Take(5)) // Show first 5 records to avoid message too long
+                {
+                    successMessage += $"ID {record.ApplicationFormId}:\n" +
+                                    $"  Total Amount: {record.TotalAmount:C}\n" +
+                                    $"  Amount Paid: {record.TotalPaid:C}\n" +
+                                    $"  Outstanding: {record.OutstandingAmount:C}\n\n";
+                }
+
+                if (results.Count > 5)
+                {
+                    successMessage += $"... and {results.Count - 5} more records";
+                }
+                
+                Snackbar.Add(successMessage, Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("No new records were migrated", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error during migration: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cancellationTokenSource?.Cancel();
+            cancellationTokenSource?.Dispose();
+            isRunning = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var exportData = filteredData ?? existingData;
+            if (exportData == null || !exportData.Any())
+            {
+                Snackbar.Add("No data to export", Severity.Warning);
+                return;
+            }
+
+            var fileBytes = await ExportService.ExportToCsvAsync(exportData, currentStatusFilter, searchText);
+            var fileName = ExportService.GetExportFileName();
+
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, Convert.ToBase64String(fileBytes));
+            Snackbar.Add("Export completed successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting data: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private void FilterByStatus(string status)
+    {
+        currentStatusFilter = status;
+        ApplyFilters(searchText);
+    }
+
+    private void OnSearch(string searchText)
+    {
+        this.searchText = searchText;
+        ApplyFilters(searchText);
+    }
+
+    private void OnSort(MudTableSortLabel<ApplicantDebtorListDto> sortLabel)
+    {
+        this.sortLabel = sortLabel.SortLabel;
+        sortAscending = !sortAscending; // Toggle sort direction
+        ApplyFilters(searchText); // Reapply filters and sorting
+    }
+
+    private string GetApplicantName(ApplicantDebtorListDto dto)
+    {
+        return dto.ApplicationForm?.BioData != null
+            ? $"{dto.ApplicationForm.BioData.LastName} {dto.ApplicationForm.BioData.FirstName} {dto.ApplicationForm.BioData.OtherName}".Trim()
+            : "";
+    }
+    
+    private void ApplyFilters(string searchText)
+    {
+        var query = results ?? existingData ?? new List<ApplicantDebtorListDto>();
+
+        // Apply status filter
+        if (!string.IsNullOrEmpty(currentStatusFilter) && currentStatusFilter != "all")
+        {
+            query = currentStatusFilter switch
+            {
+                "outstanding" => query.Where(x => x.OutstandingAmount > 0).ToList(),
+                "paid" => query.Where(x => x.OutstandingAmount <= 0).ToList(),
+                "overdue" => query.Where(x => x.DueDate < DateTime.Today && x.OutstandingAmount > 0).ToList(),
+                "firstInstalment" => query.Where(x => x.PaymentPlan == PayPlan.FirstInstalment).ToList(),
+                "secondInstalment" => query.Where(x => x.PaymentPlan == PayPlan.SecondInstalment).ToList(),
+                _ => query
+            };
+        }
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            searchText = searchText.ToLower();
+            query = query.Where(x => 
+                (x.ApplicationForm?.BioData != null && 
+                    ($"{x.ApplicationForm.BioData.LastName} {x.ApplicationForm.BioData.FirstName} {x.ApplicationForm.BioData.OtherName}")
+                    .ToLower()
+                    .Contains(searchText)) ||
+                (x.ApplicationForm?.FinalisedCourse ?? "").ToLower().Contains(searchText) ||
+                x.ApplicationFormId.ToString().Contains(searchText) ||
+                (x.ApplicationForm?.Level?.Name ?? "").ToLower().Contains(searchText) ||
+                (x.ApplicationForm?.MatriculationNumber ?? "").ToLower().Contains(searchText))
+                .ToList();
+        }
+
+        // Apply sorting
+        if (!string.IsNullOrEmpty(sortLabel))
+        {
+            query = sortLabel switch
+            {
+                "id" => sortAscending 
+                    ? query.OrderBy(x => x.Id).ToList() 
+                    : query.OrderByDescending(x => x.Id).ToList(),
+                "application_id" => sortAscending 
+                    ? query.OrderBy(x => x.ApplicationFormId).ToList() 
+                    : query.OrderByDescending(x => x.ApplicationFormId).ToList(),
+                "applicant_name" => sortAscending 
+                    ? query.OrderBy(x => GetApplicantName(x)).ToList() 
+                    : query.OrderByDescending(x => GetApplicantName(x)).ToList(),
+                "course" => sortAscending 
+                    ? query.OrderBy(x => x.ApplicationForm?.FinalisedCourse ?? "").ToList() 
+                    : query.OrderByDescending(x => x.ApplicationForm?.FinalisedCourse ?? "").ToList(),
+                "level" => sortAscending 
+                    ? query.OrderBy(x => x.ApplicationForm?.Level?.Name ?? "").ToList() 
+                    : query.OrderByDescending(x => x.ApplicationForm?.Level?.Name ?? "").ToList(),
+                "matric_no" => sortAscending 
+                    ? query.OrderBy(x => x.ApplicationForm?.MatriculationNumber ?? "").ToList() 
+                    : query.OrderByDescending(x => x.ApplicationForm?.MatriculationNumber ?? "").ToList(),
+                "total_amount" => sortAscending 
+                    ? query.OrderBy(x => x.TotalAmount).ToList() 
+                    : query.OrderByDescending(x => x.TotalAmount).ToList(),
+                "total_paid" => sortAscending 
+                    ? query.OrderBy(x => x.TotalPaid).ToList() 
+                    : query.OrderByDescending(x => x.TotalPaid).ToList(),
+                "outstanding" => sortAscending 
+                    ? query.OrderBy(x => x.OutstandingAmount).ToList() 
+                    : query.OrderByDescending(x => x.OutstandingAmount).ToList(),
+                "due_date" => sortAscending 
+                    ? query.OrderBy(x => x.DueDate).ToList() 
+                    : query.OrderByDescending(x => x.DueDate).ToList(),
+                "payment_status" => sortAscending 
+                    ? query.OrderBy(x => GetPaymentStatus(x.PaymentPlan, x.OutstandingAmount)).ToList() 
+                    : query.OrderByDescending(x => GetPaymentStatus(x.PaymentPlan, x.OutstandingAmount)).ToList(),
+                _ => query
+            };
+        }
+
+        filteredData = query.ToList();
+        StateHasChanged();
+    }
+
+    private Color GetOutstandingColor(decimal outstandingAmount)
+    {
+        return outstandingAmount switch
+        {
+            <= 0 => Color.Success,
+            _ => Color.Error
+        };
+    }
+
+    private Color GetDueDateColor(DateTime dueDate, decimal outstandingAmount)
+    {
+        if (outstandingAmount <= 0) return Color.Success;
+        return dueDate < DateTime.Today ? Color.Error : Color.Warning;
+    }
+
+    private Color GetPaymentStatusColor(PayPlan paymentPlan, decimal outstandingAmount)
+    {
+        if (outstandingAmount <= 0) 
+            return Color.Success;
+            
+        return paymentPlan switch
+        {
+            PayPlan.FirstInstalment => Color.Info,
+            PayPlan.SecondInstalment => Color.Warning,
+            _ => Color.Error
+        };
+    }
+
+    private string GetPaymentStatus(PayPlan paymentPlan, decimal outstandingAmount)
+    {
+        if (outstandingAmount <= 0) 
+            return "Fully Paid";
+            
+        return paymentPlan switch
+        {
+            PayPlan.FirstInstalment => "First Instalment",
+            PayPlan.SecondInstalment => "Second Instalment",
+            PayPlan.Full => "Full Payment Required",
+            _ => "Unknown"
+        };
+    }
+
+    private async Task ResetForm()
+    {
+        try
+        {
+            startId = 9;
+            endId = 53;
+            results = null;
+            filteredData = null;
+            selectedItems.Clear();
+            currentStatusFilter = "all";
+            searchText = "";
+            sortLabel = "";
+            sortAscending = true;
+            progressValue = 0;
+            processedRecords = 0;
+            timeRemaining = "";
+            
+            await LoadExistingData();
+            Snackbar.Add("Form has been reset", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error resetting form: {ex.Message}", Severity.Error);
+        }
+    }
+
+    public void Dispose()
+    {
+        cancellationTokenSource?.Cancel();
+        cancellationTokenSource?.Dispose();
+    }
+}

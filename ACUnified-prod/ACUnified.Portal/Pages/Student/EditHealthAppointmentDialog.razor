@@ -1,0 +1,36 @@
+
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@inject IHealthAppointmentRepository healthAppointmentService
+@inject ISnackbar snackBar
+@attribute [Authorize(Roles = "StudentDashboard")]
+
+<MudDialog>
+    <DialogContent>
+        <MudForm>
+            <MudTextField @bind-Value="healthAppointment.Purpose" Label="Purpose " Variant="Variant.Outlined" Margin="Margin.Normal" />
+            <MudTextField @bind-Value="healthAppointment.Comment" Label="Comment" Variant="Variant.Outlined" Margin="Margin.Normal" />
+            <!-- Add other fields as necessary -->
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public HealthAppointmentDto healthAppointment { get; set; }
+    [CascadingParameter] MudDialogInstance DialogService { get; set; }
+    private async Task Save()
+    {
+        await healthAppointmentService.UpdateHealthAppointment(healthAppointment);
+        DialogService.Close(DialogResult.Ok(true));
+        snackBar.Add("Health Appointment Saved.", Severity.Success);
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(DialogResult.Cancel());
+    }
+}

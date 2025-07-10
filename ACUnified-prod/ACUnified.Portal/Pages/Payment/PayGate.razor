@@ -1,0 +1,342 @@
+@page  "/PayGate/{name}"
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@using System.Text.RegularExpressions
+@using ACUnified.Data.Payloads
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentRepository paymentRepository
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using ACUnified.Portal.Pages
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@attribute [Authorize]
+<LoadingOverlay IsLoading="@_loading" />
+<MudBlazor.MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Applicant Order Page</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudText Typo="Typo.h5" GutterBottom="true">Billing address</MudText>
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="@firstname" T="string"  Label="First name" ReadOnly="true"/>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@surname" Label="Last name" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="@email" Label="Email" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="@phone" Label="Phone" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" Class="d-flex justify-center">
+                    <MudButton OnClick="OnPaymentClickAsync" Variant="Variant.Filled" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Continue to Payment</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+        <MudItem xs="5">
+            <MudText Typo="Typo.h5" GutterBottom="true">Cart</MudText>
+            
+            <MudText>Pay ref: @payrefNo</MudText>
+                                                         
+            <MudPaper Class="d-flex flex-column" Style="height:100%;" Outlined="true">
+                <MudList Clickable="true">
+                    <MudListItem Icon="@Icons.Material.Filled.BookOnline">
+                        
+                        <div class="d-flex">
+                            <MudText>@name</MudText>
+                            <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails.Amount.ToString("###,#")</MudText>
+                        </div>
+                    </MudListItem>
+                </MudList>
+                <div class="mt-auto">
+                    <MudDivider/>
+                    <div class="d-flex pa-4">
+                        <MudText>Total:</MudText>
+                        <MudText Class="ml-auto">
+                            <b>NGN @currentPayDetails.Amount.ToString("###,#")</b>
+                        </MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudBlazor.MudContainer>
+
+@code {
+
+    [Parameter]
+    public string name { get; set; }
+
+    [Parameter]
+    public decimal amount { get; set; }
+
+    public string payrefNo { get; set; }
+    public bool _loading { get; set; }
+    public string firstname{get;set;}
+    public string surname{ get; set; }
+    public string email{ get; set; }
+    public string phone{ get; set; }
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentDto currentApplicantPayment = new ApplicantPaymentDto();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+
+    public static string DEMO = "https://demo.remita.net";
+    public static string LIVE = "https://login.remita.net";
+
+    public static string GENERATE_RRR = "/remita/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit";
+
+    public static Headers _header;
+    public static List<Header> headers;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        currentSession = await currentAcademicSession.GetActiveSession();
+        currentPayDetails = await payDetailsRepository.GetPayDetailsByName(name);
+        if (userId != null)
+        {
+            var userInformation = await UserManager.FindByIdAsync(userId);
+            firstname=userInformation.Firstname;
+            surname = userInformation.Surname;
+            email = userInformation.Email;
+            phone = userInformation.PhoneNumber;
+        }
+        _loading = false;
+    }
+
+    private async Task OnPaymentClickAsync()
+    {
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
+
+
+        if (userId != null)
+        {
+            var userInformation = await UserManager.FindByIdAsync(userId);
+
+            try
+            {
+                //get order price
+                string merchantId = "2268484533";
+                string apiKey = "018543";
+                string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+                //code for each payment category is set here
+                string serviceTypeId = "2267186704";
+                if (name == "BTHBA")
+                {
+                    serviceTypeId = "2267186704";
+                }
+                else
+                {
+                    serviceTypeId = "2267186704";
+                }
+                
+                string amount = "15000";
+
+
+                string orderId = Guid.NewGuid().ToString("N");
+                string apiHashString = merchantId + serviceTypeId + orderId + amount + apiKey;
+                using var sha512 = System.Security.Cryptography.SHA512.Create();
+                var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+                string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+                _header = new Headers();
+                headers = new List<Header>();
+                headers.Add(new Header { header = "Content-Type", value = "application/json" });
+                headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+                _header.headers = headers;
+
+                GenerateRRRRequest generateRRRRequest = new GenerateRRRRequest();
+                generateRRRRequest.serviceTypeId = serviceTypeId;
+                generateRRRRequest.amount = amount;
+                generateRRRRequest.orderId = orderId;
+                generateRRRRequest.payerName = userInformation.Firstname+" "+userInformation.Surname;
+                generateRRRRequest.payerEmail = userInformation.Email;
+                generateRRRRequest.payerPhone = userInformation.PhoneNumber??"";
+                generateRRRRequest.description = currentPayDetails.Name;
+
+                String jsonGenerateRRRRequest = JsonSerializer.Serialize(generateRRRRequest);
+                try
+                {
+                    var response = RemitaWebClientUtil.PostResponse(LIVE, GENERATE_RRR, jsonGenerateRRRRequest, _header);
+                    var match = Regex.Match(response, @"\((.*)\)");
+                    RRRresponse currentRRRResponse = new RRRresponse();
+                    if( match.Success ){
+                        currentRRRResponse = JsonSerializer.Deserialize<RRRresponse>( match.Groups[1].Value);
+                    }
+                        
+                    Console.WriteLine("+++ Gen RRR Response: " + response);
+                    // Serialize the object to JSON if needed by the JavaScript function
+               
+
+                // Call the JavaScript function for the payment gateway
+                var payDetails = new
+                {
+                    TotalAmount = amount,
+                    SelectedItems = 2,
+                    PayGateway = 1,
+                    TranId = Guid.NewGuid().ToString("N"),
+                    CustomerId = userId,
+                    FirstName = userInformation.Firstname,
+                    LastName = userInformation.Surname,
+                    Email = userInformation.Email,
+                    RRR=currentRRRResponse.RRR,
+                    merchantId = merchantId,
+                    apiKey = apiKey,
+                    serviceTypeId = serviceTypeId,
+                    prodKey=prodKey
+                };
+                    var paymentDetailsJson = JsonSerializer.Serialize(payDetails);
+                //enable this before publish
+                var Payresponse = await jsRuntime.InvokeAsync<PayResponse>("makePayment", paymentDetailsJson);
+                //var response = new PayResponse() { Message = "", Payreference="", Success = true };
+                //save the records in the database
+                //transverse all items for payments
+
+                if (Payresponse.Success)
+                {
+                    //if response is successful write into paymenttable
+                    //write into application form table with acunumber and other things
+                    //update application form Table information
+                    currentApplicationForm = new ApplicationFormDto();
+                    currentApplicationForm.UserId = userId;
+                    currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                    currentApplicationForm.ApplicationPaymentReference = Payresponse.Payreference;
+                    if (currentSession.Count()>0)
+                    {
+                        currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                    }
+                    //add degree and level
+                    if (name == "Undergraduate")
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (name == "MSC")
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (name == "JUPEB")
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (name == "BTHBA")
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (name == "HND")
+                    {
+                         currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (name == "MBA")
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+
+
+
+                    //Payment Table
+                    currentApplicantPayment = new ApplicantPaymentDto();
+                    currentApplicantPayment.ReferenceNo = Payresponse.Payreference;
+                    currentApplicantPayment.Amount = currentPayDetails.Amount;
+                    currentApplicantPayment.email = userInformation.Email;
+                    currentApplicantPayment.client_name = userInformation.Firstname + " " + userInformation.Surname;
+                    currentApplicantPayment.Comments=Payresponse.Message;
+                    currentApplicantPayment.isSuccessful = Payresponse.Success;
+                    currentApplicantPayment.ApplicantPayCategoryId = currentPayDetails.ApplicantPayCategoryId;
+                    currentApplicantPayment.ApplicantPayCategoryId = currentPayDetails.Id;
+                    currentApplicantPayment.UserId = userId;
+                    var currentSessionList = await currentAcademicSession.GetActiveSession();
+                    currentApplicantPayment.SessionId = currentSessionList.FirstOrDefault().Id;
+
+
+                    //save the payment and also the application form
+                    var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+
+                    var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+
+                    snackBar.Add($"Current Status: {Payresponse.Message} also your FormRef is {savedForm.FormRefNo}", Severity.Success, config => { config.RequireInteraction = true; config.ShowCloseIcon = true; });
+                    Navigation.NavigateTo("/applicant/dashboard");
+                }
+                else
+                {
+                    //Set the transaction to false just keep record for reconciliation purposes
+                    //Payment Table
+                    currentApplicantPayment = new ApplicantPaymentDto();
+                    currentApplicantPayment.ReferenceNo = Payresponse.Payreference;
+                    currentApplicantPayment.Amount = currentPayDetails.Amount;
+                    currentApplicantPayment.email = userInformation.Email;
+                    currentApplicantPayment.client_name = userInformation.Firstname + " " + userInformation.Surname;
+                    currentApplicantPayment.Comments = "Failed Transaction";
+                    currentApplicantPayment.isSuccessful = false;
+                    currentApplicantPayment.ApplicantPayCategoryId = currentPayDetails.ApplicantPayCategoryId;
+                    currentApplicantPayment.ApplicantPayCategoryId = currentPayDetails.Id;
+                    currentApplicantPayment.UserId = userId;
+
+
+                    //save the payment
+                    var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+
+                    snackBar.Add($"Current Status: " + Payresponse.Message, Severity.Warning, config => { config.RequireInteraction = true; config.ShowCloseIcon = true; });
+
+                }
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+
+               
+
+            }
+            catch (Exception e)
+            {
+                snackBar.Add($"Invalid Payment Parameters", Severity.Warning, config => { config.RequireInteraction = true; config.ShowCloseIcon = true; });
+
+            }
+        }
+        else
+        {
+            snackBar.Add("Please pay mandatory fees ", Severity.Error);
+            //Navigation.NavigateTo("/student/paycentral",forceLoad:true);
+        }
+        _loading = false;
+    
+    }
+
+
+}

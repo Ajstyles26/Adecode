@@ -1,0 +1,322 @@
+@page "/student/courseregistration"
+@layout ACUnifiedLayout
+@using ACUnified.Business.Repository
+@using ACUnified.Data.Models
+@using ACUnified.Data.DTOs
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Enum
+@using AutoMapper
+@using Microsoft.EntityFrameworkCore
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject ICourseRepository courseRepository
+@inject ICourseRegistrationRepository courseRegistrationRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar snackBar
+@inject IMapper _mapper
+ @inject IDbContextFactory<ApplicationDbContext> DbContextFactory 
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+<div class="ml-5 py-4">
+    <MudContainer>
+        <!-- Summary Card -->
+        <MudPaper Class="pa-4 mb-4" Elevation="3">
+            <MudGrid>
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.h6">Total Courses: @CRElements.Count()</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.h6">Total Units: @TotalUnits</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.h6" Color="@(TotalUnits > 24 ? Color.Error : Color.Success)">
+                        Maximum Units: 24
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @if (_loading)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        }
+        else
+        {
+            <!-- Department Filter -->
+            <MudSelect T="long?" Label="Filter by Department" Variant="Variant.Outlined"
+                       ValueChanged="@((long? value) => FilterByDepartment(value))" Class="mb-4">
+                <MudSelectItem Value="@((long?)null)">All Departments</MudSelectItem>
+                @foreach (var dept in Departments)
+                {
+                    <MudSelectItem Value="@dept.Id">@dept.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <!-- Selected Courses Table -->
+            <MudText Typo="Typo.h6" Class="mb-4">Selected Courses</MudText>
+            <MudTable Items="@CRElements" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading">
+                <HeaderContent>
+                    <MudTh>Course Code</MudTh>
+                    <MudTh>Course Title</MudTh>
+                    <MudTh>Department</MudTh>
+                    <MudTh>Unit</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Course Code">@context.CourseCode</MudTd>
+                    <MudTd DataLabel="Course Title">@context.Name</MudTd>
+                    <MudTd DataLabel="Department">@context.Department.Name</MudTd>
+                    <MudTd DataLabel="Unit">@context.CourseUnit</MudTd>
+                    <MudTd DataLabel="Category">@context.courseCategory</MudTd>
+                    <MudTd DataLabel="Remove">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Color="Color.Error"
+                                       OnClick="@(() => RemoveCourse(context))"
+                                       Disabled="@(context.courseCategory == CourseCategory.Compulsory)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            <!-- Available Courses Section -->
+            <MudDivider Class="my-6" />
+            <MudText Typo="Typo.h6" Class="mb-4">Available Courses</MudText>
+
+            <!-- Course Selection -->
+            <MudGrid>
+                <MudItem xs="12" sm="8">
+                    <MudAutocomplete T="string"
+                                     Label="Add Course"
+                                     SearchFunc="@SearchForCourse"
+                                     @bind-Value="SelectedCourseCode"
+                                     Variant="Variant.Outlined"
+                                     AdornmentIcon="@Icons.Material.Filled.Search"
+                                     Adornment="Adornment.Start" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="AddCourse"
+                               Disabled="@(!CanAddMoreCourses)">
+                        Add Course
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Submit Button -->
+            <MudPaper Class="pa-4 mt-6" Elevation="3">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="SubmitCourseRegistration"
+                           Disabled="@(!CanSubmit)"
+                           FullWidth="true">
+                    Submit Registration
+                </MudButton>
+            </MudPaper>
+        }
+    </MudContainer>
+</div>
+
+@code {
+    private List<CourseDto> CRElements = new List<CourseDto>();
+    private List<CourseDto> AllCourses = new List<CourseDto>();
+    private List<DepartmentDto> Departments = new List<DepartmentDto>();
+    private bool _loading = true;
+    private string SelectedCourseCode;
+    private long? SelectedDepartmentId;
+    private ApplicationForm currentApplicationForm;
+    private Session currentSession;
+
+    private int TotalUnits => CRElements.Sum(c => c.CourseUnit);
+    private bool CanAddMoreCourses => TotalUnits < 24;
+    private bool CanSubmit => CRElements.Any() && TotalUnits <= 24 && currentApplicationForm != null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _loading = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (userId != null)
+            {
+                using var context = await DbContextFactory.CreateDbContextAsync();
+                currentApplicationForm = await context.ApplicationForm
+                    .Include(a => a.BioData)
+                    .Include(a => a.Session)
+                    .FirstOrDefaultAsync(a => a.UserId == userId);
+
+                if (currentApplicationForm == null)
+                {
+                    snackBar.Add("No application form found.", Severity.Error);
+                    Navigation.NavigateTo("/");
+                    return;
+                }
+
+                // Get current session
+                currentSession = await context.Session
+                    .OrderByDescending(s => s.Id)
+                    .FirstOrDefaultAsync();
+
+                if (currentSession == null)
+                {
+                    snackBar.Add("No active session found.", Severity.Error);
+                    return;
+                }
+
+                // Load initial data
+                AllCourses = (await courseRepository.GetAllCourse()).ToList();
+                Departments = AllCourses
+                    .Select(c => c.Department)
+                    .DistinctBy(d => d.Id)
+                    .Select(d => _mapper.Map<DepartmentDto>(d))
+                    .ToList();
+
+                // Load existing course registrations if any
+                var existingRegistrations = await courseRegistrationRepository
+                    .GetCourseRegistrationByApplicationFormId(currentApplicationForm.Id);
+
+                if (existingRegistrations?.Any() == true)
+                {
+                    CRElements = existingRegistrations
+                        .Select(r => AllCourses.FirstOrDefault(c => c.Id == r.CourseId))
+                        .Where(c => c != null)
+                        .ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            snackBar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task FilterByDepartment(long? departmentId)
+    {
+        try
+        {
+            _loading = true;
+            SelectedDepartmentId = departmentId;
+            AllCourses = (departmentId.HasValue
+                ? await courseRepository.GetCoursesByDepartment(departmentId.Value)
+                : await courseRepository.GetAllCourse()).ToList();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task<IEnumerable<string>> SearchForCourse(string CourseParam)
+    {
+        if (string.IsNullOrEmpty(CourseParam))
+            return Array.Empty<string>();
+
+        return AllCourses
+            .Where(x => x.Name.Contains(CourseParam, StringComparison.CurrentCultureIgnoreCase) ||
+                       x.CourseCode.Contains(CourseParam, StringComparison.CurrentCultureIgnoreCase))
+            .Select(x => $"{x.Name}-->{x.CourseCode}-->{x.Department.Name}-->{x.courseCategory}-->{x.Id}");
+    }
+
+    private void AddCourse()
+    {
+        if (!CanAddMoreCourses)
+        {
+            snackBar.Add("Maximum units (24) exceeded", Severity.Error);
+            return;
+        }
+
+        var splitSelectedCourseCode = SelectedCourseCode?.Split("-->");
+        if (splitSelectedCourseCode?.Length != 5 || !long.TryParse(splitSelectedCourseCode[4], out var courseId))
+        {
+            snackBar.Add("Invalid course selection", Severity.Error);
+            return;
+        }
+
+        var courseToAdd = AllCourses.FirstOrDefault(c => c.Id == courseId);
+        if (courseToAdd == null)
+        {
+            snackBar.Add("Course not found", Severity.Error);
+            return;
+        }
+
+        if (CRElements.Any(r => r.CourseCode == courseToAdd.CourseCode))
+        {
+            snackBar.Add("Course already added", Severity.Warning);
+            return;
+        }
+
+        CRElements.Add(courseToAdd);
+        snackBar.Add("Course added successfully", Severity.Success);
+        SelectedCourseCode = null;
+    }
+
+    private void RemoveCourse(CourseDto course)
+    {
+        if (course.courseCategory == CourseCategory.Compulsory)
+        {
+            snackBar.Add($"Cannot remove compulsory course: {course.Name}", Severity.Error);
+            return;
+        }
+
+        CRElements.Remove(course);
+        snackBar.Add($"Course {course.Name} removed successfully", Severity.Success);
+    }
+    
+
+    private async Task SubmitCourseRegistration()
+    {
+        if (!CanSubmit)
+        {
+            if (TotalUnits > 24)
+                snackBar.Add("Total units exceed maximum allowed (24)", Severity.Error);
+            else if (!CRElements.Any())
+                snackBar.Add("Please select at least one course", Severity.Error);
+            else if (currentApplicationForm == null)
+                snackBar.Add("No valid application form found", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            _loading = true;
+
+            if (currentApplicationForm.ProgramSetupId == null)
+            {
+                snackBar.Add("Program setup not found in application form", Severity.Error);
+                return;
+            }
+
+            var registrations = CRElements.Select(course => new CourseRegistrationDto
+                {
+                    CourseId = course.Id,
+                    ApplicationFormId = currentApplicationForm.Id,
+                    StudentId = null,  // Explicitly set to null
+                    StudentEnrolmentId = null,  // Explicitly set to null
+                    ProgramSetupId = currentApplicationForm.ProgramSetupId.Value, // Use Value since we checked for null
+                    SessionId = currentSession.Id, // Use current session
+                    InstitutionProviderId = currentApplicationForm.InstitutionProviderId
+                }).ToList();
+
+            await courseRegistrationRepository.CreateBulkApplicationFormCourseRegistrations(registrations);
+            snackBar.Add("Course registration submitted successfully", Severity.Success);
+            Navigation.NavigateTo("/student/registration-confirmation");
+        }
+        catch (Exception ex)
+        {
+            snackBar.Add($"Error submitting registration: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

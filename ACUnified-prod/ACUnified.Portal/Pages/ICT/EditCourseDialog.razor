@@ -1,0 +1,210 @@
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using ACUnified.Data.Enum
+@using ACUnified.Business.Repository.IRepository
+@inject ICourseRegistrationRepository CourseRegistrationService
+@inject ICourseRepository CourseService
+@inject IAcademicSessionRepository AcademicSessionService
+@inject IAcademicSemesterRepository AcademicSemesterService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Edit Courses for @MatricNumber</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 500px; overflow-y: auto">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle1">Current Courses</MudText>
+                    @if (existingCourses != null && existingCourses.Any())
+                    {
+                        <MudTable Items="@existingCourses" Dense="true" Hover="true" Bordered="true">
+                            <HeaderContent>
+                                <MudTh>Course Code</MudTh>
+                                <MudTh>Course Name</MudTh>
+                                <MudTh>Units</MudTh>
+                                <MudTh>Semester</MudTh>
+                                <MudTh>Session</MudTh>
+                                <MudTh>Action</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Course?.CourseCode</MudTd>
+                                <MudTd>@context.Course?.Name</MudTd>
+                                <MudTd>@context.Course?.CourseUnit</MudTd>
+                                <MudTd>@context.Semester?.Name</MudTd>
+                                <MudTd>@context.Session?.Name</MudTd>
+                                <MudTd>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteCourse(context))">Delete</MudButton>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No courses registered.</MudAlert>
+                    }
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle1">Add New Course</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudAutocomplete T="CourseDto" 
+                                    Label="Search Course" 
+                                    @bind-Value="selectedCourse" 
+                                    SearchFunc="@SearchCourses"
+                                    ToStringFunc="@(c => c == null ? null : $"{c.CourseCode} - {c.Name} ({c.CourseUnit} Units)")"
+                                    Clearable="true"
+                                    ResetValueOnEmptyText="true"
+                                    For="@(() => selectedCourse)">
+                        <ItemTemplate Context="course">
+                            <MudText>@course.CourseCode - @course.Name (@course.CourseUnit Units)</MudText>
+                        </ItemTemplate>
+                    </MudAutocomplete>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Add Course</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public long ApplicationFormId { get; set; }
+    [Parameter] public string MatricNumber { get; set; }
+
+    private IEnumerable<CourseRegistrationDto> existingCourses;
+    private CourseDto selectedCourse;
+    private long currentSessionId;
+    private long currentSemesterId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+        await LoadExistingCourses();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            // Get the current active session and semester
+            var activeSession = (await AcademicSessionService.GetActiveSession())?.FirstOrDefault();
+            var activeSemester = (await AcademicSemesterService.GetActiveSemester())?.FirstOrDefault();
+
+            currentSessionId = activeSession?.Id ?? 0;
+            currentSemesterId = activeSemester?.Id ?? 0;
+
+            if (currentSessionId == 0 || currentSemesterId == 0)
+            {
+                Snackbar.Add("No active session or semester found.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading initial data: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task LoadExistingCourses()
+    {
+        try
+        {
+            existingCourses = await CourseRegistrationService.GetCourseRegistrationByApplicationFormId(ApplicationFormId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading existing courses: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task<IEnumerable<CourseDto>> SearchCourses(string searchText)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return new List<CourseDto>();
+            }
+
+            var courses = await CourseService.GetCourseByName(searchText);
+            return courses?.Take(10) ?? new List<CourseDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error searching courses: {ex.Message}", Severity.Error);
+            return new List<CourseDto>();
+        }
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            if (selectedCourse == null)
+            {
+                Snackbar.Add("Please select a course.", Severity.Warning);
+                return;
+            }
+
+            if (currentSessionId == 0 || currentSemesterId == 0)
+            {
+                Snackbar.Add("No active session or semester available.", Severity.Error);
+                return;
+            }
+
+            // Check for duplicate course registration
+            if (existingCourses?.Any(c => c.CourseId == selectedCourse.Id) == true)
+            {
+                Snackbar.Add("This course is already registered.", Severity.Warning);
+                return;
+            }
+
+            var courseRegistration = new CourseRegistrationDto
+            {
+                ApplicationFormId = ApplicationFormId,
+                CourseId = selectedCourse.Id,
+                SessionId = currentSessionId,
+                SemesterId = currentSemesterId,
+                ProgramSetupId = selectedCourse.ProgramSetupId,
+                TotalCourses = 1,
+                TotalUnits = selectedCourse.CourseUnit
+            };
+
+            var result = await CourseRegistrationService.CreateCourseRegistration(courseRegistration);
+            if (result != null)
+            {
+                Snackbar.Add("Course added successfully.", Severity.Success);
+                await LoadExistingCourses();
+                selectedCourse = null;
+            }
+            else
+            {
+                Snackbar.Add("Failed to add course.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error adding course: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteCourse(CourseRegistrationDto course)
+    {
+        try
+        {
+            await CourseRegistrationService.DeleteCourseRegistrationByApplicationFormAndCourse(ApplicationFormId, course.CourseId);
+            Snackbar.Add("Course deleted successfully.", Severity.Success);
+            await LoadExistingCourses();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting course: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,586 @@
+@page "/applicant/academicqualification"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Pages.Applicant.Validator
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository biodataRepository
+@inject IAcademicQualificationRepository AcademicQualificationRepository
+@inject NavigationManager Navigation
+@inject ISubjectSetupRepository SubjectSetupRepository
+@inject IProgramSetupRepository ProgramSetupRepository
+@inject IApplicationFormRepository applicationForm
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IUTMESubjectRepository  UTMESubjectRepository
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+<div class="ml-5 py-4">
+
+
+    <!--timeline -->
+   <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Biodata</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Other Details</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Next of kin</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Credentials</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Warning">Reference Info</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+</MudTimeline>
+    <!-- end timeline -->
+    <!--row 0-->
+  
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="First Sitting">
+            <MudForm Model="@currentAcademicQualification" @ref="@AcademicQualificationform" Validation="@(academicqualificationValidator.ValidateValue)"
+                     ValidationDelay="0">
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="string" @bind-Value="currentAcademicQualification.ExamType"
+                                   For="@(()=>currentAcademicQualification.ExamType)" Label="Exam Type" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("WAEC")" />
+                            <MudSelectItem Value="@("NECO")" />
+                            <MudSelectItem Value="@("NABTEB")" />
+                        </MudSelect>
+
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentAcademicQualification.ExamNumber"
+                                      For="@(()=>currentAcademicQualification.ExamNumber)" Label="Exam Number"></MudTextField>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <!--bthtoba does not have utme no -->
+                        @if (currentApplicationForm.DegreeId != 8 && currentApplicationForm.DegreeId != 10){
+                            <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentAcademicQualification.UTMERegNo"
+                                          For="@(()=>currentAcademicQualification.UTMERegNo)" Label="UTME Reg Number"></MudTextField>
+
+                        }
+                      
+
+                    
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        @*ALL DEs dont have JAMB SCORE*@
+                       @if (currentApplicationForm.DegreeId != 8 && currentApplicationForm.DegreeId != 10){
+                         @if(currentAcademicQualification.Modeofentry==ACUnified.Data.Enum.EntryMode.UTME){
+                        <MudTextField @bind-Value="currentAcademicQualification.UTMEScore"
+                                      For="@(()=>currentAcademicQualification.UTMEScore)" Label="UTME Score" Variant="Variant.Outlined"></MudTextField>
+                         }
+                         }
+                       </MudItem>
+
+
+
+                </MudGrid>
+                <!-- end row 0-->
+                <!--row 1-->
+                <h5 class="mud-typography mud-typography-h5">O Level Result</h5>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Subject1"
+                                   For="@(()=>currentAcademicQualification.Subject1)" Label="Select Subject 1" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Grade1"
+                                   For="@(()=>currentAcademicQualification.Grade1)" Label="Select Grade " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Subject2"
+                                   For="@(()=>currentAcademicQualification.Subject2)" Label="Select Subject 2" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Grade2"
+                                   For="@(()=>currentAcademicQualification.Grade2)" Label="Select Grade 2 " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Subject3"
+                                   For="@(()=>currentAcademicQualification.Subject3)" Label="Select Subject 3" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Grade3"
+                                   For="@(()=>currentAcademicQualification.Grade3)" Label="Select Grade 3 " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Subject4"
+                                   For="@(()=>currentAcademicQualification.Subject4)" Label="Select Subject 4" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Grade4"
+                                   For="@(()=>currentAcademicQualification.Grade4)" Label="Select Grade 4 " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Subject5"
+                                   For="@(()=>currentAcademicQualification.Subject5)" Label="Select Subject 5" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Grade5"
+                                   For="@(()=>currentAcademicQualification.Grade5)" Label="Select Grade  5" Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+
+
+                </MudGrid>
+                @* if the entry mode is not de show the jamb score *@
+                @if (currentApplicationForm.DegreeId != 8)
+{
+                @if (currentAcademicQualification.Modeofentry == ACUnified.Data.Enum.EntryMode.UTME)
+                {
+
+                    <h5 class="mud-typography mud-typography-h5">UTME</h5>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.UTMESubject1"
+                                       For="@(()=>currentAcademicQualification.UTMESubject1)" Label="Select Subject " Variant="Variant.Outlined">
+                                @foreach (var utmeSubject in UTMESubjects)
+                                {
+                                    <MudSelectItem Value="utmeSubject.Name" />
+                                }
+                            </MudSelect>
+                            <MudTextField Margin="Margin.Dense" @bind-Value="currentAcademicQualification.UTMESubscore1"
+                                          For="@(()=>currentAcademicQualification.UTMESubscore1)" Label="Enter Score" Variant="Variant.Outlined"></MudTextField>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+
+                            <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.UTMESubject2"
+                                       For="@(()=>currentAcademicQualification.UTMESubject2)" Label="Select Subject " Variant="Variant.Outlined">
+                                @foreach (var utmeSubject in UTMESubjects)
+                                {
+                                    <MudSelectItem Value="utmeSubject.Name" />
+                                }
+                            </MudSelect>
+                            <MudTextField Margin="Margin.Dense" @bind-Value="currentAcademicQualification.UTMESubscore2"
+                                          For="@(()=>currentAcademicQualification.UTMESubscore2)" Label="Enter Score" Variant="Variant.Outlined"></MudTextField>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.UTMESubject3"
+                                       For="@(()=>currentAcademicQualification.UTMESubject3)" Label="Select Subject " Variant="Variant.Outlined">
+                                @foreach (var utmeSubject in UTMESubjects)
+                                {
+                                    <MudSelectItem Value="utmeSubject.Name" />
+                                }
+                            </MudSelect>
+                            <MudTextField Margin="Margin.Dense" @bind-Value="currentAcademicQualification.UTMESubscore3"
+                                          For="@(()=>currentAcademicQualification.UTMESubscore3)" Label="Enter Score" Variant="Variant.Outlined"></MudTextField>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+
+                            <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.UTMESubject4"
+                                       For="@(()=>currentAcademicQualification.UTMESubject4)" Label="Select Subject " Variant="Variant.Outlined">
+                                @foreach (var utmeSubject in UTMESubjects)
+                                {
+                                    <MudSelectItem Value="utmeSubject.Name" />
+                                }
+                            </MudSelect>
+                            <MudTextField Margin="Margin.Dense" @bind-Value="currentAcademicQualification.UTMESubscore4"
+                                          For="@(()=>currentAcademicQualification.UTMESubscore4)" Label="Enter Score" Variant="Variant.Outlined"></MudTextField>
+                        </MudItem>
+                    </MudGrid>
+                   
+                }
+                }
+                
+                 <!-- end row 1-->
+                <!-- row 2-->
+                <MudDivider DividerType="DividerType.Inset" />
+                <MudGrid>
+@if (currentApplicationForm.DegreeId != 8)
+{
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudSelect Margin="Margin.Dense" T="ACUnified.Data.Enum.EntryMode" @bind-Value="currentAcademicQualification.Modeofentry"
+                                   For="@(()=>currentAcademicQualification.Modeofentry)" Label="Mode of Entry" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@(ACUnified.Data.Enum.EntryMode.UTME)" />
+                            <MudSelectItem Value="@(ACUnified.Data.Enum.EntryMode.DE)" />
+                        </MudSelect>
+                    </MudItem>
+}
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Choice1"
+                                   For="@(()=>currentAcademicQualification.Choice1)" Label="1st Choice" Variant="Variant.Outlined">
+                            @foreach (var programSetup in ProgramSetups)
+                            {
+                                <MudSelectItem Value="programSetup.Name" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudSelect Margin="Margin.Dense" T="string" Label="2nd Choice" @bind-Value="currentAcademicQualification.Choice2"
+                                   For="@(()=>currentAcademicQualification.Choice2)" Variant="Variant.Outlined">
+                            @foreach (var programSetup in ProgramSetups)
+                            {
+                                <MudSelectItem Value="programSetup.Name" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+
+                </MudGrid>
+                <MudGrid>
+                    <div class="d-flex align-center justify-space-between ml-auto">
+                        <MudButton OnClick="@HandleSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mr-3">Previous</MudButton>
+                        <MudButton OnClick="@OnValidSubmit"  Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Save & Continue</MudButton>
+                    </div>
+                </MudGrid>
+            </MudForm>
+        </MudTabPanel>
+        <MudTabPanel Text="Second Sitting">
+            <MudForm Model="@currentAcademicQualification" @ref="@AcademicQualificationform" Validation="@(academicqualificationValidator2.ValidateValue)"
+                     ValidationDelay="0">
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="string" @bind-Value="currentAcademicQualification.ExamType1"
+                                   For="@(()=>currentAcademicQualification.ExamType1)" Label="Exam Type" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("WAEC")" />
+                            <MudSelectItem Value="@("NECO")" />
+                            <MudSelectItem Value="@("NABTEB")" />
+                        </MudSelect>
+
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentAcademicQualification.ExamNumber1"
+                                      For="@(()=>currentAcademicQualification.ExamNumber1)" Label="Exam Number"></MudTextField>
+                    </MudItem>
+
+                </MudGrid>
+                <!-- end row 0-->
+                <!--row 1-->
+                <h5 class="mud-typography mud-typography-h5">O Level Result(Second Sitting)</h5>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondsubject1"
+                                   For="@(()=>currentAcademicQualification.Secondsubject1)" Label="Select Subject 1" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondgrade1"
+                                   For="@(()=>currentAcademicQualification.Secondgrade1)" Label="Select Grade " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondsubject2"
+                                   For="@(()=>currentAcademicQualification.Secondsubject2)" Label="Select Subject 2" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondgrade2"
+                                   For="@(()=>currentAcademicQualification.Secondgrade2)" Label="Select Grade 2 " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondsubject3"
+                                   For="@(()=>currentAcademicQualification.Secondsubject3)" Label="Select Subject 3" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondgrade3"
+                                   For="@(()=>currentAcademicQualification.Secondgrade3)" Label="Select Grade 3 " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondsubject4"
+                                   For="@(()=>currentAcademicQualification.Secondsubject4)" Label="Select Subject 4" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondgrade4"
+                                   For="@(()=>currentAcademicQualification.Secondgrade4)" Label="Select Grade 4 " Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondsubject5"
+                                   For="@(()=>currentAcademicQualification.Secondsubject5)" Label="Select Subject 5" Variant="Variant.Outlined">
+                            @foreach (var subjectSetup in SubjectSetups)
+                            {
+                                <MudSelectItem Value="subjectSetup.Name" />
+                            }
+                        </MudSelect>
+                        <MudSelect Margin="Margin.Dense" T="string" @bind-Value="currentAcademicQualification.Secondgrade5"
+                                   For="@(()=>currentAcademicQualification.Secondgrade5)" Label="Select Grade  5" Variant="Variant.Outlined">
+                            @foreach (var currGrade in Grade)
+                            {
+                                <MudSelectItem Value="@currGrade" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+                <!-- end row 1-->
+                <!-- row 2-->   
+                
+            </MudForm>
+        </MudTabPanel>    
+    </MudTabs>
+</div>
+
+@code{
+    public ProgramSetupDto[] ProgramSetups;
+    public UTMESubjectDto[] UTMESubjects;
+    public int IntValue { get; set; }
+    private string[] Grade = { "A1", "B2","B3","C4", "C5", "C6","D7","E8" ,"F9","A/R" };
+    public SubjectSetupDto[] SubjectSetups;
+    public bool _loading { get; set; }
+    AcademicQualificationDto currentAcademicQualification = new AcademicQualificationDto();
+    public ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    MudForm AcademicQualificationform;
+    AcademicQualificationValidator academicqualificationValidator = new AcademicQualificationValidator();
+    AcademicQualificationValidator academicqualificationValidator2 = new AcademicQualificationValidator();
+    protected override async Task OnInitializedAsync(){
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        SubjectSetups=(await SubjectSetupRepository.GetAllSubjectSetup()).ToArray();
+        ProgramSetups=(await ProgramSetupRepository.GetAllProgramSetup()).ToArray();
+        UTMESubjects=(await UTMESubjectRepository.GetAllUTMESubject()).ToArray();
+        if (userId != null)
+        {
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+                var tcurrentAcademicQualification = await AcademicQualificationRepository.GetAcademicQualification(userId);
+                if (tcurrentAcademicQualification != null)
+                {
+                    currentAcademicQualification = tcurrentAcademicQualification;
+                }
+            }
+            else
+            {
+                snackBar.Add("Please pay mandatory fees ", Severity.Error, configure =>
+                {
+                    configure.CloseAfterNavigation = false;
+                });
+                Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+            }
+
+
+        }
+        else
+        {
+             snackBar.Add("Error ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard",forceLoad:true);
+        }
+        _loading = false;
+    }
+    private async Task OnValidSubmit(){
+        //Navigate to the next page
+        // Console.WriteLine("Save the record and move to the next phase");
+        // StateHasChanged();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (currentAcademicQualification != null)
+        {
+            if (currentAcademicQualification.Modeofentry == ACUnified.Data.Enum.EntryMode.DE)
+            {
+               
+                currentAcademicQualification.UTMEScore = 4;
+                currentAcademicQualification.UTMESubject1 = "--";
+                currentAcademicQualification.UTMESubject2 = "--";
+                currentAcademicQualification.UTMESubject3 = "--";
+                currentAcademicQualification.UTMESubject4 = "--";
+                currentAcademicQualification.UTMESubscore1 = 1;
+                currentAcademicQualification.UTMESubscore2 = 1;
+                currentAcademicQualification.UTMESubscore3 = 1;
+                currentAcademicQualification.UTMESubscore4 = 1;
+            }
+            if (currentApplicationForm != null)
+            {
+                if(currentApplicationForm.DegreeId==10){
+                    currentAcademicQualification.UTMERegNo="000000000";
+                }
+                if(currentApplicationForm.DegreeId==8){
+                    currentAcademicQualification.UTMERegNo="000000000";
+                    currentAcademicQualification.Modeofentry=ACUnified.Data.Enum.EntryMode.JUPEB;
+                     currentAcademicQualification.UTMEScore = 4;
+                currentAcademicQualification.UTMESubject1 = "--";
+                currentAcademicQualification.UTMESubject2 = "--";
+                currentAcademicQualification.UTMESubject3 = "--";
+                currentAcademicQualification.UTMESubject4 = "--";
+                currentAcademicQualification.UTMESubscore1 = 1;
+                currentAcademicQualification.UTMESubscore2 = 1;
+                currentAcademicQualification.UTMESubscore3 = 1;
+                currentAcademicQualification.UTMESubscore4 = 1;
+                }
+                
+            }
+        }
+        await AcademicQualificationform.Validate();
+        if (AcademicQualificationform.IsValid)
+        {
+            currentAcademicQualification.UserId = userId;
+            var updatedAcademicQualification = await AcademicQualificationRepository.UpdateAcademicQualification(currentAcademicQualification);
+            if (updatedAcademicQualification != null)
+            {
+                var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                currentApplicationForm.AcademicQualificationId = updatedAcademicQualification.Id;
+                await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                   snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/reference");
+            }
+            else{
+                snackBar.Add("Error: Failed to save records", Severity.Error);
+            }
+
+        }
+        else
+        {
+            snackBar.Add("Error Please ensure the fields are properly filled", Severity.Error);
+        }
+
+        }
+        private async Task HandleSubmit()
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (currentAcademicQualification != null)
+        {
+            if (currentAcademicQualification.Modeofentry == ACUnified.Data.Enum.EntryMode.DE)
+            {
+
+                currentAcademicQualification.UTMEScore = 4;
+                currentAcademicQualification.UTMESubject1 = "--";
+                currentAcademicQualification.UTMESubject2 = "--";
+                currentAcademicQualification.UTMESubject3 = "--";
+                currentAcademicQualification.UTMESubject4 = "--";
+                currentAcademicQualification.UTMESubscore1 = 1;
+                currentAcademicQualification.UTMESubscore2 = 1;
+                currentAcademicQualification.UTMESubscore3 = 1;
+                currentAcademicQualification.UTMESubscore4 = 1;
+            }
+            if (currentApplicationForm != null)
+            {
+                if (currentApplicationForm.DegreeId == 10)
+                {
+                    currentAcademicQualification.UTMERegNo = "000000000";
+                }
+                 if(currentApplicationForm.DegreeId==8){
+                    currentAcademicQualification.UTMERegNo="000000000";
+                    currentAcademicQualification.Modeofentry=ACUnified.Data.Enum.EntryMode.DE;
+                     currentAcademicQualification.UTMEScore = 4;
+                currentAcademicQualification.UTMESubject1 = "--";
+                currentAcademicQualification.UTMESubject2 = "--";
+                currentAcademicQualification.UTMESubject3 = "--";
+                currentAcademicQualification.UTMESubject4 = "--";
+                currentAcademicQualification.UTMESubscore1 = 1;
+                currentAcademicQualification.UTMESubscore2 = 1;
+                currentAcademicQualification.UTMESubscore3 = 1;
+                currentAcademicQualification.UTMESubscore4 = 1;
+                }
+            }
+        }
+await AcademicQualificationform.Validate();
+        if (AcademicQualificationform.IsValid)
+        {
+            currentAcademicQualification.UserId = userId;
+            var updatedAcademicQualification = await AcademicQualificationRepository.UpdateAcademicQualification(currentAcademicQualification);
+            if (updatedAcademicQualification != null)
+            {
+                var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                currentApplicationForm.AcademicQualificationId = updatedAcademicQualification.Id;
+                await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                   snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/nok");
+            }
+            else{
+                snackBar.Add("Error: Failed to save records", Severity.Error);
+            }
+
+        }
+        else
+        {
+            snackBar.Add("Error Please ensure the fields are properly filled", Severity.Error);
+        }
+
+        }
+
+    private string[] EntryMode = { "Direct Entry", "JAMB","Transfer" };
+    @* private string[] CourseChoice = { "English ", "Computer Science" }; *@
+}

@@ -1,0 +1,206 @@
+@* @using ACUnified.Data.DTOs
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 500px; overflow-y: auto">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect T="long" Label="Department"
+                               @bind-Value="selectedDepartmentId"
+                               For="@(() => selectedDepartmentId)"
+                               OnChanged="LoadCourses">
+                        @if (departments != null)
+                        {
+                            @foreach (var dept in departments)
+                            {
+                                <MudSelectItem Value="@dept.Id">@dept.Name</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="long" Label="Faculty"
+                               @bind-Value="selectedFacultyId"
+                               For="@(() => selectedFacultyId)"
+                               OnChanged="LoadDepartments">
+                        @if (faculties != null)
+                        {
+                            @foreach (var faculty in faculties)
+                            {
+                                <MudSelectItem Value="@faculty.Id">@faculty.Name</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="long" Label="Level"
+                               @bind-Value="selectedLevelId"
+                               For="@(() => selectedLevelId)">
+                        @if (levels != null)
+                        {
+                            @foreach (var level in levels)
+                            {
+                                <MudSelectItem Value="@level.Id">@level.Name</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="long" Label="Course"
+                               @bind-Value="selectedCourseId"
+                               For="@(() => selectedCourseId)">
+                        @if (courses != null)
+                        {
+                            @foreach (var course in courses)
+                            {
+                                <MudSelectItem Value="@course.Id">@course.CourseCode - @course.Name (@course.CourseUnit Units)</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="long" Label="Session"
+                               @bind-Value="selectedSessionId"
+                               For="@(() => selectedSessionId)">
+                        @if (sessions != null)
+                        {
+                            @foreach (var session in sessions)
+                            {
+                                <MudSelectItem Value="@session.Id">@session.Name</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="long" Label="Semester"
+                               @bind-Value="selectedSemesterId"
+                               For="@(() => selectedSemesterId)">
+                        @if (semesters != null)
+                        {
+                            @foreach (var semester in semesters)
+                            {
+                                <MudSelectItem Value="@semester.Id">@semester.Name</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Add Course</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public string MatricNumber { get; set; }
+
+    [Inject] public ICourseRegistrationRepository CourseRegistrationService { get; set; }
+    [Inject] public IDepartmentRepository DepartmentService { get; set; }
+    [Inject] public IFacultyRepository FacultyService { get; set; }
+    [Inject] public ILevelRepository LevelService { get; set; }
+    [Inject] public ISnackbar Snackbar { get; set; }
+
+    private IEnumerable<FacultyDto> faculties;
+    private IEnumerable<DepartmentDto> departments;
+    private IEnumerable<CourseDto> courses;
+    private IEnumerable<SessionDto> sessions;
+    private IEnumerable<SemesterDto> semesters;
+    private IEnumerable<LevelDto> levels;
+
+    private long selectedFacultyId;
+    private long selectedDepartmentId;
+    private long selectedCourseId;
+    private long selectedSessionId;
+    private long selectedSemesterId;
+    private long selectedLevelId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            faculties = await FacultyService.GetAllFaculty();
+            levels = await LevelService.GetAllLevel();
+            // sessions = await AcademicSessionService.GetAllSessions();
+            // semesters = await AcademicSessionService.GetAllSemesters();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading initial data: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task LoadDepartments(long facultyId)
+    {
+        try
+        {
+            // Get all departments and filter by faculty
+            var allDepartments = await DepartmentService.GetAllDepartment();
+            departments = allDepartments.Where(d => d.FacultyId == facultyId);
+
+            courses = null; // Reset courses when faculty changes
+            selectedDepartmentId = 0;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading departments: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task LoadCourses(long deptId)
+    {
+        try
+        {
+            if (selectedLevelId == 0)
+            {
+                Snackbar.Add("Please select a level first", Severity.Warning);
+                return;
+            }
+
+            var allCourses = await CourseRegistrationService.GetCoursesByDepartment(deptId);
+            courses = allCourses.Where(c => c.LevelId == selectedLevelId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading courses: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            var courseRegistration = new CourseRegistrationDto
+                {
+                    CourseId = selectedCourseId,
+                    SessionId = selectedSessionId,
+                    SemesterId = selectedSemesterId,
+                    // Additional properties would be set here based on your DTO
+                };
+
+            var result = await CourseRegistrationService.CreateCourseRegistration(courseRegistration);
+            if (result != null)
+            {
+                Snackbar.Add("Course registration added successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to add course registration", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error adding course registration: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} *@

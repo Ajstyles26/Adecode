@@ -1,0 +1,100 @@
+@page "/ict/program-prefix-mapping"
+@using ACUnified.Business.Services.IServices
+@using System.Collections.Generic
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "ICT")]
+@inject IMatriculationService MatriculationService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Program Prefix Mappings</MudText>
+    
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        These mappings are built into the system and are used to generate matriculation numbers for students.
+        This is a reference view only. To modify these mappings, please contact the development team.
+    </MudAlert>
+    
+    <MudPaper Class="pa-4">
+        <MudTable Items="@_mappings" 
+                 Dense="true" 
+                 Hover="true" 
+                 Bordered="true"
+                 Striped="true"
+                 Filter="new Func<KeyValuePair<string,string>, bool>(FilterFunc)">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchString" 
+                              Placeholder="Search" 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search" 
+                              IconSize="Size.Medium" 
+                              Class="mt-0 mb-3" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Program Name</MudTh>
+                <MudTh>Prefix</MudTh>
+                <MudTh>Example</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Program Name">@context.Key</MudTd>
+                <MudTd DataLabel="Prefix">@context.Value</MudTd>
+                <MudTd DataLabel="Example">@($"{context.Value}/00001")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No program prefix mappings found.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+    
+    <MudPaper Class="pa-4 mt-4">
+        <MudText Typo="Typo.h6" Class="mb-4">Help</MudText>
+        <MudText>
+            <p>
+                Prefixes are used to generate matriculation numbers for students. The format is:
+                <br />
+                <code>{PREFIX}/{5-digit sequence}</code>
+            </p>
+            <p>
+                <strong>Example:</strong> 24AGR01/00001
+            </p>
+            <p>
+                <strong>Format:</strong> 2-digit year + 2-3 letter department code + 2-digit sequence
+            </p>
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _searchString = string.Empty;
+    private List<KeyValuePair<string, string>> _mappings = new List<KeyValuePair<string, string>>();
+
+    protected override void OnInitialized()
+    {
+        LoadMappings();
+        base.OnInitialized();
+    }
+
+    private void LoadMappings()
+    {
+        try
+        {
+            var mappings = MatriculationService.GetAllProgramPrefixes();
+            _mappings = new List<KeyValuePair<string, string>>(mappings);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading program prefix mappings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool FilterFunc(KeyValuePair<string, string> mapping)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        return mapping.Key.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+               mapping.Value.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+    }
+}

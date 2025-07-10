@@ -1,0 +1,55 @@
+@page "/ict/Dashboard"
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@layout ACUnifiedLayout
+ <MudContainer Fixed="true" Height="auto" Width="100%" class="mt-2">
+    <MudPaper Height="200px" style="background: orange ;position:relative" Width="100%" Square="false" Class="mud-theme-warn ">
+       
+            <div class="ml-10" style="position:relative">
+                <MudText Typo="Typo.h6" Style="color:white">Welcome to Unified Web Portal</MudText>
+                <MudText Typo="Typo.h4" Style="color:white"><b>Dashboard</b></MudText>
+                <br/><br/><br/><br/>
+                <MudText Typo="Typo.h6"><MudElement Style="color:white">Engage |</MudElement><MudElement Style="color: white">Excel |</MudElement><MudElement Style="color:purple"> Overcome</MudElement></MudText>
+            </div>
+         </MudPaper>
+         <br/>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="12" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="12" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+
+
+@code {
+    
+}

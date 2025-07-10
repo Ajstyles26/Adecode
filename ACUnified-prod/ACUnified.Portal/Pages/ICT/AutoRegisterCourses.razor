@@ -1,0 +1,35 @@
+@page "/ict/autoregistercourse"
+@layout ACUnifiedLayout
+@using ACUnified.Business.Services
+@using ACUnified.Business.Services.IServices
+@inject ICourseRegistrationService CourseRegistrationService
+@inject ISnackbar Snackbar
+
+<MudContainer>
+    <MudText Typo="Typo.h6">Automatic Course Registration</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RegisterCourses">
+        Register Courses for Level 1 Agricultural Students
+    </MudButton>
+</MudContainer>
+
+@code {
+    private async Task RegisterCourses()
+    {
+        try
+        {
+            var success = await CourseRegistrationService.AutoRegisterCoursesForStudents();
+            if (success)
+            {
+                Snackbar.Add("Courses registered successfully for eligible students.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to register courses.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

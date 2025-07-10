@@ -1,0 +1,422 @@
+@page "/busary/Dashboard"
+@layout ACUnifiedLayout
+@using MudBlazor
+@using MudBlazor.Charts
+@using ACUnified.Data.DTOs;
+@using ACUnified.Portal.Pages.Lecturer
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@inject ISnackbar snackBar
+@inject IPaymentRepository paymentService
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@using System.Net.Http.Json
+@using ACUnified.Data.DTOs
+@inject IPaymentRepository DebtorListRepository
+@using ACUnified.Data.Models
+@inject IPayConcessionRepository PayConcessionRepository
+@inject NavigationManager Navigation
+@inject IStudentEnrolmentRepository studentEnrolmentRepository
+@attribute [Authorize(Roles = "Bursary")]
+    <MudContainer Fixed="true" Height="auto" Width="100%" class="mt-2">
+        <MudPaper Height="200px" style="background: orange ;position:relative" Width="100%" Square="false" Class="mud-theme-warn ">
+       
+            <div class="ml-10" style="position:relative">
+                <MudText Typo="Typo.h6" Style="color:white">Welcome to Unified Web Portal</MudText>
+                <MudText Typo="Typo.h4" Style="color:white"><b>Dashboard</b></MudText>
+                <br/><br/><br/><br/>
+                <MudText Typo="Typo.h6"><MudElement Style="color:white">Engage |</MudElement><MudElement Style="color: white">Excel |</MudElement><MudElement Style="color:purple"> Overcome</MudElement></MudText>
+            </div>
+         </MudPaper>
+         <br/>
+         <MudGrid>
+ <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: auto;">
+                <MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Payment Schedule Upload</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+     <MudIcon Icon="@Icons.Material.Filled.FileUpload" Size="Size.Large" Color="Color.Primary" Title="API" Class="menu-icon" />
+    <MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/busary/PayScheduleUpload">Go To</MudButton>
+    </MudCardActions>
+</MudCard>
+            </MudPaper>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: auto;">
+                <MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Concession Management</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+     <MudIcon Icon="@Icons.Material.Filled.School" Size="Size.Large" Color="Color.Primary" Title="API" Class="menu-icon" />
+    <MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/busary/concessionDetails">Go TO</MudButton>
+    </MudCardActions>
+</MudCard>
+            </MudPaper>
+        </MudItem>          
+      
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: auto;">
+                <MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Payment History</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+     <MudIcon Icon="@Icons.Material.Filled.School" Size="Size.Large" Color="Color.Primary" Title="API" Class="menu-icon" />
+    <MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/busary/concessionDetails">Read More</MudButton>
+    </MudCardActions>
+</MudCard>
+            </MudPaper>
+        </MudItem>
+ <MudItem xs="12" sm="6">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto;">
+                                                <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Student Records</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+                        <MudTable ServerData="@(new Func<TableState, Task<TableData<StudentEnrolmentDto>>>(ServerReloads))"
+          Dense="true" Hover="true" @ref="table1">
+    <ToolBarContent>
+       
+        <MudSpacer />
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch1(s))" Placeholder="Search" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+                                <MudTh><MudTableSortLabel SortLabel="name_field" T="StudentEnrolment">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="matric_field" T="StudentEnrolment">Matric</MudTableSortLabel></MudTh>
+                                <MudTh><MudTableSortLabel SortLabel="matric_field" T="StudentEnrolment">Mobile No</MudTableSortLabel></MudTh>
+         <MudTh><MudTableSortLabel SortLabel="program_field" T="StudentEnrolment">Program</MudTableSortLabel></MudTh>
+                  <MudTh><MudTableSortLabel SortLabel="level_field" T="StudentEnrolment">Level</MudTableSortLabel></MudTh>
+      
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <div @onclick="@(()=>NavigateToDetails(@context.Id))">@context.Student.FirstName @context.Student.OtherName @context.Student.LastName</div>
+        </MudTd>
+        <MudTd DataLabel="Matric">@context.Student.Matric</MudTd>
+        <MudTd DataLabel="Program">@context.ProgramSetup.Name</MudTd>
+        <MudTd DataLabel="Level">@context.Level.Name</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No matching records found</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+    </PagerContent>
+</MudTable>
+<MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/busary/studentlisting">View More</MudButton>
+        </MudCardActions>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto">
+                        <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Student Debtors List</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+                        <MudTable ServerData="@(new Func<TableState, Task<TableData<DebtorsListDto>>>(ServerReload))"
+          Dense="true" Hover="true" @ref="table">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        
+        <MudTh><MudTableSortLabel SortLabel="matric_field" T="DebtorsListDto">Matric</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="totalAmount_field" T="DebtorsListDto">Total Amount</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="paidAmount_field" T="DebtorsListDto">Total Paid</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="outstandingAmount_field" T="DebtorsListDto">Outstanding Amount</MudTableSortLabel></MudTh>
+        
+    </HeaderContent>
+    <RowTemplate>
+      
+        <MudTd DataLabel="Matric">@context.Matric</MudTd>
+        <MudTd DataLabel="TotalAmount">@context.TotalAmount.ToString("#,##.00")</MudTd>
+        <MudTd DataLabel="TotalPaid">@context.TotalPaid.ToString("#,##.00")</MudTd>
+        <MudTd DataLabel="OutstandingAmount">@context.OutstandingAmount.ToString("#,##.00")</MudTd>
+
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No matching records found</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+    </PagerContent>
+</MudTable>
+  <MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/busary/StudentDebtorsList">View More</MudButton>
+        </MudCardActions>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+       
+       <MudItem xs="12" sm="6">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%">
+
+        
+       <MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Transaction History</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+   
+</MudCard>
+<br />
+    <MudTable Elevation="25" Filter="new Func<PaymentDto, bool>(Search2)" @bind-Items="payments" Filterable="true" QuickFilter="@_quickFilter1">
+    <ToolBarContent>
+        
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString2" Placeholder="Search for Transaction..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh> Matric No</MudTh>
+        <MudTh>Amount</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.MatricNo</MudTd>
+        <MudTd DataLabel="Description">@context.Amount.ToString("#,##0.00")</MudTd>
+    </RowTemplate>
+</MudTable> 
+ <MudCardActions>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/busary/transactions">View More</MudButton>
+        </MudCardActions>   
+            </MudPaper>
+           
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;">
+                
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="12" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 200px;"></MudPaper>
+        </MudItem>
+    </MudGrid>
+
+</MudContainer>
+<style>        
+.menu-icon {
+            margin-bottom: 10px;
+             padding: -1px;
+             margin-left: 105px;
+            text-align: center;
+        }</style>
+    
+
+
+@code{
+
+    private bool hidePageNumber;
+    private bool hidePagination;
+    private bool hideRowsPerPage;
+    private string searchString = "";
+     private string searchString2 = "";
+    
+    private PaymentDto payment = new PaymentDto();
+    private List<PaymentDto> payments = new List<PaymentDto>();
+    
+    private IEnumerable<DebtorsListDto> pagedData;
+    private MudTable<DebtorsListDto> table;
+
+    private IEnumerable<StudentEnrolmentDto> pagedDatas;
+    private MudTable<StudentEnrolmentDto> table1;
+    
+    private int totalItems;
+
+
+    private IEnumerable<StudentEnrolmentDto> datas;
+
+    private IEnumerable<DebtorsListDto> data;
+ 
+    protected override async Task OnInitializedAsync()
+    {
+         GetPaymentAsync();
+         await GetAllDebtorListsAsync();
+         await GetAllStudentsAsync();
+    }
+    private  void  GetPaymentAsync()
+    {
+        try
+        {
+             payments = ( paymentService.GetAllPayment().Result.Take(5)).ToList();
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data ");
+        }
+       
+    }
+        private bool Search2(PaymentDto payment)
+    {
+        if (string.IsNullOrWhiteSpace(searchString2)) return true;
+         
+        if (payment.MatricNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+        return payment.ReferenceNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task GetAllStudentsAsync()
+    {
+        datas = (await studentEnrolmentRepository.GetAllStudentEnrolment()).ToList().Take(5);
+    }
+    private async Task NavigateToDetails(long StudentId)
+    {
+        Navigation.NavigateTo($"/ict/studentpayment/{StudentId}");
+    
+    }
+    private async Task GetAllDebtorListsAsync()
+    {
+        data = (await DebtorListRepository.GetAllDebtors()).ToList().Take(5);
+    }
+    private async Task NavigateToDetail(long DebtorListId)
+    {
+        Navigation.NavigateTo($"/ict/studentpayment/{DebtorListId}");
+    }
+    private bool Search(PaymentDto payment)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+         
+        if (payment.MatricNo.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+        return payment.ReferenceNo.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private Func<PaymentDto, bool> _quickFilter => x =>
+       {
+       if (string.IsNullOrWhiteSpace(searchString))
+           return true;
+
+       if (x.MatricNo.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+    
+
+       if ($"{x.MatricNo} {x.Amount}".Contains(searchString))
+           return true;
+
+       return false;
+       };
+    
+ private Func<PaymentDto, bool> _quickFilter1 => x =>
+       {
+       if (string.IsNullOrWhiteSpace(searchString2))
+           return true;
+
+       if (x.MatricNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+    
+
+       if ($"{x.MatricNo} {x.Amount}".Contains(searchString2))
+           return true;
+
+       return false;
+       };
+
+     private async Task<TableData<DebtorsListDto>> ServerReload(TableState state)
+    {
+        IEnumerable<DebtorsListDto> data = (await DebtorListRepository.GetAllDebtors()).ToList();
+        await Task.Delay(100);
+        data = data.Where(element =>
+        {
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            
+            if (element.Matric.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+           
+            return false;
+        }).ToArray();
+        totalItems = data.Count();
+        switch (state.SortLabel)
+        {
+            
+            case "matric_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.Matric);
+                break;
+        }
+
+        pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+        return new TableData<DebtorsListDto>() { TotalItems = totalItems, Items = pagedData };
+    }
+        private void OnSearch(string text)
+    {
+        searchString = text;
+        table.ReloadServerData();
+    }
+     private async Task<TableData<StudentEnrolmentDto>> ServerReloads(TableState state)
+    {
+        IEnumerable<StudentEnrolmentDto> datas = (await studentEnrolmentRepository.GetAllStudentEnrolment()).ToList();
+        await Task.Delay(300);
+        datas = datas.Where(element =>
+        {
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            if (element.Student.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.Matric.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.MobileNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }).ToArray();
+        totalItems = datas.Count();
+        switch (state.SortLabel)
+        {
+            case "name_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.LastName);
+                break;
+            case "matric_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.Matric);
+                break;
+            case "phone_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.MobileNumber);
+                break;
+            // case "position_field":
+            //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+            //     break;
+            // case "mass_field":
+            //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+            //     break;
+        }
+
+        pagedDatas = datas.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+        return new TableData<StudentEnrolmentDto>() {TotalItems = totalItems, Items = pagedDatas};
+    }
+
+    private void OnSearch1(string text)
+    {
+        searchString = text;
+        table1.ReloadServerData();
+    }
+}

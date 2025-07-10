@@ -1,0 +1,495 @@
+@page "/"
+@using FluentValidation
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@layout ACUnifiedLandingLayout
+
+<AuthorizeView>
+    <Authorized>
+        <MudGrid>
+            @if (HasRole("FreshApplicantDashboard"))
+            {
+                <MudPaper>
+                    <MudText>
+                        Welcome to Ajayi Crowther University, Oyo School Application Portal.<br />
+                        Applications are invited from suitably qualified candidates for 2023/2024 admissions.<br />
+                        Cost of Application Form is N15,000.00 (Fifteen thousand naira only).<br />
+                        Follow the links to view available programmes and complete application form.<br />
+                        Closing Date for all applications is on Wednesday 13th October, 2024.<br />
+                        Support lines:<br />
+                        email: info@acu.edu.ng<br />
+                        calls: 08123456789
+                    </MudText>
+                </MudPaper>
+            }
+            @if (HasRole("StudentDashboard"))
+            {
+                <MudPaper>
+                    <MudText>Student</MudText>
+                </MudPaper>
+            }
+            @if (HasRole("Bursary"))
+            {
+                <MudPaper>
+                    <MudText>Bursary</MudText>
+                </MudPaper>
+            }
+            @if (HasRole("AdmissionOffice"))
+            {
+                <MudPaper>
+                    <MudText>AdmissionOffice</MudText>
+                </MudPaper>
+            }
+        </MudGrid>
+    </Authorized>
+    <NotAuthorized>
+        <div id="content-wrapper" class="site-content-wrapper">
+            <div id="content" class="site-content">
+                <div id="content-inner" class="site-content-inner">
+                    <div id="primary" class="content-area">
+                        <main id="main" class="site-main">
+                            <article id="post-6439" class="post-6439 page type-page status-publish hentry">
+                                <header class="single-entry-header themestek-hide">
+                                    <h2 class="entry-title">Ajayi Crowther University, Oyo | Admissions Portal</h2>
+                                </header>
+                                <div class="entry-content">
+                                    <div class="themestek-row wpb_row vc_row-fluid vc_custom_1685528536162 vc_column-gap-0px vc_rtl-columns-reverse themestek-total-col-1 themestek-zindex-0 container themestek-bgcolor-grey themestek-bgimage-position-center_center">
+                                        <div class="vc_column-gap-0px vc_row">
+                                            <div class="themestek-column wpb_column vc_column_container vc_col-sm-12 themestek-zindex-0">
+                                                <div class="vc_column-inner">
+                                                    <div class="wpb_wrapper">
+                                                        <div class="themestek-row-inner vc_row wpb_row vc_inner vc_row-fluid themestek-bg-trans vc_custom_1685528646434 themestek-responsive-custom-60911048 vc_column-gap-5 vc_row-o-equal-height vc_rtl-columns-reverse vc_row-flex themestek-bgcolor-white themestek-zindex-0">
+                                                            <!-- Postgraduate Admission -->
+                                                            <div class="themestek-column-inner ts-border-radius-1 ts-image-shadow-1 wpb_column vc_column_container vc_col-sm-1/5 themestek-zindex-0">
+                                                                <div class="vc_column-inner themestek-textcolor-blue themestek-col-bgcolor-skincolor themestek-col-bgcolor-yes">
+                                                                    <div class="themestek-col-wrapper-bg-layer themestek-bg-layer">
+                                                                        <div class="themestek-bg-layer-inner"></div>
+                                                                    </div>
+                                                                    <div class="wpb_wrapper">
+                                                                        <div class="themestek-ihbox themestek-ihbox-style-3 themestek-ihbox-itype-icon">
+                                                                            <div class="themestek-sbox-bgimage-layer themestek-bgimage-layer"></div>
+                                                                            <div class="themestek-ihbox-wrapper-bg-layer themestek-bg-layer"></div>
+                                                                            <div class="themestek-ihbox-inner">
+                                                                                <div class="themestek-ihbox-table">
+                                                                                    <div class="themestek-ihbox-icon themestek-icon-skincolor">
+                                                                                        <div class="themestek-ihbox-icon-wrapper">
+                                                                                            <i class="themestek-liviza-business-icon themestek-liviza-business-icon-student"></i>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="themestek-vc_general themestek-vc_cta3 themestek-cta3-only themestek-vc_cta3-style-classic themestek-vc_cta3-shape-rounded themestek-vc_cta3-align-left themestek-vc_cta3-color-transparet themestek-vc_cta3-icon-size-md themestek-vc_cta3-actions-no themestek-cta3-without-desc">
+                                                                                        <div class="themestek-vc_cta3_content-container">
+                                                                                            <div class="themestek-vc_cta3-content">
+                                                                                                <div class="themestek-vc_cta3-content-header themestek-wrap">
+                                                                                                    <div class="themestek-vc_cta3-headers themestek-wrap-cell">
+                                                                                                        <h2 class="themestek-custom-heading">Postgraduate Admission</h2>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="themestek-ihbox-contents"></div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="themestek-vc_btn3-container themestek-vc_btn3-center">
+                                                                            <a class="themestek-vc_general themestek-vc_btn3 themestek-vc_btn3-size-md themestek-vc_btn3-shape-rounded themestek-vc_btn3-style-classic themestek-vc_btn3-weight-yes themestek-vc_btn3-icon-right themestek-vc_btn3-color-warning" href="/Identity/Account/Login" title="">
+                                                                                <span>Start Application <i class="themestek-vc_btn3-icon themifyicon ti-arrow-right"></i></span>
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <!-- Undergraduate Admission -->
+                                                            <div class="themestek-column-inner ts-border-radius-1 ts-image-shadow-1 wpb_column vc_column_container vc_col-sm-1/5 themestek-zindex-0">
+                                                                <div class="vc_column-inner themestek-textcolor-white themestek-col-bgcolor-darkgrey themestek-col-bgcolor-yes">
+                                                                    <div class="themestek-col-wrapper-bg-layer themestek-bg-layer">
+                                                                        <div class="themestek-bg-layer-inner"></div>
+                                                                    </div>
+                                                                    <div class="wpb_wrapper">
+                                                                        <div class="themestek-ihbox themestek-ihbox-style-3 themestek-ihbox-itype-icon">
+                                                                            <div class="themestek-sbox-bgimage-layer themestek-bgimage-layer"></div>
+                                                                            <div class="themestek-ihbox-wrapper-bg-layer themestek-bg-layer"></div>
+                                                                            <div class="themestek-ihbox-inner">
+                                                                                <div class="themestek-ihbox-table">
+                                                                                    <div class="themestek-ihbox-icon themestek-icon-skincolor">
+                                                                                        <div class="themestek-ihbox-icon-wrapper">
+                                                                                            <i class="themestek-liviza-business-icon themestek-liviza-business-icon-student"></i>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="themestek-vc_general themestek-vc_cta3 themestek-cta3-only themestek-vc_cta3-style-classic themestek-vc_cta3-shape-rounded themestek-vc_cta3-align-left themestek-vc_cta3-color-transparent themestek-vc_cta3-icon-size-md themestek-vc_cta3-actions-no themestek-cta3-without-desc">
+                                                                                        <div class="themestek-vc_cta3_content-container">
+                                                                                            <div class="themestek-vc_cta3-content">
+                                                                                                <div class="themestek-vc_cta3-content-header themestek-wrap">
+                                                                                                    <div class="themestek-vc_cta3-headers themestek-wrap-cell">
+                                                                                                        <h2 class="themestek-custom-heading">Undergraduate Admission</h2>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="themestek-ihbox-contents"></div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="themestek-vc_btn3-container themestek-vc_btn3-center">
+                                                                            <a class="themestek-vc_general themestek-vc_btn3 themestek-vc_btn3-size-md themestek-vc_btn3-shape-rounded themestek-vc_btn3-style-classic themestek-vc_btn3-weight-yes themestek-vc_btn3-icon-right themestek-vc_btn3-color-skincolor" href="/Identity/Account/Login" title="">
+                                                                                <span>Start Application <i class="themestek-vc_btn3-icon themifyicon ti-arrow-right"></i></span>
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <!-- Part-Time & HND Conversion -->
+                                                            <div class="themestek-column-inner ts-border-radius-1 ts-image-shadow-1 wpb_column vc_column_container vc_col-sm-1/5 vc_col-has-fill themestek-zindex-0">
+                                                                <div class="vc_column-inner vc_custom_1658835889547 themestek-textcolor-white themestek-col-bgcolor-skincolor themestek-col-bgcolor-yes">
+                                                                    ody {
+    padding-left: 0;
+    padding-right: 0;
+}
+                                                                    <div class="themestek-col-wrapper-bg-layer themestek-bg-layer">
+                                                                        <div class="themestek-bg-layer-inner"></div>
+                                                                    </div>
+                                                                    <div class="wpb_wrapper">
+                                                                        <div class="themestek-ihbox themestek-ihbox-style-3 themestek-ihbox-itype-icon">
+                                                                            <div class="themestek-sbox-bgimage-layer themestek-bgimage-layer"></div>
+                                                                            <div class="themestek-ihbox-wrapper-bg-layer themestek-bg-layer"></div>
+                                                                            <div class="themestek-ihbox-inner">
+                                                                                <div class="themestek-ihbox-table">
+                                                                                    <div class="themestek-ihbox-icon themestek-icon-skincolor">
+                                                                                        <div class="themestek-ihbox-icon-wrapper">
+                                                                                            <i class="themestek-liviza-business-icon themestek-liviza-business-icon-student"></i>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="themestek-vc_general themestek-vc_cta3 themestek-cta3-only themestek-vc_cta3-style-classic themestek-vc_cta3-shape-rounded themestek-vc_cta3-align-left themestek-vc_cta3-color-transparent themestek-vc_cta3-icon-size-md themestek-vc_cta3-actions-no themestek-cta3-without-desc">
+                                                                                        <div class="themestek-vc_cta3_content-container">
+                                                                                            <div class="themestek-vc_cta3-content">
+                                                                                                <div class="themestek-vc_cta3-content-header themestek-wrap">
+                                                                                                    <div class="themestek-vc_cta3-headers themestek-wrap-cell">
+                                                                                                        <h2 class="themestek-custom-heading">Part-Time & HND Conversion</h2>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="themestek-ihbox-contents"></div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="themestek-vc_btn3-container themestek-vc_btn3-center">
+                                                                            <a class="themestek-vc_general themestek-vc_btn3 themestek-vc_btn3-size-md themestek-vc_btn3-shape-rounded themestek-vc_btn3-style-classic themestek-vc_btn3-weight-yes themestek-vc_btn3-icon-right themestek-vc_btn3-color-skincolor" href="/Identity/Account/Login" title="">
+                                                                                <span>Start Application <i class="themestek-vc_btn3-icon themifyicon ti-arrow-right"></i></span>
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <!-- JUPEB / Foundation Admission -->
+                                                            <div class="themestek-column-inner ts-border-radius-1 ts-image-shadow-1 wpb_column vc_column_container vc_col-sm-1/5 vc_col-has-fill themestek-zindex-0">
+                                                                <div class="vc_column-inner vc_custom_1658835852220 themestek-textcolor-white themestek-col-bgcolor-skincolor themestek-col-bgcolor-yes">
+                                                                    <div class="themestek-col-wrapper-bg-layer themestek-bg-layer">
+                                                                        <div class="themestek-bg-layer-inner"></div>
+                                                                    </div>
+                                                                    <div class="wpb_wrapper">
+                                                                        <div class="themestek-ihbox themestek-ihbox-style-3 themestek-ihbox-itype-icon">
+                                                                            <div class="themestek-sbox-bgimage-layer themestek-bgimage-layer"></div>
+                                                                            <div class="themestek-ihbox-wrapper-bg-layer themestek-bg-layer"></div>
+                                                                            <div class="themestek-ihbox-inner">
+                                                                                <div class="themestek-ihbox-table">
+                                                                                    <div class="themestek-ihbox-icon themestek-icon-skincolor">
+                                                                                        <div class="themestek-ihbox-icon-wrapper">
+                                                                                            <i class="themestek-liviza-business-icon themestek-liviza-business-icon-student"></i>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="themestek-vc_general themestek-vc_cta3 themestek-cta3-only themestek-vc_cta3-style-classic themestek-vc_cta3-shape-rounded themestek-vc_cta3-align-left themestek-vc_cta3-color-transparent themestek-vc_cta3-icon-size-md themestek-vc_cta3-actions-no themestek-cta3-without-desc">
+                                                                                        <div class="themestek-vc_cta3_content-container">
+                                                                                            <div class="themestek-vc_cta3-content">
+                                                                                                <div class="themestek-vc_cta3-content-header themestek-wrap">
+                                                                                                    <div class="themestek-vc_cta3-headers themestek-wrap-cell">
+                                                                                                        <h2 class="themestek-custom-heading">JUPEB / Foundation Admission</h2>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="themestek-ihbox-contents"></div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="themestek-vc_btn3-container themestek-vc_btn3-center">
+                                                                            <a class="themestek-vc_general themestek-vc_btn3 themestek-vc_btn3-size-md themestek-vc_btn3-shape-rounded themestek-vc_btn3-style-classic themestek-vc_btn3-weight-yes themestek-vc_btn3-icon-right themestek-vc_btn3-color-warning" href="/Identity/Account/Login" title="">
+                                                                                <span>Start Application <i class="themestek-vc_btn3-icon themifyicon ti-arrow-right"></i></span>
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <!-- B.Th to BA Conversion -->
+                                                            <div class="themestek-column-inner ts-border-radius-1 ts-image-shadow-1 wpb_column vc_column_container vc_col-sm-1/5 vc_col-has-fill themestek-zindex-0">
+                                                                <div class="vc_column-inner vc_custom_1685528395604 themestek-textcolor-dark themestek-col-bgcolor- themestek-col-bgcolor-yes">
+                                                                    <div class="themestek-col-wrapper-bg-layer themestek-bg-layer">
+                                                                        <div class="themestek-bg-layer-inner"></div>
+                                                                    </div>
+                                                                    <div class="wpb_wrapper">
+                                                                        <div class="themestek-ihbox themestek-ihbox-style-3 themestek-ihbox-itype-icon">
+                                                                            <div class="themestek-sbox-bgimage-layer themestek-bgimage-layer"></div>
+                                                                            <div class="themestek-ihbox-wrapper-bg-layer themestek-bg-layer"></div>
+                                                                            <div class="themestek-ihbox-inner">
+                                                                                <div class="themestek-ihbox-table">
+                                                                                    <div class="themestek-ihbox-icon themestek-icon-skincolor">
+                                                                                        <div class="themestek-ihbox-icon-wrapper">
+                                                                                            <i class="themestek-liviza-business-icon themestek-liviza-business-icon-student"></i>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="themestek-vc_general themestek-vc_cta3 themestek-cta3-only themestek-vc_cta3-style-classic themestek-vc_cta3-shape-rounded themestek-vc_cta3-align-left themestek-vc_cta3-color-transparent themestek-vc_cta3-icon-size-md themestek-vc_cta3-actions-no themestek-cta3-without-desc">
+                                                                                        <div class="themestek-vc_cta3_content-container">
+                                                                                            <div class="themestek-vc_cta3-content">
+                                                                                                <div class="themestek-vc_cta3-content-header themestek-wrap">
+                                                                                                    <div class="themestek-vc_cta3-headers themestek-wrap-cell">
+                                                                                                        <h2 class="themestek-custom-heading">B.Th to BA Conversion</h2>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div class="themestek-ihbox-contents"></div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="themestek-vc_btn3-container themestek-vc_btn3-center">
+                                                                            <a class="themestek-vc_general themestek-vc_btn3 themestek-vc_btn3-size-md themestek-vc_btn3-shape-rounded themestek-vc_btn3-style-classic themestek-vc_btn3-weight-yes themestek-vc_btn3-icon-right themestek-vc_btn3-color-skincolor" href="/Identity/Account/Login" title="">
+                                                                                <span>Start Application <i class="themestek-vc_btn3-icon themifyicon ti-arrow-right"></i></span>
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<MudContainer>
+    @if (IsOverlayVisible)
+    {
+        <MudOverlay Visible="true" />
+        <div class="progress-overlay">
+            <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+        </div>
+    }
+</MudContainer>
+
+@code {
+    [Inject] ISnackbar Snackbar { get; set; }
+    private bool IsOverlayVisible = false;
+    MudForm form;
+    public bool _loading { get; set; }
+
+    ApplicantRegistrationModelFluentValidator orderValidator = new ApplicantRegistrationModelFluentValidator();
+
+
+    ApplicantRegistrationModel model = new ApplicantRegistrationModel();
+    List<ApplicationPaymentSetup> paymentsetup = new List<ApplicationPaymentSetup>();
+
+    private string GetIconForCategory(string category)
+    {
+        return category switch
+        {
+            "Undergraduate" => Icons.Material.Filled.School,
+            "Postgraduate" => Icons.Material.Filled.Book,
+            "JUPEB" => Icons.Material.Filled.LibraryBooks,
+            "Part-Time" => Icons.Material.Filled.LaptopChromebook,
+            "Sandwich" => Icons.Material.Filled.Science,
+            "MBA" => Icons.Material.Filled.BusinessCenter,
+            _ => Icons.Material.Filled.School // default icon
+        };
+    }
+
+    public class ApplicantRegistrationModel
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+
+    }
+
+    public class ApplicationPaymentSetup
+    {
+        public string Name { get; set; }
+        public decimal Amount { get; set; }
+        public ApplicationPaymentSetup(string Name, decimal Amount)
+        {
+            this.Name = Name;
+            this.Amount = Amount;
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        paymentsetup = new List<ApplicationPaymentSetup>()
+        {
+            new ApplicationPaymentSetup("Undergraduate", 5000m),
+            new ApplicationPaymentSetup("Postgraduate", 6000m),
+            new ApplicationPaymentSetup("JUPEB", 6000m),
+            new ApplicationPaymentSetup("Part-Time", 6000m),
+            new ApplicationPaymentSetup("Sandwich", 6000m),
+            new ApplicationPaymentSetup("MBA", 6000m),
+        };
+        //var user = await UserManager.GetUserAsync(Context.User);
+        //var customFieldValue = user?.;
+        if (HasRole("FreshApplicantDashboard"))
+        {
+            Navigation.NavigateTo("/Applicant/Dashboard",true);
+        }
+        if (HasRole("StudentDashboard"))
+        {
+            Navigation.NavigateTo("/Student/Dashboard", true);
+        }
+        if (HasRole("Bursary"))
+        {
+            Navigation.NavigateTo("/busary/Dashboard", true);
+        }
+         if (HasRole("AdmissionOffice"))
+        {
+            Navigation.NavigateTo("/admissionOfficer/Dashboard", true);
+        }
+         if (HasRole("ICT"))
+        {
+            Navigation.NavigateTo("/ict/Dashboard", true);
+        }
+
+        if(HasRole("AdmissionDecisionFinalization")){
+            Navigation.NavigateTo("/admissionDecisionFinalization/Dashboard", true);
+        }
+
+        if(HasRole("AdmissionDecisionFinalizationJUPEB")){
+            Navigation.NavigateTo("/admissionDecisionFinalizationJUPEB/Dashboard", true);
+        }
+
+
+
+         if(HasRole("Health")){
+            Navigation.NavigateTo("/health/Dashboard", true);
+        }
+
+         if(HasRole("Hostel")){
+            Navigation.NavigateTo("/hostel/Dashboard", true);
+        }
+
+         if(HasRole("AdmissionDecisionFinalizationBTH")){
+            Navigation.NavigateTo("/admissionDecisionFinalizationBTH/Dashboard", true);
+        }
+         if(HasRole("AdmissionOfficeBTH")){
+            Navigation.NavigateTo("/admissionOfficerBTH/Dashboard", true);
+        }
+         if(HasRole("AdmissionOfficerPG")){
+            Navigation.NavigateTo("/admissionOfficerPG/Dashboard", true);
+        }
+         if(HasRole("AdmissionDecisionFinalizationPG")){
+            Navigation.NavigateTo("/admissionDecisionFinalizationPG/Dashboard", true);
+        }
+
+        
+
+        
+    }
+
+
+    private async Task Submit()
+    {
+        
+        IsOverlayVisible = true;
+
+        await form.Validate();
+        await Task.Delay(3000);
+        if (form.IsValid)
+        {
+            Snackbar.Add("Submitted!", MudBlazor.Severity.Success);
+            Navigation.NavigateTo("/");  // Redirects to the home page
+        }
+        IsOverlayVisible = false;
+    }
+
+    void NavigateToPaymentPage(string name, decimal amount)
+    {
+        var url = $"/PayGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    private  bool HasRole(string role)
+    {
+        var authState = AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
+        var user = authState.User;
+
+        return user.Identity.IsAuthenticated && user.IsInRole(role);
+    }
+
+    /// <summary>
+    /// A standard AbstractValidator which contains multiple rules and can be shared with the back end API
+    /// </summary>
+    /// <typeparam name="ApplicantRegistrationModel"></typeparam>
+    public class ApplicantRegistrationModelFluentValidator : AbstractValidator<ApplicantRegistrationModel>
+    {
+        public ApplicantRegistrationModelFluentValidator()
+        {
+            RuleFor(x => x.FirstName)
+                .NotEmpty()
+                .Length(1, 100);
+
+            RuleFor(x => x.LastName)
+               .NotEmpty()
+               .Length(1, 100);
+
+            RuleFor(x => x.PhoneNumber)
+              .NotEmpty()
+              .Length(1, 100);
+
+            RuleFor(x => x.Email)
+        .Cascade(CascadeMode.Stop)
+        .NotEmpty()
+        .EmailAddress()
+        .MustAsync(async (value, cancellationToken) => await IsUniqueAsync(value));
+
+
+
+
+
+        }
+
+        private async Task<bool> IsUniqueAsync(string email)
+        {
+            // Simulates a long running http call
+            await Task.Delay(2000);
+            return email.ToLower() != "test@test.com";
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<ApplicantRegistrationModel>.CreateWithOptions((ApplicantRegistrationModel)model, x => x.IncludeProperties(propertyName)));
+            if (result.IsValid)
+                return Array.Empty<string>();
+            return result.Errors.Select(e => e.ErrorMessage);
+        };
+
+     
+
+    }
+}

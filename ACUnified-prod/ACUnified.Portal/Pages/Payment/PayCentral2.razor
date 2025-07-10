@@ -1,0 +1,49 @@
+@page "/student/paycentral2"
+@layout ACUnifiedLayout
+@attribute [Authorize]
+<MudSelect T="long" Label="Select Country" @bind-Value="selectedCountryId">
+    @foreach (var country in countries)
+    {
+        <MudSelectItem Value="@country.Id">@country.Name</MudSelectItem>
+    }
+</MudSelect>
+
+<MudSelect T="long" Label="Select City" @bind-Value="selectedCityId" Disabled="selectedCountryId==-1">
+    @foreach (var city in AvailableCities)
+    {
+        <MudSelectItem Value="@city.Id">@city.Name</MudSelectItem>
+    }
+</MudSelect>
+
+
+@code {
+    private long selectedCountryId=-1;
+    private long selectedCityId=-1;
+    private List<Country> countries = new List<Country>
+    {
+        new Country { Id = 1, Name = "USA" },
+        new Country { Id = 2, Name = "Canada" },
+        new Country { Id = 3, Name = "UK" }
+    };
+
+    private Dictionary<long, List<City>> cities = new Dictionary<long, List<City>>
+    {
+        { 1, new List<City> { new City { Id = 101, Name = "New York" }, new City { Id = 102, Name = "Los Angeles" } } },
+        { 2, new List<City> { new City { Id = 201, Name = "Toronto" }, new City { Id = 202, Name = "Vancouver" } } },
+        { 3, new List<City> { new City { Id = 301, Name = "London" }, new City { Id = 302, Name = "Manchester" } } }
+    };
+
+    private List<City> AvailableCities => selectedCountryId != -1 ? cities[selectedCountryId] : new List<City>();
+    
+    public class Country
+    {
+        public long Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class City
+    {
+        public long Id { get; set; }
+        public string Name { get; set; }
+    }
+}

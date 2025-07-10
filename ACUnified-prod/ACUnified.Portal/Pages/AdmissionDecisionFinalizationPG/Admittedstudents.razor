@@ -1,0 +1,34 @@
+ @page "/admissionDecisionFinalizationPG/AdmittedStudents"
+@layout ACUnifiedLayout
+@using Radzen.Blazor
+@using Radzen
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject IApplicationFormRepository ApplicationFormRepository
+@attribute [Authorize(Roles = "AdmissionDecisionFinalizationPG")]
+
+<RadzenDataGrid TItem="ApplicationFormDto" Data="@ApplicationFormDtos" AllowFiltering="true" AllowPaging="true" AllowSorting="true" PageSize="10" AllowSearching="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="FormRefNo" Title="Form Ref No" Filterable="true" Sortable="true" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.FirstName" Title="First Name" Filterable="true" Sortable="true" />
+<RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.LastName" Title="Last Name" Filterable="true" Sortable="true" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="FinalisedCourse" Title="Finalised Course" Filterable="true" Sortable="true" />
+       <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.Gender" Title="Gender" Filterable="true" Sortable="true" />
+<RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.State" Title="State" Filterable="true" Sortable="true" />
+<RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.MobileNumber" Title="Mobile Number" Filterable="true" Sortable="true" />
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    IEnumerable<ApplicationFormDto> ApplicationFormDtos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        ApplicationFormDtos = await ApplicationFormRepository.GetAdmittedStudentsPG();
+    }
+}

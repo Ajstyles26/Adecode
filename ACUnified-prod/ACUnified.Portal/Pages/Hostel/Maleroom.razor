@@ -1,0 +1,384 @@
+@page "/ConfirmRoomSelection/{roomId}/{hostelId}/{Gender}"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@using MudBlazor
+@inject IApplicationFormRepository ApplicationFormRepository
+@layout ACUnifiedLayout
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using ACUnified.Data.Enum
+@inject NavigationManager NavigationManager
+@inject IHostelRoomsRepository HostelRoomsRepository
+@inject IHostelBuildingRepository HostelBuildingRepository
+@inject IHostelAllocationRepository HostelAllocationRepository
+@inject IApplicantPaymentLogRepository paymentRepository
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject IHostelDebtorListRepository Repository
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+@attribute [Authorize]
+
+<h3>Confirm Room Selection</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (room == null || hostel == null)
+{
+    <p>Error: Rooms or hostel information not found.</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Room Details</h5>
+            <p><strong>Hostel:</strong> @hostel.Name</p>
+            <p><strong>Room Number:</strong> @room.RoomNumber</p>
+            <p><strong>Capacity:</strong> @room.Capacity</p>
+            <p><strong>Current Occupancy:</strong> @room.OccupancyStatus</p>
+
+            <h5 class="mt-4">Confirm Allocation</h5>
+            <EditForm Model="@allocation" OnValidSubmit="ConfirmAllocation">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group">
+                    <label for="duration">Allocation Duration:</label>
+                    <InputSelect id="duration" @bind-Value="allocation.HostelDuration" class="form-control">
+                        @foreach (var duration in Enum.GetValues(typeof(AllocationDuration)))
+                        {
+                            <option value="@duration">@duration</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-3">Confirm Allocation</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- Hidden Remita Form -->
+    <form id="remitaForm" action="@remitaBaseUrl" method="POST" style="display:none;">
+        <input type="hidden" name="merchantId" id="merchantId" value="@remitaModel.merchantId" />
+        <input type="hidden" name="serviceTypeId" id="serviceTypeId" value="@remitaModel.serviceTypeId" />
+        <input type="hidden" name="hash" id="hash" value="@remitaModel.hash" />
+        <input type="hidden" name="orderId" id="orderId" value="@remitaModel.orderId" />
+        <input type="hidden" name="amt" id="amt" value="@remitaModel.amount" />
+        <input type="hidden" name="responseurl" id="responseurl" value="@remitaModel.responseurl" />
+        <input type="hidden" name="payerName" id="payerName" value="@remitaModel.payerName" />
+        <input type="hidden" name="payerEmail" id="payerEmail" value="@remitaModel.payerEmail" />
+        <input type="hidden" name="payerPhone" id="payerPhone" value="@remitaModel.payerPhone" />
+    </form>
+}
+
+@code {
+    [Parameter]
+    public string RoomId { get; set; }
+
+    [Parameter]
+    public string HostelId { get; set; }
+
+    [Parameter]
+    public string Gender { get; set; }
+
+    private HostelRoomsDto room;
+    private HostelBuildingDto hostel;
+    private HostelAllocationDto allocation = new HostelAllocationDto();
+    private bool isLoading = true;
+    private HostelAllocationDto existingAllocation;
+    private HostelRoomsDto existingRoom;
+    private ApplicationFormDto currentApplicationForm;
+    private HostelDebtorListDto debtorRecord;
+
+    private const string remitaBaseUrl = "https://login.remita.net/remita/ecomm/init.reg";
+    private const decimal PREMIUM_HOSTEL_AMOUNT = 355500m;
+    private PaymentModel remitaModel = new();
+
+    public class PaymentModel
+    {
+        public string payerName { get; set; } = string.Empty;
+        public string payerEmail { get; set; } = string.Empty;
+        public string payerPhone { get; set; } = string.Empty;
+        public decimal amount { get; set; }
+        public string paymentType { get; set; } = string.Empty;
+        public string merchantId { get; set; } = string.Empty;
+        public string serviceTypeId { get; set; } = string.Empty;
+        public string orderId { get; set; } = string.Empty;
+        public string responseurl { get; set; } = string.Empty;
+        public string apiKey { get; set; } = string.Empty;
+        public string hash { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoomAndHostelDetails();
+    }
+
+    private async Task LoadRoomAndHostelDetails()
+    {
+        try
+        {
+            isLoading = true;
+
+            if (long.TryParse(RoomId, out long roomId) && long.TryParse(HostelId, out long hostelId))
+            {
+                room = await HostelRoomsRepository.GetRoomById(roomId);
+                hostel = await HostelBuildingRepository.GetHostelBuilding(hostelId);
+
+                // Get current user's application form
+                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                currentApplicationForm = await ApplicationFormRepository.GetApplicationFormByUserId(userId);
+
+                // Get debtor record
+                var debtorRecords = await Repository.GetByApplicationFormIdAsync(currentApplicationForm.Id);
+                debtorRecord = debtorRecords.FirstOrDefault();
+
+                // Check for existing allocation
+                await CheckExistingAllocation();
+
+                if (room != null && hostel != null)
+                {
+                    allocation.HostelRoomId = roomId;
+                    allocation.DateAllocated = DateTime.Now;
+                    allocation.CurrentStatus = AllocationStatus.Pending;
+                }
+            }
+            else
+            {
+                Snackbar.Add("Invalid room or hostel ID.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading room details: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CheckExistingAllocation()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return;
+        }
+
+        var applicationForm = await ApplicationFormRepository.GetApplicationFormByUserId(userId);
+        if (applicationForm == null)
+        {
+            return;
+        }
+
+        var allocations = await HostelAllocationRepository.GetAllocationsByApplicationFormId(applicationForm.Id);
+        existingAllocation = allocations.FirstOrDefault(a => 
+            a.CurrentStatus == AllocationStatus.Active || 
+            a.CurrentStatus == AllocationStatus.Pending);
+
+        if (existingAllocation != null && existingRoom != null)
+{
+    // Free up the previously selected room
+    existingRoom.OccupancyStatus = OccupancyStatus.Vacant;
+    existingRoom.Capacity += 1;
+    await HostelRoomsRepository.UpdateHostelRooms(existingRoom);
+
+    // Update the status of the existing allocation
+    existingAllocation.CurrentStatus = AllocationStatus.Pending; // Or another appropriate status
+    await HostelAllocationRepository.UpdateHostelAllocation(existingAllocation);
+}
+
+    }
+
+    private async Task InitiatePayment(decimal amount, PayPlan selectedPlan)
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userInformation = await UserManager.FindByIdAsync(userId);
+
+            if (userInformation == null)
+            {
+                Snackbar.Add("User information not found", Severity.Error);
+                return;
+            }
+
+            // Calculate remaining amount for premium hostel
+            decimal remainingAmount = PREMIUM_HOSTEL_AMOUNT - (debtorRecord?.TotalPaid ?? 0);
+
+            // Ensure the amount is not negative
+            remainingAmount = Math.Max(0, remainingAmount);
+
+            if (remainingAmount <= 0)
+            {
+                Snackbar.Add("No outstanding amount for premium hostel.", Severity.Info);
+                NavigationManager.NavigateTo("/applicant/Dashboard");
+                return;
+            }
+
+            string formRefNo = currentApplicationForm?.FormRefNo ?? "ACU/APC";
+            string serialNumber = GenerateSerialNumber();
+            string orderId = $"{formRefNo}/PremiumHostel/{serialNumber}";
+
+            remitaModel = new PaymentModel
+            {
+                payerName = $"{userInformation.Firstname} {userInformation.Surname}",
+                payerEmail = userInformation.Email,
+                payerPhone = userInformation.PhoneNumber,
+                merchantId = "2268484533",
+                serviceTypeId = "14649764100",
+                amount = remainingAmount,
+                orderId = orderId,
+                responseurl = $"{NavigationManager.BaseUri}Payment/ProcessTransactionLogReceipt7",
+                apiKey = "018543"
+            };
+
+            string hashString = remitaModel.merchantId + 
+                              remitaModel.serviceTypeId + 
+                              remitaModel.orderId + 
+                              remitaModel.amount.ToString() + 
+                              remitaModel.responseurl + 
+                              remitaModel.apiKey;
+
+            using var sha512 = System.Security.Cryptography.SHA512.Create();
+            var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+            remitaModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+            var paymentLog = new ApplicantPaymentLogDto
+            {
+                ReferenceNo = remitaModel.orderId,
+                Amount = remitaModel.amount,
+                email = userInformation.Email,
+                client_name = remitaModel.payerName,
+                ApplicantPayDetailsId = 104,
+                ApplicantPayCategoryId = 60,
+                RRRRNo = "",
+                isSuccessful = false,
+                UserId = userId,
+                Comments = $"Premium Hostel Payment - Remaining Amount: {remitaModel.amount}"
+            };
+
+            await paymentRepository.CreateApplicantPayment(paymentLog);
+
+            StateHasChanged();
+            await Task.Delay(100);
+
+            await JSRuntime.InvokeVoidAsync("submitForm", "remitaForm");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initiating payment: {ex.Message}", Severity.Error);
+        }
+    }
+private async Task ConfirmAllocation()
+{
+    try
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            Snackbar.Add("User not authenticated. Please log in.", Severity.Error);
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("User ID not found. Please log in again.", Severity.Error);
+            return;
+        }
+
+        var applicationForm = await ApplicationFormRepository.GetApplicationFormByUserId(userId);
+        if (applicationForm == null)
+        {
+            Snackbar.Add("Application form not found for the current user.", Severity.Error);
+            return;
+        }
+
+        // Handle existing allocation if it exists
+        if (existingAllocation != null && existingRoom != null)
+        {
+            existingRoom.OccupancyStatus = OccupancyStatus.Vacant;
+            existingRoom.Capacity += 1;
+            await HostelRoomsRepository.UpdateHostelRooms(existingRoom);
+
+            existingAllocation.CurrentStatus = AllocationStatus.Pending;
+            await HostelAllocationRepository.UpdateHostelAllocation(existingAllocation);
+        }
+
+        // Set the new allocation details
+        allocation.ApplicationFormId = applicationForm.Id;
+        allocation.StudentId = null;
+        allocation.DateAllocated = DateTime.Now;
+        allocation.CurrentStatus = AllocationStatus.Pending;
+        allocation.HostelRoomId = room.Id;
+
+        // Create new allocation
+        var result = await HostelAllocationRepository.CreateHostelAllocationAndUpdateStage(allocation);
+
+        // Immediately after successful room allocation intent, initiate premium hostel payment
+        if (result != null)
+        {
+            decimal remainingAmount = PREMIUM_HOSTEL_AMOUNT - (debtorRecord?.TotalPaid ?? 0);
+
+            if (remainingAmount > 0)
+            {
+                Snackbar.Add("Room allocation pending! Initiating premium hostel payment.", Severity.Info);
+                await InitiatePayment(PREMIUM_HOSTEL_AMOUNT, PayPlan.SecondThirdInstalment);
+            }
+            else
+            {
+                Snackbar.Add("Room allocation successful! No additional payment required.", Severity.Success);
+                NavigationManager.NavigateTo("/applicant/Dashboard");
+            }
+        }
+        else
+        {
+            Snackbar.Add("Failed to allocate room and update application stage. Please try again.", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error during room allocation: {ex.Message}", Severity.Error);
+        Console.WriteLine($"Detailed error in ConfirmAllocation: {ex}");
+    }
+}
+    private string GenerateSerialNumber()
+    {
+        return new Random().Next(10000000, 99999999).ToString("D8");
+    }
+}
+
+<script>
+    window.submitForm = function (formId) {
+        const form = document.getElementById(formId);
+        if (form) {
+            form.submit();
+        }
+    }
+</script>

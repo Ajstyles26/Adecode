@@ -1,0 +1,222 @@
+@* @page "/applicant/Dashboard"
+@using FluentValidation
+@layout ACUnifiedLayout
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@using ACUnified.Data.Models
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+
+<MudContainer>
+    <PageTitle>Applicant Registration Page</PageTitle>
+
+    <h1 style="text-align:center; margin-bottom: 30px;">Fresh Applicant Registration Page</h1>
+
+    <MudGrid>
+        @foreach (var item in paymentsetup)
+        {
+            <MudItem xs="12" sm="4" md="4" Class="menu-item">
+                <MudPaper Elevation="5" Class="menu-paper">
+                    <MudIcon Icon="@GetIconForCategory(item.Name)" Size="Size.Large" Class="menu-icon" />
+                    <MudText Typo="Typo.h6">@item.Name</MudText>
+                    <MudText Typo="Typo.h5" Style="margin: 10px 0;">₦@item.Amount</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="() => NavigateToPaymentPage(item.Name, item.Amount)" FullWidth="true">Pay Now</MudButton>
+                </MudPaper>
+            </MudItem>
+        }
+        
+        <MudItem xs="6" sm="3">
+        <MudPaper Class="col-xl-3 col-md-6 mb-4">xs=6 sm=3</MudPaper>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="d-flex align-center justify-center mud-width-full py-8">xs=6 sm=3</MudPaper>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="d-flex align-center justify-center mud-width-full py-8">xs=6 sm=3</MudPaper>
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <MudPaper Class="d-flex align-center justify-center mud-width-full py-8">xs=6 sm=3</MudPaper>
+    </MudItem>
+    </MudGrid>
+    
+    
+
+    <!-- Overlay with Progress Bar -->
+    @if (IsOverlayVisible)
+    {
+        <MudOverlay Visible="true" />
+        <div class="progress-overlay">
+            <MudProgressCircular Indeterminate="true" Size=Size.Medium Color="Color.Primary" />
+        </div>
+    }
+
+    <style>
+        .progress-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001; /* Ensure it's above the overlay */
+        }
+
+        .menu-item {
+            padding: 15px;
+        }
+
+        .menu-paper {
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+            .menu-paper:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            }
+
+        .menu-icon {
+            margin-bottom: 10px;
+        }
+    </style>
+</MudContainer>
+
+
+
+
+
+
+@code {
+    [Inject] ISnackbar Snackbar { get; set; }
+    private bool IsOverlayVisible = false;
+    MudForm form;
+    public bool _loading { get; set; }
+
+    ApplicantRegistrationModelFluentValidator orderValidator = new ApplicantRegistrationModelFluentValidator();
+
+
+    ApplicantRegistrationModel model = new ApplicantRegistrationModel();
+    List<ApplicationPaymentSetup> paymentsetup = new List<ApplicationPaymentSetup>();
+
+    private string GetIconForCategory(string category)
+    {
+        return category switch
+        {
+            "Undergraduate" => Icons.Material.Filled.School,
+            "Postgraduate" => Icons.Material.Filled.Book,
+            "JUPEB" => Icons.Material.Filled.LibraryBooks,
+            "Part-Time" => Icons.Material.Filled.LaptopChromebook,
+            "Sandwich" => Icons.Material.Filled.Science,
+            "MBA" => Icons.Material.Filled.BusinessCenter,
+            _ => Icons.Material.Filled.School // default icon
+        };
+    }
+
+    public class ApplicantRegistrationModel
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+
+    }
+
+    public class ApplicationPaymentSetup
+    {
+        public string Name { get; set; }
+        public decimal Amount { get; set; }
+        public ApplicationPaymentSetup(string Name, decimal Amount)
+        {
+            this.Name = Name;
+            this.Amount = Amount;
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+        paymentsetup = new List<ApplicationPaymentSetup>()
+        {
+            new ApplicationPaymentSetup("Undergraduate", 5000m),
+            new ApplicationPaymentSetup("Postgraduate", 6000m),
+            new ApplicationPaymentSetup("JUPEB", 6000m),
+            new ApplicationPaymentSetup("Part-Time", 6000m),
+            new ApplicationPaymentSetup("Sandwich", 6000m),
+            new ApplicationPaymentSetup("MBA", 6000m),
+        };
+        //var user = await UserManager.GetUserAsync(Context.User);
+        //var customFieldValue = user?.;
+
+    }
+
+
+    private async Task Submit()
+    {
+        IsOverlayVisible = true;
+
+        await form.Validate();
+        await Task.Delay(3000);
+        if (form.IsValid)
+        {
+            Snackbar.Add("Submitted!", MudBlazor.Severity.Success);
+            Navigation.NavigateTo("/");  // Redirects to the home page
+        }
+        IsOverlayVisible = false;
+    }
+
+    void NavigateToPaymentPage(string name, decimal amount)
+    {
+        var url = $"/PayGate/{name}";
+        Navigation.NavigateTo(url);
+    }
+
+    /// <summary>
+    /// A standard AbstractValidator which contains multiple rules and can be shared with the back end API
+    /// </summary>
+    /// <typeparam name="ApplicantRegistrationModel"></typeparam>
+    public class ApplicantRegistrationModelFluentValidator : AbstractValidator<ApplicantRegistrationModel>
+    {
+        public ApplicantRegistrationModelFluentValidator()
+        {
+            RuleFor(x => x.FirstName)
+                .NotEmpty()
+                .Length(1, 100);
+
+            RuleFor(x => x.LastName)
+               .NotEmpty()
+               .Length(1, 100);
+
+            RuleFor(x => x.PhoneNumber)
+              .NotEmpty()
+              .Length(1, 100);
+
+            RuleFor(x => x.Email)
+        .Cascade(CascadeMode.Stop)
+        .NotEmpty()
+        .EmailAddress()
+        .MustAsync(async (value, cancellationToken) => await IsUniqueAsync(value));
+
+
+
+
+
+        }
+
+        private async Task<bool> IsUniqueAsync(string email)
+        {
+            // Simulates a long running http call
+            await Task.Delay(2000);
+            return email.ToLower() != "test@test.com";
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<ApplicantRegistrationModel>.CreateWithOptions((ApplicantRegistrationModel)model, x => x.IncludeProperties(propertyName)));
+            if (result.IsValid)
+                return Array.Empty<string>();
+            return result.Errors.Select(e => e.ErrorMessage);
+        };
+    }
+}
+ *@

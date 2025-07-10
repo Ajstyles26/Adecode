@@ -1,0 +1,87 @@
+@page "/student/coursehistory/{SemesterId:long}/{SessionId:long}/"
+@layout ACUnifiedLayout
+
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using MudBlazor
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@inject IStudentRepository StudentRepository
+@inject ICourseRegistrationRepository CourseRepository
+@inject IStudentResultRepository StudentResultRepository
+@inject IAcademicSessionRepository AcademicSessionRepository
+@inject ISemesterRepository SemesterRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "StudentDashboard")]
+
+<MudContainer>
+    <MudCard>
+        <MudCardContent>
+            <MudText Typo="Typo.h5">Student Information</MudText>
+            <MudTable Items="@student">
+
+                <HeaderContent>
+                    <MudTh>Matriculation Number</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Program</MudTh>
+
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Matriculation Number">@context.Matric</MudTd>
+                    <MudTd DataLabel="Name">@context.FirstName @context.LastName</MudTd>
+                    <MudTd></MudTd>
+                    <MudTd></MudTd>
+                    @* <MudTd DataLabel="Semester GPA">@context.SemesterGPA</MudTd> *@
+                </RowTemplate>
+
+            </MudTable>
+            <MudTable Items="@CourseRegistration">
+                <HeaderContent>
+                    <MudTd>Course</MudTd>
+                    <MudTd>Unit</MudTd>
+                  
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Course.Name</MudTd>
+                    <MudTd>@context.Course.CourseUnit</MudTd>
+                  
+                </RowTemplate>
+
+            </MudTable>
+
+
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<StudentDto> student=new List<StudentDto>();
+    private IEnumerable<CourseRegistrationDto> CourseRegistration;
+
+    [Parameter]
+    public long SemesterId { get; set; }
+
+    [Parameter]
+    public long SessionId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
+        var studentItem = await StudentRepository.GetStudentByUserId(userId);
+        student.Add(studentItem);
+        //get current semester
+        //var semester = await SemesterRepository.GetActiveSemester();
+        //var session = await AcademicSessionRepository.GetActiveSession();
+        //get current session
+        CourseRegistration = await CourseRepository.GetCourseHistoryByStudentId(studentItem.Id, SemesterId, SessionId);
+      
+
+    }
+
+    //add option to select semester and session so as to be able to pick the session and semester
+
+
+}

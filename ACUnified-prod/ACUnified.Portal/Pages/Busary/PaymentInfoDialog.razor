@@ -1,0 +1,104 @@
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@inject IApplicantPaymentRepository ApplicantPaymentService
+@inject ISnackbar snackBar
+
+<MudDialog>
+    <DialogContent>
+        @if (Loading)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        }
+        else if (PayResponse == null)
+        {
+            <MudText Color="Color.Error">No data found for the given reference number: @referenceNo</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Style="overflow-x: auto;">
+                <tbody>
+                    <tr>
+                        <th>Name</th>
+                        <td>@PayResponse.client_name</td>
+                    </tr>
+                    <tr>
+                        <th>Amount</th>
+                        <td>@PayResponse.Amount.ToString("#,##0.00")</td>
+                    </tr>
+                    <tr>
+                        <th>Created Date</th>
+                        <td>@PayResponse.CreatedDate.ToString("dd/MM/yyyy")</td>
+                    </tr>
+                    <tr>
+                        <th>Payment Status</th>
+                        <td>@(PayResponse.isSuccessful ? "Successful" : "Failed")</td>
+                    </tr>
+                    <tr>
+                        <th>Reference No</th>
+                        <td>@PayResponse.ReferenceNo</td>
+                    </tr>
+                    <tr>
+                        <th>Semester</th>
+                        <td>@(PayResponse.Semester?.Name ?? "N/A")</td>
+                    </tr>
+                    <tr>
+                        <th>Session</th>
+                        <td>@(PayResponse.Semester?.Session?.Name ?? "N/A")</td>
+                    </tr>
+                    <tr>
+                        <th>Payment For</th>
+                        <td>@(PayResponse.Comments)</td>
+                    </tr>
+                    <tr>
+                        <th>Payment Category</th>
+                        <td>@(PayResponse.ApplicantPayCategory?.Name ?? "N/A")</td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public string referenceNo { get; set; }
+
+    private bool Loading = false;
+    private ApplicantPaymentDto PayResponse { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine($"PaymentInfoDialog - OnInitializedAsync started");
+        Console.WriteLine($"Reference No: {referenceNo}");
+        Loading = true;
+
+        try
+        {
+            Console.WriteLine("Calling ApplicantPaymentService.GetAllPaymentReferenceNo");
+            PayResponse = await ApplicantPaymentService.GetAllPaymentReferenceNo(referenceNo);
+            Console.WriteLine($"PayResponse is null: {PayResponse == null}");
+
+            if (PayResponse != null)
+            {
+                Console.WriteLine($"Payment: ReferenceNo={PayResponse.ReferenceNo}, Amount={PayResponse.Amount}, ClientName={PayResponse.client_name}");
+            }
+            else
+            {
+                Console.WriteLine("No payment found for the given reference number.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OnInitializedAsync: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+
+        Loading = false;
+        Console.WriteLine("PaymentInfoDialog - OnInitializedAsync completed");
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

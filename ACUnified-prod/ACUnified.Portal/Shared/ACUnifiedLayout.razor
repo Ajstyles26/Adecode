@@ -1,0 +1,171 @@
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Server.Circuits
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout Style="max-width: 95%">
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" 
+                      Color="Color.Inherit" 
+                      Edge="Edge.Start" 
+                      OnClick="@((e) => DrawerToggle())" />
+                      
+        <MudText Typo="Typo.h5" Class="ml-3">AJAYI CROWTHER UNIVERSITY</MudText>
+        <MudSpacer />
+        
+        @if (IsUserAuthenticated)
+        {
+            <MudMenu RightAligned="true" 
+                     Class="ml-auto"
+                     Color="Color.Warning"
+                     ActivationEvent="@MouseEvent.MouseOver"
+                     AnchorOrigin="Origin.BottomCenter" 
+                     TransformOrigin="Origin.TopCenter"
+                     Label="@GetFormattedUserName()"
+                     EndIcon="@Icons.Material.Filled.KeyboardArrowDown"
+                     IconColor="Color.Default">
+                <ChildContent>
+                    <MudMenuItem>
+                        <MudButton OnClick="@ManageAccount" Class="px-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />
+                            Manage Account
+                        </MudButton>
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem>
+                        <NavLink class="nav-link d-flex align-center" href="Identity/Account/Logout2">
+                            <MudIcon Icon="@Icons.Material.Filled.Logout" Class="mr-2" />
+                            Sign Out
+                        </NavLink>
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        }
+        else
+        {
+            <MudButton Class="ml-auto px-4" 
+                      Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      OnClick="@SignIn">
+                <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                Sign in
+            </MudButton>
+        }
+    </MudAppBar>
+    
+    @if (IsUserAuthenticated)
+    {
+        <MudDrawer @bind-Open="_drawerOpen" 
+                   ClipMode="DrawerClipMode.Never" 
+                   Elevation="2" 
+                   Class="mud-drawer-fixed">
+            <UnifiedNavMenu />
+        </MudDrawer>
+    }
+    
+    <MudMainContent Class="pt-16 px-4">
+        <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool IsUserAuthenticated { get; set; }
+    private ApplicationUser CurrentUser { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthenticationState();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity.IsAuthenticated)
+            {
+                IsUserAuthenticated = true;
+                CurrentUser = await UserManager.GetUserAsync(user);
+            }
+            else
+            {
+                IsUserAuthenticated = false;
+                CurrentUser = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            IsUserAuthenticated = false;
+            CurrentUser = null;
+            Console.WriteLine($"Error checking authentication state: {ex.Message}");
+        }
+    }
+
+    private string GetFormattedUserName()
+    {
+        if (CurrentUser == null) return string.Empty;
+
+        var names = new[] { CurrentUser.Firstname, CurrentUser.Surname }
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim());
+            
+        var fullName = string.Join(" ", names);
+        return $"Welcome, {fullName}";
+    }
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ManageAccount()
+    {
+        NavigationManager.NavigateTo("/Identity/Account/Manage", forceLoad: true);
+    }
+
+    private void SignIn()
+    {
+        NavigationManager.NavigateTo("/Identity/Account/Login", forceLoad: true);
+    }
+
+    private async Task SignOut()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity.IsAuthenticated)
+            {
+                await SignInManager.SignOutAsync();
+                NavigationManager.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during sign out: {ex.Message}");
+            NavigationManager.NavigateTo("/");
+        }
+    }
+}

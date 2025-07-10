@@ -1,0 +1,132 @@
+@page "/applicant/employmentDetails"
+@using System.Security.Claims
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository biodataRepository
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+@* <h4><MudIcon Icon="@Icons.Material.Filled.School" /> Personal Details</h4> *@
+<div class="ml-5 py-4">
+
+
+    <!--timeline -->
+   <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Other Details</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Next of kin</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Credentials</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Reference Info</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+     <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Warning">Credential Upload</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+</MudTimeline>
+    <!-- end timeline -->
+    <!--row 1-->
+    <MudGrid Class="mr-5">
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField Variant="Variant.Outlined" T="string" Label="Refree's Full Name"></MudTextField>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Designation"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Residential Address"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Email"></MudTextField>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Phone Number"></MudTextField>
+        </MudItem>
+    </MudGrid>
+    <!-- end row 1-->
+    <!-- row 2-->
+     <MudText Typo="Typo.h6" text-center>Refree Two</MudText>
+    <MudGrid Class="mr-5">
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField Variant="Variant.Outlined" T="string" Label="Refree's Full Name"></MudTextField>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Designation"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Residential Address"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Email"></MudTextField>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Phone Number"></MudTextField>
+        </MudItem>
+    </MudGrid>
+    <MudText Typo="Typo.h6" text-center>Refree Three</MudText>
+    <MudGrid Class="mr-5">
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField Variant="Variant.Outlined" T="string" Label="Refree's Full Name"></MudTextField>
+        </MudItem>
+        
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Designation"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Residential Address"></MudTextField>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Email"></MudTextField>
+        </MudItem>
+         <MudItem xs="12" sm="6" md="4">
+            <MudTextField T="string" Variant="Variant.Outlined" Label="Phone Number"></MudTextField>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        <div class="d-flex align-center justify-space-between ml-auto">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mr-3">Save</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Save & Continue</MudButton>
+        </div>
+    </MudGrid>
+
+</div>
+
+
+@code{
+    public bool _loading { get; set; }
+    protected async override Task OnInitializedAsync()
+    {
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+           var BioDataDto = await biodataRepository.GetBioData(userId);
+        }
+        else
+        {
+            snackBar.Add("Please pay mandatory fees ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard",forceLoad:true);
+        }
+        _loading = false;
+    }
+
+}

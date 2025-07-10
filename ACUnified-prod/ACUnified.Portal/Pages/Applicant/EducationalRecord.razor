@@ -1,0 +1,274 @@
+@page "/applicant/educational"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using System.Security.Claims
+@using ACUnified.Business.Repository
+@using Microsoft.EntityFrameworkCore
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IEducationalRecordRepository EducationalRecordRepository
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject NavigationManager Navigation
+@inject ILogger<EducationalRecord> Logger
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+
+<div class="ml-5 py-4">
+    <!--timeline -->
+    <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+        <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Success">Other Details</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Success">Next of kin</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Warning">Educational Info</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Default" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Default">Transfer Info</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Default" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Default">Credential Upload</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+    </MudTimeline>
+    <!-- end timeline -->
+
+    @if (isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudForm Model="@educationalRecords" @ref="@form">
+            <MudTable Items="@educationalRecords" Dense="true" Hover="true" Bordered="true" Striped="true"
+                      Breakpoint="Breakpoint.Sm" Loading="@isLoading" LoadingProgressColor="Color.Info"
+                      @bind-SelectedItem="selectedRecord">
+                <ColGroup>
+                    <col style="width: 30%;" />
+                    <col style="width: 15%;" />
+                    <col style="width: 15%;" />
+                    <col style="width: 20%;" />
+                    <col style="width: 10%;" />
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh>Name of Institution</MudTh>
+                    <MudTh>From</MudTh>
+                    <MudTh>To</MudTh>
+                    <MudTh>Qualification</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Institution">
+                        <MudTextField @bind-Value="@context.Name" Label="" Variant="Variant.Outlined" />
+                    </MudTd>
+                    <MudTd DataLabel="From">
+                        <MudDatePicker Date="@context.StartDate" DateChanged="@(date => OnStartDateChanged(context, date))" Label="From" Variant="Variant.Outlined" MaxDate="@DateTime.Today" />
+                    </MudTd>
+                    <MudTd DataLabel="To">
+                        <MudDatePicker Date="@context.EndDate" DateChanged="@(date => OnEndDateChanged(context, date))" Label="To" Variant="Variant.Outlined" MaxDate="@DateTime.Today" />
+                    </MudTd>
+                    <MudTd DataLabel="Qualification">
+                        <MudTextField @bind-Value="@context.Qualification" Label="Qualification" Variant="Variant.Outlined" />
+                    </MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudButton OnClick="@(() => RemoveRecord(context))" Variant="Variant.Filled" Color="Color.Error" Size="Size.Small">Remove</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 5, 10, 20 }" />
+                </PagerContent>
+            </MudTable>
+
+                 <MudGrid Class="mt-4">
+                <MudItem xs="12">
+                    <MudButton OnClick="@AddNewRecord" Variant="Variant.Filled" Color="Color.Primary" Class="mr-2">Add New Record</MudButton>
+                    <MudButton OnClick="@HandleValidSubmit" Variant="Variant.Filled" Color="Color.Success">Save & Continue</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    }
+</div>
+
+@code {
+    private List<EducationalRecordDto> educationalRecords = new List<EducationalRecordDto>();
+    private ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    private bool isLoading = true;
+    private string userId;
+    private MudForm form;
+    private EducationalRecordDto selectedRecord;
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                Logger.LogWarning("User ID not found. Redirecting to login.");
+                snackBar.Add("User ID not found. Please log in again.", Severity.Error);
+                Navigation.NavigateTo("/login", forceLoad: true);
+                return;
+            }
+
+            Logger.LogInformation($"Fetching application form for user ID: {userId}");
+            currentApplicationForm = await ApplicationFormRepository.GetApplicationFormByUserId(userId);
+
+            if (currentApplicationForm != null && currentApplicationForm.Id != 0)
+            {
+                Logger.LogInformation($"Found application form with ID: {currentApplicationForm.Id}");
+                var existingRecords = await EducationalRecordRepository.GetEducationalRecordsByApplicationFormId(currentApplicationForm.Id);
+                
+                if (existingRecords != null && existingRecords.Any())
+                {
+                    educationalRecords = existingRecords.ToList();
+                    Logger.LogInformation($"Fetched {educationalRecords.Count} educational records");
+                }
+                else
+                {
+                    Logger.LogWarning("No existing educational records found or error occurred. Adding empty records.");
+                    AddEmptyRecords();
+                }
+            }
+            else
+            {
+                Logger.LogWarning("No existing application form found. Creating new form with empty records.");
+                currentApplicationForm = new ApplicationFormDto { UserId = userId };
+                currentApplicationForm = await ApplicationFormRepository.CreateApplicationForm(currentApplicationForm);
+                AddEmptyRecords();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error in OnInitializedAsync");
+            errorMessage = $"An error occurred while loading your data. Please try refreshing the page or contact support if the problem persists.";
+            AddEmptyRecords();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddEmptyRecords()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            educationalRecords.Add(new EducationalRecordDto 
+            { 
+                UserId = userId,
+                ApplicationFormId = currentApplicationForm.Id,
+                StartDate = DateTime.Today.AddYears(-4),
+                EndDate = DateTime.Today,
+                Name = string.Empty,
+                Qualification = string.Empty,
+                Grade = string.Empty,
+                DocumentPath = string.Empty
+            });
+        }
+    }
+    private void AddNewRecord()
+    {
+        educationalRecords.Add(new EducationalRecordDto 
+        { 
+            UserId = userId,
+            EndDate = DateTime.Today,
+            ApplicationFormId = currentApplicationForm?.Id ?? 0
+        });
+    }
+
+    private void RemoveRecord(EducationalRecordDto record)
+    {
+        educationalRecords.Remove(record);
+    }
+
+    private void OnStartDateChanged(EducationalRecordDto record, DateTime? date)
+    {
+        if (date.HasValue)
+        {
+            record.StartDate = date.Value;
+        }
+    }
+
+    private void OnEndDateChanged(EducationalRecordDto record, DateTime? date)
+    {
+        if (date.HasValue)
+        {
+            record.EndDate = date.Value;
+        }
+    }
+   private async Task HandleValidSubmit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                if (currentApplicationForm == null || currentApplicationForm.Id == 0)
+                {
+                    Logger.LogInformation("Creating new application form");
+                    currentApplicationForm = new ApplicationFormDto { UserId = userId };
+                    currentApplicationForm = await ApplicationFormRepository.CreateApplicationForm(currentApplicationForm);
+                }
+
+                foreach (var record in educationalRecords)
+                {
+                    if (!string.IsNullOrWhiteSpace(record.Name) && !string.IsNullOrWhiteSpace(record.Qualification))
+                    {
+                        record.UserId = userId;
+                        record.ApplicationFormId = currentApplicationForm.Id;
+                        
+                        if (record.EndDate > DateTime.Today)
+                        {
+                            record.EndDate = DateTime.Today;
+                        }
+                        
+                        if (record.Id == 0)
+                        {
+                            Logger.LogInformation($"Creating new educational record for ApplicationFormId: {record.ApplicationFormId}");
+                            await EducationalRecordRepository.CreateEducationalRecord(record);
+                        }
+                        else
+                        {
+                            Logger.LogInformation($"Updating educational record ID: {record.Id}");
+                            await EducationalRecordRepository.UpdateEducationalRecord(record);
+                        }
+                    }
+                }
+
+                snackBar.Add("Educational records saved successfully.", Severity.Success);
+                Navigation.NavigateTo("/applicant/transfer");
+            }
+            catch (DbUpdateException dbEx)
+            {
+                Logger.LogError(dbEx, "DbUpdateException in HandleValidSubmit");
+                snackBar.Add($"Error saving records: {dbEx.InnerException?.Message ?? dbEx.Message}", Severity.Error);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Exception in HandleValidSubmit");
+                snackBar.Add($"Error saving records: {ex.Message}", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add("Please fill in all required fields correctly.", Severity.Warning);
+        }
+    }
+}

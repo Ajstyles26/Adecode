@@ -1,0 +1,105 @@
+@page "/ict/AcademicSessionManagement"
+@layout ACUnifiedLayout
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Microsoft.AspNetCore.Identity
+@inject ISnackbar snackBar
+@inject IAcademicSessionRepository AcademicSessionService
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+
+@attribute [Authorize(Roles = "ICT")]
+<h3>Program Management</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Add / Edit Academic Session</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="academicSession.Name" Label=" Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        <MudToggleIconButton @bind-Toggled="@academicSession.isActive"
+                     Icon="@Icons.Material.Filled.KeyOff" Color="@Color.Error" Title="Off"
+                     ToggledIcon="@Icons.Material.Filled.Key" ToggledColor="@Color.Success" ToggledTitle="On"/>       
+@* <MudTextField @bind-Value="programSetup.Faculty.Name" Label="Faculty Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField> *@
+        @* <MudTextField @bind-Value="programSetup.Department.Name" Label="Department Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField> *@
+        
+        <br />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Save">Save Academic Session</MudButton>
+    </MudCardContent>
+</MudCard>
+<br />
+<MudTable Elevation="25"  Filter="new Func<SessionDto, bool>(Search)" @bind-Items="academicSessions">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Session Name</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search for Session..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>IsActive</MudTh>
+        <MudTh>IsApplicationActive</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Name">@context.isActive</MudTd>
+        <MudTd DataLabel="Name">@context.isApplicantActive</MudTd>
+            <MudFab @onclick="@(()=>EditDialog(@context.Id))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
+            @* <MudFab @onclick="@(()=>DeleteUser(@context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" /> *@
+    </RowTemplate>
+                 
+</MudTable>
+</div>
+@code{
+    private string searchString = "";
+    private SessionDto academicSession = new SessionDto();
+    private List<SessionDto> academicSessions = new List<SessionDto>();
+        
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAcademicSessionAsync();
+    }
+    private async Task EditDialog(long id)
+{
+    @* var parameters = new DialogParameters { ["ProgramSetup"] = await AcademicSessionService.GetSession(id) }; *@
+    var param = new DialogParameters<EditAcademicSessionManagementDialog>{["Id"] = id};
+    var dialog =  DialogService.Show<EditAcademicSessionManagementDialog>("Edit Academic Session",param, options: new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true ,Position = DialogPosition.TopCenter });
+    var result = await dialog.Result;
+    if (!result.Canceled)
+    {
+        @* await GetAcademicSessionAsync(); *@
+    }
+}
+    private async Task GetAcademicSessionAsync()
+    {
+        academicSessions = (await AcademicSessionService.GetAllSession()).ToList();
+
+    }
+    private bool Search(SessionDto programSetup)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return programSetup.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        academicSession.Description = "";
+        await AcademicSessionService.CreateSession(academicSession);
+        academicSession = new SessionDto();
+        snackBar.Add("Academic Session Saved.", Severity.Success);
+        await GetAcademicSessionAsync();
+    }
+
+    
+    
+}

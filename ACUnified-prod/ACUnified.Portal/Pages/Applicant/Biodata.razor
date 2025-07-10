@@ -1,0 +1,264 @@
+@page "/applicant/biodata"
+@layout ACUnifiedLayout
+@inject IStateRepository StatesRepos
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Pages.Applicant.Validator
+@using ACUnified.Data.DTOs;
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository biodataRepository
+@inject ILGARepository LGARepository
+@inject ICountryRepository CountryRepository
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILGARepository LGARepository
+@inject IApplicationFormRepository applicationForm
+
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+@* <h4><MudIcon Icon="@Icons.Material.Filled.School" /> Personal Details</h4> *@
+<div class="ml-5 py-4">
+    
+
+<!--timeline -->
+<MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Biodata</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Warning">Other Details</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Error">Next of kin</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Error">Credentials </MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Warning">Reference Info</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+</MudTimeline>
+<!-- end timeline -->
+    <MudForm Model="@currentBioData" @ref="@Biodataform"  Validation="@(biodataValidator.ValidateValue)" ValidationDelay="0" >
+        <!--row 1-->
+        <MudGrid Class="mr-5">
+            <MudItem xs="12" sm="6" md="4">
+                        <MudTextField Variant="Variant.Outlined" @bind-Value="currentBioData.LastName" For="@(()=>currentBioData.LastName)" T="string" Label="Surname" Immediate="true"></MudTextField>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField T="string" Variant="Variant.Outlined" @bind-Value="currentBioData.FirstName" For="@(()=>currentBioData.FirstName)" Label="First name" Immediate="true"></MudTextField>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+
+                <MudTextField T="string" Label="Othernames" @bind-Value="currentBioData.OtherName" For="@(()=>currentBioData.OtherName)" Variant="Variant.Outlined" Immediate="true"></MudTextField>
+            </MudItem>
+
+
+        </MudGrid>
+        <!-- end row 1-->
+        <!-- row 2-->
+        <MudGrid Class="mr-2">
+            <MudItem xs="12" sm="6" md="4">
+                <MudDatePicker Variant="Variant.Outlined" @bind-Date="currentBioData.DOB" Validation="@(biodataValidator.ValidateValue)" For="@(()=>currentBioData.DOB)" Label="Date of Birth" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4"> 
+                <MudSelect Dense T="string" For="@(() => currentBioData.Gender)" @bind-Value="currentBioData.Gender" Label="Gender" Variant="Variant.Outlined" Immediate="true">
+                    <MudSelectItem Value="@("Male")" />
+                    <MudSelectItem Value="@("Female")" />
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField T="string" @bind-Value="currentBioData.Address" For="@(() => currentBioData.Address)" Variant="Variant.Outlined" Label="Residential Address" Immediate="true"></MudTextField>
+            </MudItem>
+
+
+        </MudGrid>
+        <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" T="string" @bind-Value="currentBioData.Email" For="@(()=>currentBioData.Email)" Label="Email Address" Immediate="true"></MudTextField>
+            </MudItem>
+
+                
+<MudItem xs="12" sm="6" md="4">
+    <MudSelect For="@(()=>currentBioData.State)" Dense T="string" @bind-Value="currentBioData.State" Label="State of Origin" Variant="Variant.Outlined" Immediate="true">
+         @foreach (var state in States)
+         {
+        <MudSelectItem Value="@state.Name" />
+         }
+</MudSelect>
+</MudItem>
+                <MudItem xs="12" sm="6" md="4">
+<MudSelect For="@(()=>currentBioData.LGA)" Dense T="string" @bind-Value="currentBioData.LGA" Label="Local Government" Variant="Variant.Outlined" Immediate="true" >
+     @foreach (var lga in LGAs)
+         {
+        <MudSelectItem Value="@lga.Name" />
+         }
+</MudSelect>
+</MudItem>
+ <MudItem xs="12" sm="6" md="4">
+            <MudSelect For="@(()=>currentBioData.Nationality)" Dense T="string" @bind-Value="currentBioData.Nationality" Label="Nationality" Variant="Variant.Outlined" Immediate="true">
+                @foreach (var country in Countries)
+                {
+                    <MudSelectItem Value=country.Name />
+                }
+            </MudSelect>
+ </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="currentBioData.PostalAddress" For="@(() => currentBioData.PostalAddress)" Variant="Variant.Outlined" T="string" Label="Postal Address" Immediate="true"></MudTextField>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="currentBioData.MobileNumber" For="@(() => currentBioData.MobileNumber)" Variant="Variant.Outlined" T="string" Label="Phone Number" Immediate="true"></MudTextField>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Class="mr-2">
+            <MudItem xs="12" sm="6" md="4"> 
+                <MudSelect Dense T="string" For="@(() => currentBioData.MaritalStatus)" @bind-Value="currentBioData.MaritalStatus" Label="Marital Status" Variant="Variant.Outlined" Immediate="true">
+                    <MudSelectItem Value="@("Single")" />
+                    <MudSelectItem Value="@("Married")" />
+                    <MudSelectItem Value="@("Divorced")" />
+                    <MudSelectItem Value="@("Widowed")" />
+                </MudSelect>
+
+            </MudItem>
+        </MudGrid>
+        <MudGrid>
+               <div class="d-flex align-center justify-space-between ml-auto">
+                    @* <MudButton OnClick="@HandleSave" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mr-3">Save</MudButton> *@
+                @* <MudButton OnClick="@OnValidSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Save & Continue</MudButton> *@
+                <MudButton OnClick="@OnValidSubmit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Save & Continue</MudButton>
+               </div>
+        </MudGrid>
+    </MudForm>
+</div>
+
+@code{
+    public StateDto[] States;
+    public LGADto[] LGAs;
+    public CountryDto[] Countries;
+    BioDataDto currentBioData = new BioDataDto();
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+
+
+    // currentBios
+    MudForm Biodataform;
+    BiodataValidator biodataValidator = new BiodataValidator();
+    public bool _loading { get; set; }
+    
+    protected override async Task OnInitializedAsync(){
+        States=(await StatesRepos.GetAllState()).ToArray();
+        LGAs=(await LGARepository.GetAllLGA()).ToArray();
+        Countries = (await CountryRepository.GetAllCountry()).ToArray();
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //var cuser=UserManager.GetUserName(User);
+
+
+        if (userId != null)
+        {
+
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+
+                var tcurrentBioData = await biodataRepository.GetBioData(userId);
+                if (tcurrentBioData != null)
+                {
+                    currentBioData = tcurrentBioData;
+                    
+                }
+
+            }
+            else
+            {
+                snackBar.Add("Please pay mandatory fees ", Severity.Error, configure =>
+                {
+                    configure.CloseAfterNavigation = false;
+                });
+                Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+            }
+        }
+        else
+        {
+            snackBar.Add("Error ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard",forceLoad:true);
+        }
+        _loading = false;
+    }
+
+   
+  private async Task OnValidSubmit()
+{
+    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    await Biodataform.Validate();
+    if (Biodataform.IsValid)
+    {
+        currentBioData.UserId = userId;
+        var updatedBioData = await biodataRepository.UpdateBioData(currentBioData);
+        if (updatedBioData != null)
+        {
+            var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            currentApplicationForm.BioDataId = updatedBioData.Id;
+            await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+            snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/otherdetails");
+        }
+        else
+        {
+            snackBar.Add("Error: Failed to save records", Severity.Error);
+        }
+    }
+    else
+    {
+        snackBar.Add("Error: Please ensure all fields are properly filled", Severity.Error);
+    }
+}
+
+
+    }
+    @* private async Task HandleSave()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await Biodataform.Validate();
+
+        if (Biodataform.IsValid)
+        {
+            var tcurrentBioData = await biodataRepository.GetBioData(userId);
+            if (tcurrentBioData == null)
+            {
+                currentBioData.UserId = userId;
+                await biodataRepository.CreateBioData(currentBioData);
+            }
+            else
+            {
+                currentBioData.UserId = tcurrentBioData.UserId;
+                await biodataRepository.UpdateBioData(currentBioData);
+            }
+            snackBar.Add("Records has been saved successfully", Severity.Normal);
+            
+        }
+        else
+        {
+            snackBar.Add("Error Please ensure the fields are properly filled", Severity.Error);
+        }
+    } *@ 
+} 

@@ -1,0 +1,328 @@
+@page "/OtherPaymentGate1/{name}"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@layout ACUnifiedLayout
+@inject IApplicantPaymentLogRepository paymentRepository
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject HttpClient Http
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@attribute [Authorize]
+
+<MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Applicant Order Page</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudText Typo="Typo.h5" GutterBottom="true">Billing address</MudText>
+            <MudGrid>
+
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@paymentModel.payerName" Label="Name" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="paymentModel.payerEmail" Label="Email" ReadOnly="true" />
+                </MudItem>
+              
+   @if (name == "ETH")
+                {
+                    <MudItem xs="12">
+                        <MudText> Other Fees FBMS:</MudText>
+                        <div class="d-flex flex-column gap-2 mt-2">
+                            <MudCheckBox T="bool" Label="Matric Fee" 
+                                         @bind-Checked="@isRegularSelected" Color="Color.Primary" />
+                            <MudCheckBox T="bool" Label="Supplementation Fee" 
+                                         @bind-Checked="@isPremiumSelected" Color="Color.Primary" />
+                        </div>
+                    </MudItem>
+                    <MudText>All Student of Environmental Health Science Are expeceted to pay both fees </MudText>
+                }
+
+                <MudItem xs="12" Class="d-flex justify-center justify-space-between">
+                    <MudButton OnClick="OnPaymentClickAsync" Variant="Variant.Filled" 
+                               DisableElevation="true" Color="Color.Primary" Size="Size.Large" 
+                               Class="mt-8" Disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Submitting...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Continue to Payment</MudText>
+                        }
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+
+        <MudItem xs="5">
+            <MudText Typo="Typo.h5" GutterBottom="true">Cart</MudText>
+            <MudText>Pay ref: @paymentModel.orderId</MudText>
+
+            <MudPaper Class="d-flex flex-column" Style="height:100%;" Outlined="true">
+                <MudList Clickable="true">
+                    @if (isRegularSelected)
+                    {
+                        <MudListItem Icon="@Icons.Material.Filled.BookOnline">
+                            <div class="d-flex">
+                                <MudText>Matric Fee</MudText>
+                                <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails1.Amount.ToString("###,#")</MudText>
+                            </div>
+                        </MudListItem>
+                    }
+                    @if (isPremiumSelected)
+                    {
+                        <MudListItem Icon="@Icons.Material.Filled.BookOnline">
+                            <div class="d-flex">
+                                <MudText>Supplementation</MudText>
+                                <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails3.Amount.ToString("###,#")</MudText>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+                <div class="mt-auto">
+                    <MudDivider />
+                    <div class="d-flex pa-4">
+                        <MudText>Total:</MudText>
+                        <MudText Class="ml-auto">
+                            <b>NGN @CalculateTotalAmount().ToString("###,#")</b>
+                        </MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    <form id="remitaForm" action="@baseurl" method="POST">
+        <input type="hidden" name="payerName" id="payerName" value="@paymentModel.payerName" />
+        <input type="hidden" name="payerEmail" id="payerEmail" value="@paymentModel.payerEmail" />
+        <input type="hidden" name="payerPhone" id="payerPhone" value="@paymentModel.payerPhone" />
+        <input type="hidden" name="orderId" id="orderId" value="@paymentModel.orderId" />
+        <input type="hidden" name="merchantId" id="merchantId" value="@paymentModel.merchantId" />
+        <input type="hidden" name="serviceTypeId" id="serviceTypeId" value="@paymentModel.serviceTypeId" />
+        <input type="hidden" name="responseurl" id="responseurl" value="@paymentModel.responseurl" />
+        <input type="hidden" name="amt" id="amt" value="@paymentModel.amount" />
+        <input type="hidden" name="hash" id="hash" value="@paymentModel.hash" />
+        <input type="hidden" name="paymenttype" id="paymenttype" value="@paymentModel.paymentType" />
+    </form>
+</MudContainer>
+
+
+
+@code {
+
+    [Parameter]
+    public string name { get; set; }
+    public string baseurl = "https://login.remita.net/remita/ecomm/init.reg";
+    private PaymentModel paymentModel = new PaymentModel();
+    private  HostelType HostelTypeInput = HostelType.None;
+     public bool _loading { get; set; }
+    private bool isRegularSelected;
+    private bool isPremiumSelected;
+    private bool isSubmitting; 
+    
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicantPayDetailsDto currentPayDetails1 = new ApplicantPayDetailsDto();
+    ApplicantPayDetailsDto currentPayDetails2 = new ApplicantPayDetailsDto();
+     ApplicantPayDetailsDto currentPayDetails3 = new ApplicantPayDetailsDto();
+      ApplicantPayDetailsDto currentPayDetails4 = new ApplicantPayDetailsDto();
+   
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentLogDto currentApplicantPaymentLog = new ApplicantPaymentLogDto();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+    public string userId;
+
+     private decimal CalculateTotalAmount()
+    {
+        decimal total = 0;
+        if (isRegularSelected) total += currentPayDetails1.Amount;
+        if (isPremiumSelected) total += currentPayDetails3.Amount;
+        return total;
+    }
+    protected override async Task OnInitializedAsync()
+    {
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        currentSession = await currentAcademicSession.GetActiveApplicantSession();
+        currentPayDetails = await payDetailsRepository.GetPayDetailsByName(name);
+        currentPayDetails1 = await payDetailsRepository.GetPayDetailsByName("MatricFee");
+        currentPayDetails2 = await payDetailsRepository.GetPayDetailsByName("SupplementRest");
+         currentPayDetails3 = await payDetailsRepository.GetPayDetailsByName("SupplementETH");
+         currentPayDetails4 = await payDetailsRepository.GetPayDetailsByName("SupplementRest");
+
+          currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+        if (userId != null)
+        {
+            var userInformation = await UserManager.FindByIdAsync(userId);
+            paymentModel.payerName = userInformation.Firstname + " " + userInformation.Surname;
+            paymentModel.payerEmail = userInformation.Email;
+            paymentModel.payerPhone = userInformation.PhoneNumber;
+
+            currentApplicantPaymentLog.email = userInformation.Email;
+            currentApplicantPaymentLog.client_name = userInformation.Firstname + " " + userInformation.Surname;
+            currentApplicantPaymentLog.UserId = userId; 
+        }
+
+        _loading = false;
+    }
+private async Task OnPaymentClickAsync()
+{
+    if (userId == null)
+    {
+        snackBar.Add("User not authenticated", Severity.Error);
+        return;
+    }
+
+    if (!isRegularSelected && !isPremiumSelected)
+    {
+        snackBar.Add("Please select at least one hostel type", Severity.Warning);
+        return;
+    }
+
+    isSubmitting = true;
+    paymentModel.merchantId = "2268484533";
+    paymentModel.apiKey = "018543";
+    paymentModel.responseurl = Navigation.BaseUri + "Payment/ProcessTransactionLogReceipt3";
+
+    var currentSessionList = await currentAcademicSession.GetActiveApplicantSession();
+    var currentSession = currentSessionList.FirstOrDefault();
+
+    List<ApplicantPaymentLogDto> paymentLogs = new List<ApplicantPaymentLogDto>();
+
+    if (isRegularSelected)
+    {
+        var regularPaymentLog = await ProcessRegularPayment(currentSession);
+        paymentLogs.Add(regularPaymentLog);
+    }
+
+    if (isPremiumSelected)
+    {
+        var premiumPaymentLog = await ProcessPremiumPayment(currentSession);
+        paymentLogs.Add(premiumPaymentLog);
+    }
+
+    // Use a single order ID that combines all payment references
+    paymentModel.orderId = string.Join("|", paymentLogs.Select(p => p.ReferenceNo));
+    // Use a single service type ID
+    paymentModel.serviceTypeId = "2267186704";
+    paymentModel.amount = paymentLogs.Sum(p => p.Amount);
+
+    // Ensure amount is formatted correctly (2 decimal places)
+    paymentModel.amount = Math.Round(paymentModel.amount, 2);
+
+    // Calculate hash for the combined payment
+    paymentModel.hash = CalculatePaymentHash(paymentModel);
+
+    // Save all payment logs
+    foreach (var paymentLog in paymentLogs)
+    {
+        await paymentRepository.CreateApplicantPayment(paymentLog);
+    }
+
+    // Update application form
+    var applicationFormDto = await applicationForm.GetApplicationFormByUserId(userId);
+    applicationFormDto.ApplicantStage = ApplicationStage.Stage7;
+    await applicationForm.UpdateApplicationForm(applicationFormDto);
+
+    // Log the payment details before submission (for debugging)
+    Console.WriteLine($"Payment Details: {JsonSerializer.Serialize(paymentModel)}");
+
+    // Submit the form
+    await jsRuntime.InvokeVoidAsync("submitForm", "remitaForm");
+}
+private string CalculatePaymentHash(PaymentModel model)
+{
+    // Ensure all required fields are present and properly formatted
+    if (string.IsNullOrEmpty(model.merchantId) || 
+        string.IsNullOrEmpty(model.serviceTypeId) || 
+        string.IsNullOrEmpty(model.orderId) || 
+        model.amount <= 0 || 
+        string.IsNullOrEmpty(model.responseurl) || 
+        string.IsNullOrEmpty(model.apiKey))
+    {
+        throw new ArgumentException("One or more required fields for hash calculation are missing or invalid.");
+    }
+
+    var amountString = model.amount.ToString("F2"); // Ensure 2 decimal places
+    var hashString = $"{model.merchantId}{model.serviceTypeId}{model.orderId}{amountString}{model.responseurl}{model.apiKey}";
+    using var sha512 = System.Security.Cryptography.SHA512.Create();
+    var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+    return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+}
+private async Task<ApplicantPaymentLogDto> ProcessRegularPayment(SessionDto currentSession)
+{
+    var regularOrderId = $"{currentApplicationForm.FormRefNo}/Matric/{DateTime.Now:yyyyMMddHHmmss}";
+    return new ApplicantPaymentLogDto
+    {
+        ReferenceNo = regularOrderId,
+        Amount = currentPayDetails1.Amount,
+        email = paymentModel.payerEmail,
+        client_name = paymentModel.payerName,
+        RRRRNo = "",
+        isSuccessful = false,
+        UserId = userId,
+        SessionId = currentSession?.Id,
+        ApplicantPayCategoryId = currentPayDetails1.ApplicantPayCategoryId,
+        ApplicantPayDetailsId = currentPayDetails1.Id,
+        Comments = $"Matric Fee Payment {currentSession?.Name}"
+    };
+}
+
+private async Task<ApplicantPaymentLogDto> ProcessPremiumPayment(SessionDto currentSession)
+{
+    var premiumOrderId = $"{currentApplicationForm.FormRefNo}/Supplement/ETH{DateTime.Now:yyyyMMddHHmmss}";
+    return new ApplicantPaymentLogDto
+    {
+        ReferenceNo = premiumOrderId,
+        Amount = currentPayDetails3.Amount,
+        email = paymentModel.payerEmail,
+        client_name = paymentModel.payerName,
+        RRRRNo = "",
+        isSuccessful = false,
+        UserId = userId,
+        SessionId = currentSession?.Id,
+        ApplicantPayCategoryId = currentPayDetails3.ApplicantPayCategoryId,
+        ApplicantPayDetailsId = currentPayDetails3.Id,
+        Comments = $"Supplement fee payment  {currentSession?.Name}"
+    };
+}
+
+    
+
+    public class PaymentModel
+    {
+        public string payerName { get; set; }
+        public string payerEmail { get; set; }
+        public string payerPhone { get; set; }
+        public decimal amount { get; set; }
+        public string paymentType { get; set; }
+        public string merchantId { get; set; }
+        public string serviceTypeId { get; set; }
+        public string orderId { get; set; }
+        public string responseurl { get; set; }
+        public string apiKey { get; set; }
+        public string hash { get; set; }
+
+    }
+
+}

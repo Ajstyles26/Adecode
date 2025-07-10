@@ -1,0 +1,241 @@
+@page "/applicant/otherdetails"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Pages.Applicant.Validator
+@using ACUnified.Data.DTOs;
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IOtherDetailsRepository OtherDetailsRepository
+@inject IOtherDetailsRepository OtherDetailsRepository
+@inject NavigationManager Navigation
+@inject IApplicationFormRepository applicationForm
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+<div class="ml-5 py-4">
+    <!--timeline -->
+   <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Biodata</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Success">Other Details</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Error">Next of kin</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Error">Credentials </MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+    <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+        <ItemOpposite>
+            <MudText Color="Color.Warning">Reference Info</MudText>
+        </ItemOpposite>
+    </MudTimelineItem>
+</MudTimeline>
+    <!-- end timeline -->
+    <!--row 1-->
+    <MudForm Model="@currentOtherDetails" @ref="@OtherDetailsform" Validation="@(otherDetailsValidator.ValidateValue)"
+        ValidationDelay="0">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.RedAddress"
+                    For="@(()=>currentOtherDetails.RedAddress)" T="string" Label="Residential Address"></MudTextField>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.PostalAddress"
+                    For="@(()=>currentOtherDetails.PostalAddress)" T="string" Label="Postal Address"></MudTextField>
+            </MudItem>
+                    <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.ParentEmail"
+                    For="@(()=>currentOtherDetails.ParentEmail)" T="string" Label="Parent Email"></MudTextField>
+
+            </MudItem>
+
+        </MudGrid>
+        <!-- end row 1-->
+        <!-- row 2-->
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.PhoneNumber"
+                    For="@(()=>currentOtherDetails.PhoneNumber)" T="string" Label="Mother Maiden Name"></MudTextField>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.Denomination"
+                    For="@(()=>currentOtherDetails.Denomination)" T="string" Label="Denomination"></MudTextField>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.ParentName"
+                    For="@(()=>currentOtherDetails.ParentName)" T="string" Label="Father's Full Name"></MudTextField>
+            </MudItem>
+
+
+        </MudGrid>
+        <MudGrid>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.ContactAddress"
+                    For="@(()=>currentOtherDetails.ContactAddress)" T="string" Label="Contact Address"></MudTextField>
+            </MudItem>
+
+
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.FatherNo"
+                    For="@(()=>currentOtherDetails.FatherNo)" T="string" Label="Father Phone No"></MudTextField>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined" @bind-Value="currentOtherDetails.MotherNo"
+                    For="@(()=>currentOtherDetails.MotherNo)" T="string" Label="Mother Phone No"></MudTextField>
+            </MudItem>
+              <MudItem xs="12" sm="6" md="4"> 
+                <MudSelect Dense T="string"Label="Any Disability" Variant="Variant.Outlined"  @bind-Value="currentOtherDetails.Disability"
+                    For="@(()=>currentOtherDetails.Disability)" Immediate="true">
+                    <MudSelectItem Value="@("Yes")" />
+                    <MudSelectItem Value="@("No")" />
+                </MudSelect>
+
+            </MudItem>
+              <MudItem xs="12" sm="6" md="4">
+                <MudTextField Variant="Variant.Outlined"  @bind-Value="currentOtherDetails.Disabilitycomment"
+                    For="@(()=>currentOtherDetails.Disabilitycomment)" T="string" Label="If yes "></MudTextField>
+            </MudItem>
+        </MudGrid>
+        <MudGrid>
+            <div class="d-flex align-center justify-space-between ml-auto mt-2">
+                <MudButton OnClick="@HandleSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mr-3">
+                    Previous</MudButton>
+                <MudButton OnClick="@OnValidSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                    Save
+                    & Continue</MudButton> 
+       
+            </div>
+        </MudGrid>
+    </MudForm>
+</div>
+@code {
+
+    OtherDetailsDto currentOtherDetails = new OtherDetailsDto();
+
+    MudForm OtherDetailsform;
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    OtherDetailsValidator otherDetailsValidator = new OtherDetailsValidator();
+    public bool _loading { get; set; }
+    
+    protected override async Task OnInitializedAsync(){
+
+       
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //var cuser=UserManager.GetUserName(User);
+
+
+        if (userId != null)
+        {
+
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+
+                var tcurrentOtherDetails = await OtherDetailsRepository.GetOtherDetails(userId);
+                if (tcurrentOtherDetails != null)
+                {
+                    currentOtherDetails = tcurrentOtherDetails;
+                    
+                }
+
+            }
+            else
+            {
+                snackBar.Add("Please pay mandatory fees ", Severity.Error, configure =>
+                {
+                    configure.CloseAfterNavigation = false;
+                });
+                Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+            }
+        }
+        else
+        {
+            snackBar.Add("Error ", Severity.Error);
+            Navigation.NavigateTo("/applicant/Dashboard",forceLoad:true);
+        }
+        _loading = false;
+    }
+
+   
+  private async Task OnValidSubmit()
+{
+    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    await OtherDetailsform.Validate();
+    if (OtherDetailsform.IsValid)
+    {
+        currentOtherDetails.UserId = userId;
+        var updatedOtherDetails = await OtherDetailsRepository.UpdateOtherDetails(currentOtherDetails);
+        if (updatedOtherDetails != null)
+        {
+            var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            currentApplicationForm.OtherDetailsId = updatedOtherDetails.Id;
+            await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+            snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/nok");
+        }
+        else
+        {
+            snackBar.Add("Error: Failed to save records", Severity.Error);
+        }
+    }
+    else
+    {
+        snackBar.Add("Error: Please ensure all fields are properly filled", Severity.Error);
+    }
+}
+
+  private async Task HandleSubmit()
+{
+    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    await OtherDetailsform.Validate();
+    if (OtherDetailsform.IsValid)
+    {
+        currentOtherDetails.UserId = userId;
+        var updatedOtherDetails = await OtherDetailsRepository.UpdateOtherDetails(currentOtherDetails);
+        if (updatedOtherDetails != null)
+        {
+            var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            currentApplicationForm.OtherDetailsId = updatedOtherDetails.Id;
+            await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+            snackBar.Add("Records have been saved successfully", Severity.Success);
+            Navigation.NavigateTo("/applicant/biodata");
+        }
+        else
+        {
+            snackBar.Add("Error: Failed to save records", Severity.Error);
+        }
+    }
+    else
+    {
+        snackBar.Add("Error: Please ensure all fields are properly filled", Severity.Error);
+    }
+}
+}
+
+

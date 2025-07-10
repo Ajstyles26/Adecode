@@ -1,0 +1,105 @@
+@using System.Net
+@using System.Security.Claims
+@using System.Text
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@inject IPaymentRepository paymentService
+@inject IPayCategoryRepository paymentCategoryService
+@inject ISnackbar snackBar
+@inject ILGARepository LGARepository
+@inject ICountryRepository CountryRepository
+@inject IApplicationFormRepository ApplicationFormDtoService
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+<MudDialog>
+    <DialogContent>
+        I hereby declare that the information given in this form are correct to the best of my knowledge.
+        If admitted to the University I shall regard myself as bound by the ordinance, code of conduct,
+        statues and regulation of the university as far as they affect me.
+        <MudForm>
+            <MudCheckBox Variant="Variant.Outlined" @bind-Value="ApplicationFormDto.Iagree" T="bool" Label="Terms" Immediate="true"></MudCheckBox>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Save">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+    ApplicationFormDto ApplicationFormDto = new ApplicationFormDto();
+
+    public string userId { get; set; }
+
+    public bool isDialogOpen;
+
+    void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Save()
+    {
+        if (ApplicationFormDto.BioDataId == 0 || ApplicationFormDto.BioDataId == null)
+        {
+            snackBar.Add("Please complete your biodata before proceeding.", Severity.Warning);
+            Navigation.NavigateTo("/applicant/biodata", forceLoad: true);
+            return;
+        }
+        if (ApplicationFormDto.AcademicQualificationId == 0 || ApplicationFormDto.AcademicQualificationId == null)
+        {
+            snackBar.Add("Please complete your biodata before proceeding.", Severity.Warning);
+            Navigation.NavigateTo("/applicant/academicqualification", forceLoad: true);
+            return;
+        }
+         if (ApplicationFormDto.OtherDetailsId == 0 || ApplicationFormDto.OtherDetailsId == null)
+        {
+            snackBar.Add("Please complete your biodata before proceeding.", Severity.Warning);
+            Navigation.NavigateTo("/applicant/otherdetails", forceLoad: true);
+            return;
+        }
+        if (ApplicationFormDto.Iagree == true)
+        {
+            ApplicationFormDto.ApplicantStage = ACUnified.Data.Enum.ApplicationStage.Stage3;
+        }
+
+        await ApplicationFormRepository.UpdateApplicationForm(ApplicationFormDto);
+        snackBar.Add("Admission Decision Saved.", Severity.Success);
+        Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        ApplicationFormDto = await ApplicationFormDtoService.GetApplicationFormByUserId(userId);
+
+        if (ApplicationFormDto.BioDataId == 0 || ApplicationFormDto.BioDataId == null)
+        {
+            snackBar.Add("Please complete your biodata before proceeding.", Severity.Warning);
+            Navigation.NavigateTo("/applicant/biodata", forceLoad: true);
+        }
+         if (ApplicationFormDto.OtherDetailsId == 0 || ApplicationFormDto.OtherDetailsId == null)
+        {
+            snackBar.Add("Please complete your biodata before proceeding.", Severity.Warning);
+            Navigation.NavigateTo("/applicant/otherdetails", forceLoad: true);
+        }
+         if (ApplicationFormDto.AcademicQualificationId == 0 || ApplicationFormDto.AcademicQualificationId == null)
+        {
+            snackBar.Add("Please complete your biodata before proceeding.", Severity.Warning);
+            Navigation.NavigateTo("/applicant/academicqualification", forceLoad: true);
+           
+        }
+    }
+}
+
+
+
+
+

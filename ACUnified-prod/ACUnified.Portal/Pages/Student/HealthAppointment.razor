@@ -1,0 +1,109 @@
+@page "/student/healthAppointment"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@inject ISnackbar snackBar
+@inject IHealthAppointmentRepository healthAppointmentService
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "StudentDashboard")]
+
+<h3>FacultyManagement</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Add / Edit Health Appointment</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="healthAppointment.Comment" Label="Comment" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        <MudTextField @bind-Value="healthAppointment.Purpose" Label="Purpose" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        <br />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Save">Save Appointment</MudButton>
+    </MudCardContent>
+</MudCard>
+<br />
+<MudTable Elevation="25"  Filter="new Func<HealthAppointmentDto, bool>(Search)" @bind-Items="healthAppointments">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Health Appointment</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search for Health Appointments..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Description</MudTh>
+
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Comment</MudTd>
+        <MudTd DataLabel="Description">@context.Purpose</MudTd>
+        <MudTd DataLabel="">
+            <MudFab @onclick="@(()=>OpenEditDialog(@context.Id))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab @onclick="@(()=>Delete(@context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+</div>
+@code{
+    private string searchString = "";
+    private HealthAppointmentDto healthAppointment = new HealthAppointmentDto();
+    private List<HealthAppointmentDto> healthAppointments = new List<HealthAppointmentDto>();
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await GetHealthAppointmentAsync(userId);
+    }
+    private async Task GetHealthAppointmentAsync(string userid)
+    {
+        healthAppointments = (await healthAppointmentService.GetAllHealthAppointmentByUserId(userid)).ToList();
+
+    }
+    private bool Search(HealthAppointmentDto healthAppointment)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return healthAppointment.Comment.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        healthAppointment.UserId = userId;
+        await healthAppointmentService.CreateHealthAppointment(healthAppointment);
+        healthAppointment = new HealthAppointmentDto();
+        snackBar.Add("Health Appointment Saved.", Severity.Success);
+
+        await GetHealthAppointmentAsync(userId);
+    }
+    private async Task Edit(long id)
+    {
+        healthAppointment = await healthAppointmentService.GetHealthAppointment(id);
+    }
+    private async Task Delete(long id)
+    {
+        await healthAppointmentService.DeleteHealthAppointment(id);
+        snackBar.Add("Health Appointment Deleted.", Severity.Success);
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await GetHealthAppointmentAsync(userId);
+    }
+    private async Task OpenEditDialog(long id)
+    {
+        var parameters = new DialogParameters { ["HealthAppointment"] = await healthAppointmentService.GetHealthAppointment(id) };
+        var dialog =  DialogService.Show<EditHealthAppointmentDialog>("Edit HealthAppointment", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await GetHealthAppointmentAsync(userId);
+        }
+      
+    }
+}

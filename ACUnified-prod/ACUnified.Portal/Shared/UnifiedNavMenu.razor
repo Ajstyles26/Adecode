@@ -1,0 +1,249 @@
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudPaper Width="250px" Elevation="0" Class="py-3">
+    <MudNavMenu Color="Color.Info">
+        <!--Applicant -->
+        @if (UserHasRole("FreshApplicantDashboard"))
+        {
+            <MudNavGroup Title="Applicant Menu" Expanded="true" Icon="@Icons.Material.Filled.Book">
+                <MudNavLink Href="/applicant/dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/applicant/biodata">Biodata</MudNavLink>
+            <MudNavLink Href="/applicant/otherdetails">Other Information</MudNavLink>
+            <MudNavLink Href="/applicant/nok">Next of Kin</MudNavLink>
+            <MudNavLink Href="/applicant/academicqualification">Academic Qualification</MudNavLink>
+            <MudNavLink Href="/applicant/reference">Reference </MudNavLink>
+             <MudNavLink Href="/applicant/transfer">Transfer </MudNavLink>
+                 <MudNavLink Href="/applicant/courseregistration">Course Registration</MudNavLink>
+               @* <MudNavLink Href="/applicant/educational">Educational </MudNavLink> *@
+            <MudNavLink Href="/applicant/uploadDocuments">Document Upload</MudNavLink>
+            <MudNavLink Href="/applicant/applicationreview">Application Review</MudNavLink>
+             <MudNavLink Href="/applicant/payment-portal"> Payment</MudNavLink>
+              <MudNavLink Href="/applicant/Hostel-portal"> Hostel</MudNavLink>
+            <MudNavLink Href="/applicant/Transaction">Transaction History</MudNavLink>
+
+            
+        </MudNavGroup>
+        }
+         <!--Student-->
+         @if (UserHasRole("StudentDashboard"))
+        {
+            <MudNavGroup Title="Student Menu" Expanded="true" Icon="@Icons.Material.Filled.Apps">
+                <MudNavLink Href="/student/dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/student/profile">Student Profile</MudNavLink>
+        
+            <MudNavLink Href="/student/healthAppointment">Health Appointment</MudNavLink>
+            <MudNavLink Href="/student/hostelRegistration">Hostel Registration</MudNavLink>
+             <MudNavLink Href="/student/PayHistory">Payment History</MudNavLink>
+            <MudNavLink Href="/student/paycentral">Payments</MudNavLink>
+            <MudNavLink Href="/student/result">Result</MudNavLink>
+            <MudNavLink Href="/student/Clearance">Clearance</MudNavLink>
+        </MudNavGroup>
+        }
+
+          @if (UserHasRole("AdmissionOffice"))
+        {
+            <MudNavGroup Title="Admission Menu" Expanded="true" Icon="@Icons.Material.Filled.Apps">
+                <MudNavLink Href="/admissionOfficer/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionOfficer/AdmissionDecision"> Admission Decision</MudNavLink>
+             <MudNavLink Href="/admissionOfficer/Admittedstudents"> Admitted Student</MudNavLink>
+        </MudNavGroup>
+        }
+
+        
+          @if (UserHasRole("Hostel"))
+        {
+            <MudNavGroup Title="Hostel Menu" Expanded="true" Icon="@Icons.Material.Filled.Apps">
+                <MudNavLink Href="/hostel/Dashboard" >Dashboard</MudNavLink>
+             <MudNavLink Href="/hostel/Allocatedrooms">Allocatedrooms  </MudNavLink>  
+        </MudNavGroup>
+        }
+
+         @if (UserHasRole("AdmissionDecisionFinalization"))
+        {
+            <MudNavGroup Title="Admission Menu" Expanded="true" Icon="@Icons.Material.Filled.Apps">
+                <MudNavLink Href="/admissionDecisionFinalization/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionDecisionFinalization/AdmissionDecisionFinalization"> Admission Decision</MudNavLink> 
+            <MudNavLink Href="/admissionDecisionFinalization/Admittedstudents"> Admitted Student</MudNavLink>
+
+        </MudNavGroup>
+        }
+
+         @if (UserHasRole("AdmissionDecisionFinalizationJUPEB"))
+        {
+            <MudNavGroup Title="Admission Menu" Expanded="true" Icon="@Icons.Material.Filled.Apps">
+                <MudNavLink Href="/admissionDecisionFinalizationJUPEB/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionDecisionFinalizationJUPEB/AdmissionDecisionFinalization"> Admission Decision</MudNavLink> 
+            <MudNavLink Href="/admissionDecisionFinalizationJUPEB/Admittedstudents"> Admitted Student</MudNavLink>
+
+        </MudNavGroup>
+        }
+        
+        @if (UserHasRole("Health"))
+        {
+            <MudNavGroup Title="Health Menu" Expanded="true" Icon="@Icons.Material.Filled.Apps">
+                <MudNavLink Href="/health/Dashboard" >Dashboard</MudNavLink>
+                <MudNavLink Href ="/health/Appointment">Appointment</MudNavLink>
+                <MudNavLink Href = "/health/Message">Message</MudNavLink>
+                <MudNavLink Href = "/health/HealthRecord">Health Record</MudNavLink>
+                <MudNavLink Href = "/health/Patients">Patients</MudNavLink>
+        
+           
+
+        </MudNavGroup>
+        }
+        <!--Parent-->
+        @if (UserHasRole("Parent"))
+        {
+            <MudNavGroup Title
+            ="Parent Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Diamond">
+                <MudNavLink Href="/dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/parent/PayHistory">Payments</MudNavLink>
+                           
+        </MudNavGroup>
+        }
+        <!--Lecturer-->
+        @if (UserHasRole("Lecturer"))
+        {
+            <MudNavGroup Title
+            ="Lecturer Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Announcement">
+                <MudNavLink Href="/dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/users">Upload Result</MudNavLink>
+            <MudNavLink Href="/lecturer/facultymgt">Faculty Mgt</MudNavLink>
+                           
+        </MudNavGroup>
+        }
+         <!--Busary-->
+         @if (UserHasRole("Bursary"))
+        {
+            <MudNavGroup Title
+            ="Bursary Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/busary/Dashboard" >Dashboard</MudNavLink>
+                <MudNavLink Href="/busary/transactions">Transaction History</MudNavLink>
+                <MudNavLink Href="/busary/StudentDebtorsList">Debtors List</MudNavLink>
+                <MudNavLink Href="/busary/PayScheduleUpload">Schedule Upload</MudNavLink>
+                <MudNavLink Href="/busary/concessionDetails">Concession Management</MudNavLink>
+                <MudNavLink Href="/busary/applicantTransactions">Applicant Transaction History</MudNavLink>
+                 <MudNavLink Href="/busary/applicantPaylog">Applicant Paylog History</MudNavLink>
+                <MudNavLink Href="/busary/ApplicantPayScheduleUpload">Applicant Schedule Upload</MudNavLink>
+                <MudNavLink Href="/bursary/ProcessTransactionLogReceipt">Reconcile Processed Transaction</MudNavLink>
+                <MudNavLink Href="/busary/applicant-debtor-list"> applicant-debtor-list</MudNavLink>
+                <MudNavLink Href="/busary/hostel-debtor-list"> hostel-debtor-list</MudNavLink>
+                     <MudNavLink Href="/busary/student-payments"> Student</MudNavLink>
+                
+                                           
+        </MudNavGroup>
+        }
+         <!--Admissions Officer-->
+         @if (UserHasRole("Admissions Officer"))
+        {
+            <MudNavGroup Title
+            ="Admission Officer Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/admissionOfficer/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionOfficer/AdmissionDecision">Decision</MudNavLink>
+                                                   
+        </MudNavGroup>
+        }
+        <!--Admissions Officer-->
+        @if (UserHasRole("ICT"))
+        {
+            <MudNavGroup Title="ICT Officer Menu" Expanded="true" Icon="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/ict/dashboard">Dashboard</MudNavLink>
+                <MudNavLink Href="/ict/admission">Admission</MudNavLink>
+       <MudNavLink Href="/ict/AcademicSessionManagement">Academic Session Mgt</MudNavLink> 
+                          <MudNavLink Href="/ict/assign-roles">Assigning Roles</MudNavLink> 
+                          <MudNavLink Href="/ict/CourseFormManagement">CourseFormManagement</MudNavLink>   
+                          <MudNavLink Href="/ict/autoregistercourse">Autoregistercourses</MudNavLink> 
+                          <MudNavLink Href="/ict/duplicate-remover">duplicateremover</MudNavLink>            
+                <MudNavLink Href="/ict/rolesmangement">Role Management</MudNavLink>    
+            <MudNavLink Href="/ict/biometricscapture">Student Recapture</MudNavLink>
+            <MudNavLink Href="ict/biometricsverify">Student Verification</MudNavLink>    
+            <MudNavLink Href="/ict/StudentCourseSummary">StudentCourseSummary</MudNavLink>   
+       <MudNavLink Href="/ict/SemesterManagement">Semester Mgt</MudNavLink>   
+             <MudNavLink Href="/ict/courses">Courses </MudNavLink> 
+             <MudNavLink Href="/ict/calculator">Calculator </MudNavLink> 
+               <MudNavLink Href="/ict/users">User Management</MudNavLink>
+                <MudNavLink Href="/ict/matriculation">Matriculation</MudNavLink>
+
+        </MudNavGroup>
+        }
+         <!--AdmissionOfficerPG-->
+         @if (UserHasRole("AdmissionOfficePG"))
+        {
+            <MudNavGroup Title
+            ="AdmissionOfficePG Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/admissionOfficerPG/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionOfficerPG/AdmissionDecision">AdmissionDecision</MudNavLink>
+        </MudNavGroup>
+        }
+  <!--AdmissionOfficerPG-->
+         @if (UserHasRole("AdmissionOfficeBTH"))
+        {
+            <MudNavGroup Title
+            ="AdmissionOfficeBTH Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/admissionOfficerBTH/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionOfficerBTH/AdmissionDecision">AdmissionDecision</MudNavLink>
+            <MudNavLink Href="/admissionOfficerBTH/AdmittedStudents">AdmittedStudents</MudNavLink>
+        </MudNavGroup>
+        }
+ <!--AdmissionOfficerPG-->
+         @if (UserHasRole("AdmissionDecisionFinalizationPG"))
+         {
+            <MudNavGroup Title
+            ="AdmissionOfficeBTH Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/admissionDecisionFinalizationPG/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionDecisionFinalizationPG/AdmissionDecisionFinalization">AdmissionDecisionFinalization</MudNavLink>
+        </MudNavGroup>
+        }
+  <!--AdmissionOfficerPG-->
+         @if (UserHasRole("AdmissionDecisionFinalizationBTH"))
+        {
+            <MudNavGroup Title
+            ="AdmissionOfficeBTH Menu" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/admissionDecisionFinalizationBTH/Dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/admissionDecisionFinalizationBTH/AdmissionDecisionFinalization">AdmissionDecisionFinalization</MudNavLink>
+            <MudNavLink Href="/admissionDecisionFinalizationBTH/AdmittedStudents"> Admitted Students</MudNavLink>
+        </MudNavGroup>
+        }
+
+       
+        <!--Alumni-->
+        @if (UserHasRole("Alumni"))
+        {
+            <MudNavGroup Title
+            ="Alumni" Expanded
+            ="true" Icon
+            ="@Icons.Material.Filled.Money">
+                <MudNavLink Href="/dashboard" >Dashboard</MudNavLink>
+            <MudNavLink Href="/users">Transcript</MudNavLink>
+                                                                  
+        </MudNavGroup>
+        }
+    </MudNavMenu>
+</MudPaper>
+
+@code {
+    private bool UserHasRole(string role)
+    {
+        var authState = AuthenticationStateProvider.GetAuthenticationStateAsync().Result;
+        var user = authState.User;
+
+        return user.Identity.IsAuthenticated && user.IsInRole(role);
+    }
+}

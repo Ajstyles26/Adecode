@@ -1,0 +1,35 @@
+@using ACUnified.Data.DTOs
+
+
+@inject IFacultyRepository facultyService
+@inject ISnackbar snackBar
+@attribute [Authorize]
+<MudDialog>
+    <DialogContent>
+        <MudForm>
+            <MudTextField @bind-Value="faculty.Name" Label="Faculty Name" Variant="Variant.Outlined" Margin="Margin.Normal" />
+            <MudTextField @bind-Value="faculty.Description" Label="Description" Variant="Variant.Outlined" Margin="Margin.Normal" />
+            <!-- Add other fields as necessary -->
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public FacultyDto faculty { get; set; }
+    [CascadingParameter] MudDialogInstance DialogService { get; set; }
+    private async Task Save()
+    {
+        await facultyService.UpdateFaculty(faculty);
+        DialogService.Close(DialogResult.Ok(true));
+        snackBar.Add("Faculty Saved.", Severity.Success);
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(DialogResult.Cancel());
+    }
+}

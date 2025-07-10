@@ -1,0 +1,375 @@
+@page "/application-details/{applicationId:long}"
+@using ACUnified.Data.Models
+@using AutoMapper
+@layout ACUnifiedLayout
+@using Microsoft.AspNetCore.Components
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Business.Repository.IRepository
+@using MudBlazor
+
+@inject IMapper Mapper
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+
+
+<MudCard Elevation="3" Class="mt-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <div class="d-flex align-center">
+                <MudButton Color="Color.Primary" 
+                          OnClick="NavigateBack"
+                          StartIcon="@Icons.Material.Filled.ArrowBack" 
+                          Size="Size.Small" 
+                          Class="mr-4">
+                    Back
+                </MudButton>
+                <MudText Typo="Typo.h5">Application Details - @application?.FormRefNo</MudText>
+            </div>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudButton Color="Color.Primary" 
+                      OnClick="OpenUpdateStageDialog"
+                      StartIcon="@Icons.Material.Filled.Edit" 
+                      Size="Size.Small">
+                Update Stage
+            </MudButton>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (isLoading)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        }
+        else if (application != null)
+        {
+            <MudGrid>
+    <MudItem xs="12">
+        <MudText Typo="Typo.h6" Class="mb-4">Personal Information</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Full Name</MudText>
+                    <MudText>@($"{application.BioData?.LastName} {application.BioData?.FirstName} {application.BioData?.OtherName}")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Gender</MudText>
+                    <MudText>@application.BioData?.Gender</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Date of Birth</MudText>
+                    <MudText>@(application.BioData != null ? application.BioData.DOB.ToShortDateString() : "Not specified")</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.h6" Class="mb-4">Contact Information</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Email</MudText>
+                    <MudText>@application.BioData?.Email</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Phone Number</MudText>
+                    <MudText>@application.BioData?.MobileNumber</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Address</MudText>
+                    <MudText>@application.BioData?.Address</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">State</MudText>
+                    <MudText>@application.BioData?.State</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">LGA</MudText>
+                    <MudText>@application.BioData?.LGA</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.h6" Class="mb-4">Additional Information</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Nationality</MudText>
+                    <MudText>@application.BioData?.Nationality</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Disability</MudText>
+                    <MudText>@(application.OtherDetails?.Disability ?? "None")</MudText>
+                </MudPaper>
+            </MudItem>
+            @if (!string.IsNullOrEmpty(application.OtherDetails?.Disabilitycomment))
+            {
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudText Typo="Typo.subtitle2">Disability Comments</MudText>
+                        <MudText>@application.OtherDetails.Disabilitycomment</MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.h6" Class="mb-4">Next of Kin</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Name</MudText>
+                    <MudText>@($"{application.NextOfKin?.LastName} {application.NextOfKin?.FirstName} {application.NextOfKin?.OtherName}")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Relationship</MudText>
+                    <MudText>@application.NextOfKin?.Relationship</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Contact</MudText>
+                    <MudText>@application.NextOfKin?.MobileNumber</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.h6" Class="mb-4">Academic Information</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="0" Class="pa-4">
+                    <MudText Typo="Typo.subtitle2">Selected Course</MudText>
+                    <MudText>@(application.AcademicQualification?.Choice1 ?? "Not specified")</MudText>
+                </MudPaper>
+            </MudItem>
+            @if (!string.IsNullOrEmpty(application.ApprovedCourse))
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudText Typo="Typo.subtitle2">Approved Course</MudText>
+                        <MudText>@application.ApprovedCourse</MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudItem>
+
+    @if (application.ApplicationDocument1 != null)
+    {
+        <MudItem xs="12">
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.h6" Class="mb-4">Documents</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudText Typo="Typo.subtitle2">Document 1</MudText>
+                        <MudLink Href="@application.ApplicationDocument1.filepath" Target="_blank">
+                            @application.ApplicationDocument1.filename
+                        </MudLink>
+                    </MudPaper>
+                </MudItem>
+                @if (application.ApplicationDocument2 != null)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudPaper Elevation="0" Class="pa-4">
+                            <MudText Typo="Typo.subtitle2">Document 2</MudText>
+                            <MudLink Href="@application.ApplicationDocument2.filepath" Target="_blank">
+                                @application.ApplicationDocument2.filename
+                            </MudLink>
+                        </MudPaper>
+                    </MudItem>
+                }
+                @if (application.ApplicationDocument3 != null)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudPaper Elevation="0" Class="pa-4">
+                            <MudText Typo="Typo.subtitle2">Document 3</MudText>
+                            <MudLink Href="@application.ApplicationDocument3.filepath" Target="_blank">
+                                @application.ApplicationDocument3.filename
+                            </MudLink>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+    }
+</MudGrid>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Error">Application not found</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter]
+    public long ApplicationId { get; set; }
+
+    private bool isLoading = true;
+    private ApplicationFormDto application;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApplication();
+    }
+
+    private async Task LoadApplication()
+    {
+        try
+        {
+            isLoading = true;
+            application = await ApplicationFormRepository.GetBScApplicationFormById(ApplicationId);
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageBox("Error", $"Error loading application: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+   
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo($"/bsc-applications/{(int)application?.ApplicantStage}");
+    }
+
+    private string GetStageName(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => "Not Paid",
+            ApplicationStage.Stage2 => "Paid Not Submitted",
+            ApplicationStage.Stage3 => "Submitted",
+            ApplicationStage.Stage4 => "Decision Made",
+            ApplicationStage.Stage5 => "Provisional Admission",
+            ApplicationStage.Stage6 => "Acceptance Fee Paid",
+            ApplicationStage.Stage7 => "School Fees Paid",
+            ApplicationStage.Stage8 => "Hostel Selection",
+            ApplicationStage.Stage9 => "Hostel Confirmed",
+            ApplicationStage.Stage10 => "Medical",
+            ApplicationStage.Stage11 => "Matriculation",
+            _ => "Unknown Stage"
+        };
+    }
+
+    private Color GetStageColor(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => Color.Error,
+            ApplicationStage.Stage2 => Color.Warning,
+            ApplicationStage.Stage3 => Color.Info,
+            ApplicationStage.Stage4 => Color.Info,
+            ApplicationStage.Stage5 => Color.Success,
+            ApplicationStage.Stage6 => Color.Success,
+            ApplicationStage.Stage7 => Color.Success,
+            ApplicationStage.Stage8 => Color.Success,
+            ApplicationStage.Stage9 => Color.Success,
+            ApplicationStage.Stage10 => Color.Success,
+            ApplicationStage.Stage11 => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+  private async Task OpenUpdateStageDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            { "CurrentApplication", Mapper.Map<ApplicationFormDto, ApplicationForm>(application) }
+        };
+
+        var dialog = await DialogService.ShowAsync<UpdateStageDialog>("Update Application Stage", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            try
+            {
+                isLoading = true;
+            
+                var updatedApplication = (ApplicationForm)result.Data;
+                
+                // Update decision maker info
+                updatedApplication.DecisionMakerUserId = application.DecisionMakerUserId;
+                updatedApplication.DecisionDate = DateTime.Now;
+            
+                if (updatedApplication.ApplicantStage >= ApplicationStage.Stage5)
+                {
+                    updatedApplication.FinalizedUserId = application.FinalizedUserId;
+                    updatedApplication.FinalDecisionDate = DateTime.Now;
+                }
+            
+                var updated = await ApplicationFormRepository.UpdateApplicationStage(updatedApplication);
+                if (updated != null)
+                {
+                    application = updated;
+                    await DialogService.ShowMessageBox(
+                        "Success", 
+                        $"Application stage updated to {GetStageName(updated.ApplicantStage)}");
+                    
+                    // Refresh the page data
+                    await LoadApplication();
+                }
+                else
+                {
+                    await DialogService.ShowMessageBox(
+                        "Error", 
+                        "Failed to update application stage. Please try again.");
+                }
+            }
+            catch (Exception ex)
+            {
+                await DialogService.ShowMessageBox(
+                    "Error", 
+                    $"Error updating application: {ex.Message}");
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+    }
+    private Color GetDecisionColor(string decision)
+    {
+        if (string.IsNullOrEmpty(decision))
+            return Color.Default;
+
+        return decision.ToLower() switch
+        {
+            "approved" => Color.Success,
+            "rejected" => Color.Error,
+            _ => Color.Warning
+        };
+    }
+}

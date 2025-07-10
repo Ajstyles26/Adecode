@@ -1,0 +1,275 @@
+@page "/student/profile"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject IStudentRepository StudentRepository
+@inject ISnackbar Snackbar
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.ComponentModel.DataAnnotations
+
+@layout ACUnifiedLayout
+@attribute [Authorize(Roles = "StudentDashboard")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+    }
+    else
+    {
+        <MudText Typo="Typo.h5" Class="mb-4">Student Profile</MudText>
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+            <MudTabPanel Text="Personal Information">
+                <MudPaper Class="pa-4">
+                    <MudForm @ref="form" @bind-IsValid="@success">
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string" 
+                                    @bind-Value="@currentStudent.Matric"
+                                    Label="Matric No"
+                                    Variant="Variant.Outlined"
+                                    ReadOnly="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" 
+                                    @bind-Value="@currentStudent.MaritalStatus"
+                                    Label="Marital Status" 
+                                    Variant="Variant.Outlined">
+                                    @foreach (var status in maritalStatuses)
+                                    {
+                                        <MudSelectItem Value="@status">@status</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    @bind-Value="@currentStudent.FirstName"
+                                    Label="First Name"
+                                    Required="true"
+                                    RequiredError="First name is required"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    @bind-Value="@currentStudent.LastName"
+                                    Label="Last Name"
+                                    Required="true"
+                                    RequiredError="Last name is required"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    @bind-Value="@currentStudent.OtherName"
+                                    Label="Other Names"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    @bind-Value="@currentStudent.Email"
+                                    Label="Email"
+                                    Required="true"
+                                    RequiredError="Email is required"
+                                    Validation="@(new EmailAddressAttribute() {ErrorMessage = "Invalid email address"})"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+    <MudTextField T="string" 
+                  Value="@(CalculateAge(currentStudent.DOB))" 
+                  Label="Age" 
+                  Variant="Variant.Outlined" 
+                  ReadOnly="true" />
+</MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string"
+                                    @bind-Value="@currentStudent.Gender"
+                                    Label="Gender"
+                                    Required="true"
+                                    RequiredError="Gender is required"
+                                    Variant="Variant.Outlined">
+                                    <MudSelectItem Value="@("Male")">Male</MudSelectItem>
+                                    <MudSelectItem Value="@("Female")">Female</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    @bind-Value="@currentStudent.Nationality"
+                                    Label="Nationality"
+                                    Required="true"
+                                    RequiredError="Nationality is required"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudForm>
+                </MudPaper>
+            </MudTabPanel>
+
+           <MudTabPanel Text="Address Information">
+                <MudPaper Class="pa-4">
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string"
+                                @bind-Value="@currentStudent.State"
+                                Label="State"
+                                Required="true"
+                                Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string"
+                                @bind-Value="@currentStudent.LGA"
+                                Label="Local Government"
+                                Required="true"
+                                Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Academic Information">
+                <MudPaper Class="pa-4">
+                    <MudGrid>
+                        @if (currentEnrollment != null)
+                        {
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    Value="@(currentEnrollment.Level?.Name ?? "Not Assigned")"
+                                    Label="Current Level"
+                                    ReadOnly="true"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    Value="@(currentEnrollment.ProgramSetup?.Name ?? "Not Assigned")"
+                                    Label="Program/Course"
+                                    ReadOnly="true"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField T="string"
+                                    Value="@(currentEnrollment.Degree?.Name ?? "Not Assigned")"
+                                    Label="Degree"
+                                    ReadOnly="true"
+                                    Variant="Variant.Outlined" />
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem xs="12">
+                                <MudAlert Severity="Severity.Info">
+                                    No enrollment information available.
+                                </MudAlert>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            </MudTabPanel>
+        </MudTabs>
+
+        <MudPaper Class="d-flex justify-end pa-4 mt-4">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="SaveChanges"
+                       Disabled="@(!success || _processing)"
+                       Class="ml-auto">
+                @if (_processing)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Processing</MudText>
+                }
+                else
+                {
+                    <MudText>Save Changes</MudText>
+                }
+            </MudButton>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private bool _loading;
+    private bool _processing;
+    private bool success;
+    private MudForm form;
+    private StudentDto currentStudent = new();
+    private StudentEnrolmentDto currentEnrollment;
+    private readonly string[] maritalStatuses = { "Single", "Married", "Divorced", "Widowed" };
+
+    private string CalculateAge(DateTime? dob)
+{
+    if (!dob.HasValue)
+        return "N/A";
+
+    var today = DateTime.Today;
+    var age = today.Year - dob.Value.Year;
+    if (dob.Value.Date > today.AddYears(-age)) 
+        age--;
+
+    return $"{age} years (DOB: {dob.Value:dd/MM/yyyy})";
+}
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _loading = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (userId == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var student = await StudentRepository.GetStudentByUserId(userId);
+            if (student == null)
+            {
+                Snackbar.Add("Unable to load student profile", Severity.Error);
+                Navigation.NavigateTo("/");
+                return;
+            }
+
+            currentStudent = student;
+            currentEnrollment = await StudentRepository.GetStudentEnrollment(student.Id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading student profile", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        try
+        {
+            await form.Validate();
+            
+            if (form.IsValid)
+            {
+                _processing = true;
+                var result = await StudentRepository.UpdateStudent(currentStudent);
+                
+                if (result != null)
+                {
+                    currentStudent = result;
+                    Snackbar.Add("Profile updated successfully", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Failed to update profile", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error saving changes", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+}

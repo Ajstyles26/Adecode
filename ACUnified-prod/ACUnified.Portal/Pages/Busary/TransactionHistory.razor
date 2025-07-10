@@ -1,0 +1,184 @@
+@page "/busary/transactions"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs;
+@using ACUnified.Portal.Pages.Lecturer
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@inject ISnackbar snackBar
+@inject IPaymentRepository paymentService
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@attribute [Authorize(Roles = "Bursary")]
+<h3>Transaction Management</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Transaction Management</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+   
+</MudCard>
+<br />
+    <MudTable Elevation="25" Filter="new Func<PaymentDto, bool>(Search2)" @bind-Items="payments" Filterable="true" QuickFilter="@_quickFilter1">
+    <ToolBarContent>
+        
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString2" Placeholder="Search for Transaction..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh> Matric No</MudTh>
+        <MudTh>Amount</MudTh>
+
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.MatricNo</MudTd>
+        <MudTd DataLabel="Description">@context.Amount.ToString("#,##0.00")</MudTd>
+        <MudTd DataLabel="">
+            <MudFab  Color="Color.Primary" Icon="@Icons.Material.Filled.Info"OnClick="@(() => ShowPayDetailsModal(context.ReferenceNo))" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab  Color="Color.Secondary" Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+</div>
+@code{
+    private string searchString2 = "";
+    private PaymentDto payment = new PaymentDto();
+    private List<PaymentDto> payments = new List<PaymentDto>();
+ 
+    protected override async Task OnInitializedAsync()
+    {
+         GetPaymentAsync();
+    }
+    private  void  GetPaymentAsync()
+    {
+        try
+        {
+             payments = ( paymentService.GetAllPayment2().Result).ToList();
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data ");
+        }
+       
+    }
+    private bool Search2(PaymentDto payment)
+    {
+        if (string.IsNullOrWhiteSpace(searchString2)) return true;
+         
+        if (payment.MatricNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+        return payment.ReferenceNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        await paymentService.CreatePayment(payment);
+        payment = new PaymentDto();
+        snackBar.Add("Faculty Saved.", Severity.Success);
+        GetPaymentAsync();
+    }
+    private async Task Edit(long id)
+    {
+        payment = await paymentService.GetPayment(id);
+    }
+    private async Task Delete(long id)
+    {
+        await paymentService.DeletePayment(id);
+        snackBar.Add("Payment Deleted.", Severity.Success);
+        GetPaymentAsync();
+    }
+    private async Task OpenEditDialog(long id)
+    {
+        var parameters = new DialogParameters { ["Transaction"] = await paymentService.GetPayment(id) };
+        var dialog =  DialogService.Show<PaymentInfoDialog>("Edit Payment", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+             GetPaymentAsync();
+        }
+      
+    }
+    private Func<PaymentDto, bool> _quickFilter1 => x =>
+       {
+       if (string.IsNullOrWhiteSpace(searchString2))
+           return true;
+
+       if (x.MatricNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+    
+
+       if ($"{x.MatricNo} {x.Amount}".Contains(searchString2))
+           return true;
+
+       return false;
+       };
+    
+    private async Task ShowPayDetailsModal(string payreference)
+    {
+        var parameters = new DialogParameters { ["referenceNo"] = payreference};
+        var dialog=DialogService.Show<PaymentInfoDialog>("Payment Info",parameters, options: new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true ,Position = DialogPosition.TopCenter });
+
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+    
+        }
+
+    }
+
+    
+    private async Task GeneratePdf(string referenceNo)
+    {
+        List<PaymentDto> rPaymentDto=new List<PaymentDto>();
+        StudentEnrolmentDto rStudentDto=new StudentEnrolmentDto();
+        List<ReceiptItemDTO> currentReceipt = new List<ReceiptItemDTO>();
+        foreach (var currentPay in rPaymentDto)
+        {
+            currentReceipt.Add(new ReceiptItemDTO()
+            {
+                CategoryDescription = currentPay.tran_name,
+                Amount = currentPay.Amount
+            });
+        }
+       
+        var receiptData = new SchoolReceiptDTO()
+        {
+            SchoolName = "Ajayi Crowther University",
+            Address = "Ajayi Crowther University, Oyo P.M.B. 1066, Oyo,Oyo State, Nigeria.",
+            Date = rPaymentDto.FirstOrDefault().CreatedDate,
+            StudentName = rStudentDto.Student.FirstName+" "+rStudentDto.Student.LastName,
+            Level = rStudentDto.Level.Name,
+                
+            Items = new List<ReceiptItemDTO>
+            {
+                new ReceiptItemDTO() { CategoryDescription = "Tuition Fee", Amount = 500.00m },
+                new ReceiptItemDTO() { CategoryDescription = "Library Fee", Amount = 50.00m },
+            },
+            QRCodeData = "Sample QR Code Data"
+        };
+    // Use the service to generate the PDF
+        using var pdfStream = new MemoryStream();
+        PDFReceipts.GenerateReceiptPDF(receiptData,pdfStream);
+        
+    // Convert the PDF stream to a byte array
+        var pdfBytes = pdfStream.ToArray();
+    // Convert byte array to base64 string
+        var base64 = Convert.ToBase64String(pdfBytes);
+    // Create a URL for the PDF
+        var url = $"data:application/pdf;base64,{base64}";
+    // Use JavaScript to trigger the download
+        await JSRuntime.InvokeVoidAsync("console.log", url);
+    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+        await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "downloaded.pdf");
+        
+    }
+    
+   
+}

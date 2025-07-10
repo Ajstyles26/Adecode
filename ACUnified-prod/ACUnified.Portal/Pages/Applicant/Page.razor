@@ -1,0 +1,37 @@
+
+@page "/applicant/Page123"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Pages.Applicant.Validator
+@using ACUnified.Data.DTOs;
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository biodataRepository
+@inject IOtherDetailsRepository OtherDetailsRepository
+@inject NavigationManager Navigation
+@inject IApplicationFormRepository applicationForm
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IDialogService DialogService
+
+<MudButton OnClick="OpenDialog" Variant="Variant.Filled" Color="Color.Primary">
+    Scrollable Dialog
+</MudButton>
+
+@code {
+    bool license_accepted = false;
+
+    async Task OpenDialog()
+    {
+        var result = await DialogService.Show<DialogScrollableExample_Dialog>("MudBlazor License").Result;
+
+        if (!result.Canceled)
+        {
+            license_accepted = (bool)(result.Data ?? false);
+        }
+    }
+}
+

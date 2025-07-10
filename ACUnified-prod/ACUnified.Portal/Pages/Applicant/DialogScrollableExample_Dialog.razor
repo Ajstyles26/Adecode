@@ -1,0 +1,86 @@
+
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@inject IPaymentRepository paymentService
+@inject IPayCategoryRepository paymentCategoryService
+@inject ISnackbar snackBar
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+@using System.Net
+@using System.Text
+
+<MudDialog DisableSidePadding="true">
+    <DialogContent>
+        <MudContainer Style="max-height: 300px; overflow-y: scroll">
+            @if (Loading)
+            {
+                <MudProgressCircular Indeterminate="true"></MudProgressCircular>
+            }
+            else
+            {
+                <MudText Style="white-space: pre-wrap;">@LicenseText</MudText>
+                <MudCheckBox @bind-Value="@Basic_CheckBox2" Color="Color.Primary">I agree to the terms and conditions stated above</MudCheckBox>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+         <MudButton Color="Color.Primary" OnClick="Ok">Accept</MudButton> 
+       
+    </DialogActions>
+</MudDialog>
+
+@code {
+    public bool Basic_CheckBox2 { get; set; } = false;
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Inject] HttpClient HttpClient { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Loading = true;
+        var response = await HttpClient.GetAsync("https://raw.githubusercontent.com/MudBlazor/MudBlazor/master/LICENSE");
+        LicenseText = await response.Content.ReadAsStringAsync();
+        Loading = false;
+    }
+
+    private string LicenseText;
+    private bool Loading = false;
+
+    private void Ok()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+    
+
+
+    @* private async Task Save()
+    {
+        try
+        {
+            var FinalProgram = ProgramSetups.Where(x => x.Name == ApplicationFormDto.FinalisedCourse).FirstOrDefault();
+            ApplicationFormDto.ProgramSetupId = FinalProgram.Id;
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            ApplicationFormDto.FinalizedUserId = userId;
+            ApplicationFormDto.FinalDecisionDate = DateTime.Now;
+            if (ApplicationFormDto.FinalisedDecision == "Admitted")
+            {
+                //Give the status of provisional Admission
+                ApplicationFormDto.ApplicantStage = ACUnified.Data.Enum.ApplicationStage.Stage5;
+            }
+
+            await ApplicationFormRepository.UpdateApplicationForm(ApplicationFormDto);
+
+            snackBar.Add("Admission Finalization Saved.", Severity.Success);
+        }
+        catch (Exception e)
+        {
+
+            snackBar.Add("Error saving records try again.", Severity.Error);
+        }          
+       
+    } *@
+}
+

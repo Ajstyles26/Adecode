@@ -1,0 +1,292 @@
+  @page "/student/dashboard/"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs;
+@using ACUnified.Portal.Pages.Lecturer
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar snackBar
+@inject IPaymentRepository paymentService
+@inject ICourseRegistrationRepository courseRegistration
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@inject IStudentRepository studentRepository
+@inject NavigationManager Navigation
+
+@attribute [Authorize(Roles = "StudentDashboard")]
+
+
+<MudContainer Fixed="true" Height="auto" Width="100%" class="mt-2">
+   <MudPaper Height="200px" style="background: orange; position:relative" Width="100%" Square="false" Class="mud-theme-warn">
+        <div class="dashboard-header">
+            <div class="passport-container">
+                <MudAvatar Style="width: 150px; height: 150px; background-color: white;" Class="passport-photo">
+                    @if (string.IsNullOrEmpty(currentStudent.UserImage))
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Large" />
+                    }
+                    else
+                    {
+                        <img src="@currentStudent.UserImage" alt="Student Photo" />
+                    }
+                </MudAvatar>
+            </div>
+            <div class="header-content">
+                <MudText Typo="Typo.h4" Style="color:white"><b>Dashboard</b></MudText>
+                <br /><br />
+                @* <MudText Typo="Typo.h6">
+                    <MudElement Style="color:white">Engage |</MudElement>
+                    <MudElement Style="color: white">Excel |</MudElement>
+                    <MudElement Style="color:purple"> Overcome</MudElement>
+                </MudText> *@
+            </div>
+        </div>
+    </MudPaper>
+    <br />
+
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: auto;">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Large" Color="Color.Primary" Href="/student/paycentral" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">Fee Payment</MudText>
+                            <MudText Typo="Typo.body2"> Pay your fees for the present session as well as outstanding ones.</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+
+                </MudCard>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: auto;">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudIconButton Icon="@Icons.Material.Filled.MenuBook" Size="Size.Large" Color="Color.Primary" Href="/student/courseregistration" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">Course Registration</MudText>
+                            <MudText Typo="Typo.body2">
+                                Access your course registration form for 2023/2024 academic session
+
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                </MudCard>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: auto;">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudIconButton Icon="@Icons.Material.Filled.MenuBook" Size="Size.Large" Color="Color.Primary" Href="/student/result" Class="menu-icon" />
+                            <MudText Typo="Typo.h6">Result</MudText>
+                            <MudText Typo="Typo.body2"> View, print and download your results for 2023/2024 academic session.</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                </MudCard>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="12">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:100%;">
+                        <MudCard Elevation="25">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">Course Registration History</MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                        </MudCard>
+                        <br />
+                        <MudTable Elevation="25" @bind-Items="registrationList">
+
+                            <HeaderContent>
+                                <MudTh>Name</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Name">
+                                    <MudLink OnClick="@(() => NavigateToCourseHistory(context.SemesterId.Value,context.SessionId.Value))"> @context.Name </MudLink>
+
+                                    </MudTd>
+
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+
+            </MudGrid>
+        </MudItem>
+
+        <MudItem xs="12" sm="12">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%">
+                <MudCard Elevation="25">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Payment History</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+
+                </MudCard>
+                <br />
+                <MudTable Elevation="25" Filter="new Func<PaymentDto, bool>(Search)" @bind-Items="payments">
+                    <ToolBarContent>
+
+                        <MudSpacer />
+                        <MudTextField @bind-Value="searchString" Placeholder="Search for Transaction..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        @* <MudTh>Id</MudTh> *@
+                        <MudTh>Matric No</MudTh>
+                        <MudTh>Amount</MudTh>
+                        @* <MudTh>Item</MudTh> *@
+                        <MudTh>Reference No</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        @* <MudTd DataLabel="Id">@context.Id</MudTd> *@
+                        <MudTd DataLabel="Name">@context.MatricNo</MudTd>
+                        <MudTd DataLabel="Description">@context.Amount.ToString("#,##0.00")</MudTd>
+                        <MudTd DataLabel="Details Name">@context.ReferenceNo</MudTd>
+                        @* <MudTd DataLabel="Details Name">@context.PaySetupDetails.Name</MudTd> *@
+
+                    </RowTemplate>
+                </MudTable>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/student/PayHistory">View More</MudButton>
+                </MudCardActions>
+            </MudPaper>
+
+        </MudItem>
+
+    </MudGrid>
+
+</MudContainer>
+<style>
+    .menu-icon {
+        margin-bottom: 10px;
+        padding: -1px;
+        margin-left: 105px;
+        text-align: center;
+         .dashboard-header {
+        display: flex;
+        padding: 20px;
+    }
+
+    .passport-container {
+        margin-right: 20px;
+        display: flex;
+        align-items: center;
+    }
+
+    .passport-photo {
+        border: 3px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header-content {
+        flex-grow: 1;
+    }
+
+    .menu-icon {
+        margin-bottom: 10px;
+        padding: -1px;
+        margin-left: 105px;
+        text-align: center;
+    }
+    }</style>
+@code {
+    private string searchString = "";
+    private PaymentDto payment = new PaymentDto();
+    private StudentDto currentStudent = new StudentDto();
+    private IEnumerable<PaymentDto> payments;
+    private IEnumerable<StudentCourseRegistrationListDto> registrationList;
+    private bool _loading;
+    protected override async Task OnInitializedAsync()
+    {
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            currentStudent = await studentRepository.GetStudentByUserId(userId);
+            payments = await paymentService.GetAllPaymentByMatric(currentStudent.Matric);
+            registrationList= await courseRegistration.GetCourseRegistrationListByMatric(currentStudent.Matric);
+
+            //await GetPaymentAsync();
+            // await GetCourseRegistrationListAsync();
+        }
+
+        _loading = false;
+    }
+    private async Task GetPaymentAsync()
+    {
+        try
+        {
+            var val = await paymentService.GetAllPaymentByMatric(currentStudent.Matric);
+            payments = val;
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data ");
+        }
+
+    }
+    private async Task GetCourseRegistrationListAsync()
+    {
+        try
+        {
+            var registrationListing = await courseRegistration.GetCourseRegistrationListByMatric(currentStudent.Matric);
+            registrationList = registrationListing;
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data ");
+        }
+    }
+    private bool Search(PaymentDto payment)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return payment.ReferenceNo.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+    private async Task Save()
+    {
+        await paymentService.CreatePayment(payment);
+        payment = new PaymentDto();
+        snackBar.Add("Faculty Saved.", Severity.Success);
+        GetPaymentAsync();
+    }
+    private async Task Edit(long id)
+    {
+        payment = await paymentService.GetPayment(id);
+    }
+    private async Task Delete(long id)
+    {
+        await paymentService.DeletePayment(id);
+        snackBar.Add("Payment Deleted.", Severity.Success);
+        GetPaymentAsync();
+    }
+      private async Task NavigateToCourseHistory(long SemesterId,long SessionId)
+    {
+        Navigation.NavigateTo($"/student/coursehistory/{SemesterId}/{SessionId}");
+    
+    }
+    // private async Task OpenEditDialog(long id)
+    // {
+    //     var parameters = new DialogParameters { ["Transaction"] = await paymentService.GetPayment(id) };
+    //     var dialog =  DialogService.Show<EditPaymentDialog>("Edit Payment", parameters);
+    //     var result = await dialog.Result;
+    //     if (!result.Canceled)
+    //     {
+    //          GetPaymentAsync();
+    //     }
+    //
+        // }
+    //
+
+
+
+}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home | Receipt</title>
+    <style>
+        body{
+            background-color: whitesmoke;
+        }
+        .form-container{
+            background-color: white;
+            max-width: 600px;
+            margin:auto;
+            padding:20px;
+            margin-top:50px;
+            border:1px solid gray;
+            margin-bottom:50px;
+        }
+
+        .form-header{
+            display:flex;
+            flex-wrap: wrap;
+            justify-content:space-around;
+            align-items: center;
+        }
+
+        .logo-section{
+            display:flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-section img{
+            width:100px;
+        }
+
+        .intro-content{
+            display:block;
+            margin-bottom: 5px;
+        }
+
+        table{
+            /*background-image:url("assets/logo.png");*/
+            background-repeat: none;
+            background-size:cover;
+            width:600px;
+            margin-bottom: 50px;
+            background-position: center;
+        }
+
+        table,tr, th, td{
+            border:1px solid black;
+            border-collapse:collapse;
+            padding:5px;
+        }
+
+        tr:nth-child(even){
+            background-color: rgba(212, 212, 212,0.4)
+        }
+
+        td{
+            text-transform: capitalize;
+            text-align: left;
+        }
+
+        .tdright{
+            text-align: right;
+        }
+
+        input{
+            width:110px;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            border-bottom:1px dashed black;
+            text-transform: uppercase;
+        }
+
+        .body-content{
+            overflow-x: auto;
+        }
+
+        .p{
+            text-align:left;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+
+        h3{
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 16px;
+        }
+
+        .total{
+            text-align: end;
+        }
+
+        .thead{
+            background-color: #808080;
+            color: #fff;
+            padding:5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <div class="logo-section">
+                <img src="./assets/logo.png" alt="school_logo">
+            </div>
+            <div class="title-section">
+                <p class="p" style="text-align: center;">ministry of education</p>
+                <hr style="width: 200px;">
+                <p class="p" style="text-align: center;">state department of early learning and basic education </p>
+                <hr>
+                <h3>saint john high school</h3>
+                <p>P.O Box 290-00997 Narok</p>
+                <p>Phone: +25471122330</p>
+                <p>Email: saintjohnhighschool@gmail.com</p>
+            </div>
+        </div>
+        <div style="text-align:center;">
+            <p class="p" style="text-align: center;">school official fund receipt</p>
+            <hr>
+            <div style="display:flex; flex-wrap: wrap;">
+                <p class="psmall" style="margin-right: 20px;">Date: <input type="date" name="date" value="2023-07-04"></input></p>
+                <p class="psmall" style="margin-right: 20px;">M.O.E No: <input type="text" name="moe-no" value="2023/2024-5"></input></p>
+                <p class="psmall" style="margin-right: 20px;">Adm No: <input type="text" name="admno" value="7195"></input></p>
+                <p class="psmall" style="margin-right: 20px;">Class: <input type="text" name="class" value="1M"></input></p>
+            </div>
+        </div>
+        <hr/>
+        <div class="form-content">
+            <div class="intro-content">
+               <div>
+                    <p><strong>Received:</strong><input style="width: 300px;" type="text" name="name" value="Kamau Aisha Precious" autocomplete="additional-name"></input></p>
+                    <p><strong>Amount:</strong><input style="width: 300px;" type="text" name="text" value="Three Thousand Five Hundred Shillings Only"></input></p>
+               </div>
+                <div style="display:flex; flex-wrap: wrap; justify-content:space-between;">
+                    <p><strong>Mode:</strong><input style="width: 110px;" type="text" name="mode" value="Lipa Karo"></input></p>
+                    <p><strong>No:</strong><input style="width: 100px;" type="text" name="number" value="3/7"></input></p>
+                    <p><strong>Term:</strong><input style="width: 100px;" type="text" name="term" value="2023/2"></input></p>
+                    <p><strong>Original:</strong><input style="width: 100px;" type="text" name="original" value="(Payee)"></input></p>
+                </div>
+            </div>
+            <div class="body-content">
+                <table>
+                    <tr>
+                        <th class="thead" style="text-align: left;"><strong>Being Payment Of:</strong></th>
+                        <th class="thead" style="text-align: right;"><strong>Amount(NGN)</strong></th>
+                    </tr>
+                    <tr>
+                        <td>creditors</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>developemnt</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>housing levy</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>operations</td>
+                        <td class="tdright">1530</td>
+                    </tr>
+                    <tr>
+                        <td>operations a/c</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>Kudheiha</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>NHIF</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>PAYE</td>
+                        <td class="tdright">600</td>
+                    </tr>
+                    <tr>
+                        <td>bursary</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>uniform</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>damages</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>medical</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>lTT</td>
+                        <td class="tdright">30</td>
+                    </tr>
+                    <tr>
+                        <td>insuarance</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>house rent</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>SHC farm</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>activity</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>student id</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>school vehicles</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>arrears</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>PTA Fund</td>
+                        <td class="tdright">1205</td>
+                    </tr>
+                    <tr>
+                        <td>bursary</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <td>tender</td>
+                        <td class="tdright"></td>
+                    </tr>
+                    <tr>
+                        <th class="total">Total Balance</th>
+                        <td class="tdright">3,365</td>
+                    </tr>
+                </table>
+                <div>
+                    <p style="text-align: right;"><strong>Served:</strong><input type="text" name="served" value="Administrator"></p>
+                    <div style="display:flex; justify-content: space-evenly;">
+                        <p><strong>Sign:</strong><input type="text" name="sign" value="Admin"></p>
+                        <p><strong>Balance:</strong><input type="text" name="balance" value="0.00"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,225 @@
+@page "/applicant/transfer"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Pages.Applicant.Validator
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITransferFormRepository TransferFormRepository
+@inject NavigationManager Navigation
+@inject IApplicationFormRepository applicationForm
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+<div class="ml-5 py-4">
+    <!--timeline -->
+    <MudTimeline TimelineOrientation=TimelineOrientation.Horizontal TimelinePosition=TimelinePosition.Start Reverse=false Class="py-5">
+        <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Success">Other Details</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Success">Next of kin</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Success">Credentials</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Warning" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Warning">Transfer Info</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+        <MudTimelineItem Color="Color.Default" Variant="Variant.Filled">
+            <ItemOpposite>
+                <MudText Color="Color.Default">Credential Upload</MudText>
+            </ItemOpposite>
+        </MudTimelineItem>
+    </MudTimeline>
+    <!-- end timeline -->
+@if (currentApplicationForm != null && currentApplicationForm.DegreeId == 5)
+    {
+        <MudForm Model="@currentTransferForm" @ref="@TransferFormform" Validation="@(transferFormValidator.ValidateValue)" ValidationDelay="0">
+            <MudGrid Class="mr-5">
+                <MudItem xs="12">
+                    <h3><strong>Previous Institution</strong></h3>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Surname" For="@(() => currentTransferForm.Surname)" Label="Surname" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.FirstName" For="@(() => currentTransferForm.FirstName)" Label="First Name" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Middlename" For="@(() => currentTransferForm.Middlename)" Label="Middle Name" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.MatricNo" For="@(() => currentTransferForm.MatricNo)" Label="Candidate's Matric No" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Institution" For="@(() => currentTransferForm.Institution)" Label="Name of Institution" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Level" For="@(() => currentTransferForm.Level)" Label="Level at time of transfer" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Cgpa" For="@(() => currentTransferForm.Cgpa)" Label="CGPA" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Class="mr-5">
+                <MudItem xs="12">
+                    <h3><strong>Reason(s) for transfer</strong></h3>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCheckBox @bind-Checked="currentTransferForm.OLevelDeficiency" Label="O'Level deficiency" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCheckBox @bind-Checked="currentTransferForm.OLevelSubjectsNotRelevant" Label="O' Level subjects not relevant to course offered" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCheckBox @bind-Checked="currentTransferForm.NoJAMBAdmission" Label="No JAMB admission" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCheckBox @bind-Checked="currentTransferForm.PoorAcademicPerformance" Label="Poor Academic Performance" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCheckBox @bind-Checked="currentTransferForm.FinancialReason" Label="Financial reason" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="currentTransferForm.FinancialReasonExplanation" For="@(() => currentTransferForm.FinancialReasonExplanation)" Label="Financial Reason Explanation" Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Class="mr-5">
+                <MudItem xs="12">
+                    <h3><strong>Rusticated for Student Disciplinary Sanctions or criminal allegations:</strong></h3>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Crime" For="@(() => currentTransferForm.Crime)" Label="Crime" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Immorality" For="@(() => currentTransferForm.Immorality)" Label="Immorality/Indiscipline/Indecency" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="currentTransferForm.Cultism" For="@(() => currentTransferForm.Cultism)" Label="Cultism/Bullying/Gangsterism/Drugs (Narcotics)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="currentTransferForm.OtherReasons" For="@(() => currentTransferForm.OtherReasons)" Label="Other reasons (Medical/Mental Health/Disabilities/Relocation/Distance etc)" Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+                <MudText>Note for those not applicable write nill</MudText>
+            </MudGrid>
+
+            <MudGrid>
+                <div class="d-flex align-center justify-space-between ml-auto">
+                    <MudButton OnClick="@HandlePrevious" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mr-3">
+                        Previous</MudButton>
+                    <MudButton OnClick="@OnValidSubmit" Disabled="@(@currentApplicationForm.ApplicantStage >= @ACUnified.Data.Enum.ApplicationStage.Stage3)" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
+                        Save & Continue</MudButton>
+                </div>
+            </MudGrid>
+        </MudForm>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">This form is only available for Transfer students  programs.</MudAlert>
+        <MudButton OnClick="@HandlePrevious" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+            Go Back</MudButton>
+    }
+</div>
+
+@code {
+    TransferFormDto currentTransferForm = new TransferFormDto();
+    MudForm TransferFormform;
+    ApplicationFormDto currentApplicationForm;
+    TransferFormValidator transferFormValidator = new TransferFormValidator();
+    public bool _loading { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            var tcurrentTransferForm = await TransferFormRepository.GetTransferForm(userId);
+            
+            if (tcurrentTransferForm != null)
+            {
+                currentTransferForm = tcurrentTransferForm;
+            }
+        }
+        else
+        {
+            snackBar.Add("User not authenticated", Severity.Error);
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+        _loading = false;
+    }
+
+    private async Task OnValidSubmit()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await TransferFormform.Validate();
+        if (TransferFormform.IsValid)
+        {
+            currentTransferForm.UserId = userId;
+            var updatedTransferForm = await TransferFormRepository.UpdateTransferForm(currentTransferForm);
+            if (updatedTransferForm != null)
+            {
+                var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+
+                snackBar.Add("Records have been saved successfully", Severity.Success);
+                Navigation.NavigateTo("/applicant/uploadDocuments");
+            }
+            else
+            {
+                snackBar.Add("Error: Failed to save records", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add("Error: Please ensure all fields are properly filled", Severity.Error);
+        }
+    }
+
+    private async Task HandlePrevious()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        await TransferFormform.Validate();
+        if (TransferFormform.IsValid)
+        {
+            currentTransferForm.UserId = userId;
+            var updatedTransferForm = await TransferFormRepository.UpdateTransferForm(currentTransferForm);
+            if (updatedTransferForm != null)
+            {
+                var currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+                currentApplicationForm.TransferFormId = updatedTransferForm.Id;
+                await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                snackBar.Add("Records have been saved successfully", Severity.Success);
+                Navigation.NavigateTo("/applicant/academicqualification");
+            }
+            else
+            {
+                snackBar.Add("Error: Failed to save records", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add("Error: Please ensure all fields are properly filled", Severity.Error);
+        }
+    }
+}

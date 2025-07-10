@@ -1,0 +1,36 @@
+"Id","Name","Description","FacultyId","InstitutionProviderId","LevelLimit","CreatedDate","UpdatedDate"
+1,Agricultural Economics and Extension,AEE,1,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+2,Crop and Animal Science,CAS ,1,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+3,Environmental Health Science ,EHS,2,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+4,Medical Laboratory Science,MLS,2,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+5,Nursing,Nursing,2,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+6,Radiography and radiation Science,RRS,2,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+7,Communication and media,CMS,3,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+8,"Library,Arts and Social Science Education","Library, Arts And Social Science Education ",4,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+9,Educational Foundations,Educational Foundations,4,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+10,Science Education,Science Education,4,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+11,Civil Engineering,Civil Engineering,5,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+12,Computer Engineering,Computer Engineering,5,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+13,Electrical/Electronics Engineering,Electrical/Electronics Engineering ,5,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+14,Mechanical Engineering,Mechanical Engineering,5,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+15,Architecture,Architecture,6,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+16,Estate Management, Estate Management,6,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+17,English,English,7,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+18,History & International Studies,History & International Studies,7,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+19,Performing Arts and Music,Performing Arts and Music,7,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+20,Religious Studies,Religious Studies,7,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+21,Law,Law,8,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+22,Accounting and Finance,Accounting and Finance,9,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+23,Business Administration,Business Administration,9,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+24,Computer Science,Computer Science,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+25,Chemical Sciences,Chemical Sciences,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+26,Physical Sciences,Physical Sciences,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+27,Earth Sciences,Earth Sciences,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+28,Biological Sciences,Biological Sciences,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+29,Mathematical Sciences,Mathematical Sciences,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+30,Economics,Economics,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+31,Political Science,Political Science,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+32,Peace Studies and Conflict Resolution,Peace Studies and Conflict Resolution,10,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+33,Surveying and Geoinformatics,Surveying and Geoinformatics,6,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+9999,All,All,9999,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000
+10000,Applicant,Applicant,10000,,400,2024-04-20 23:13:25.000,2024-04-20 23:13:25.000

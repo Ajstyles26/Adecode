@@ -1,0 +1,332 @@
+@page "/ict/bioverify/{StudentId:long}"
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Enum
+@using ACUnified.Data.DTOs
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.SignalR.Client
+@layout ACUnifiedLayout  
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IStudentEnrolmentRepository studentRepository
+@inject ISemesterRepository semesterRepository
+@inject ICourseRepository courseRepository
+@inject ICourseRegistrationRepository courseRegistrationRepository
+@inject NavigationManager Navigation
+@inject HttpClient HttpClient
+@attribute [Authorize(Roles = "ICT")]
+<MudContainer>
+    <MudButton @onclick="InitiateFingerprintEnrolment">Enroll Fingerprint</MudButton>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="Personal Information">
+              <MudPaper Class="pa-4">
+                  <MudForm >
+                    <MudTextField @bind-Value="StudentDetails.Student.Matric" T="string" Label="Matric No" Variant="Variant.Outlined" ReadOnly="true" />
+                     <MudTextField  @bind-Value="StudentDetails.Student.LastName" T="string" Label="Surname" Variant="Variant.Outlined" ReadOnly="true" />
+                      <MudTextField  @bind-Value="StudentDetails.Student.FirstName" T="string" Label="FirstName" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="StudentDetails.Student.Gender" T="string" Label="Gender" Variant="Variant.Outlined" />
+                  </MudForm>   
+                    </MudPaper>
+        </MudTabPanel>
+        
+     
+      
+           <MudTabPanel Text="Course Registration.">
+            <MudPaper>
+                <!-- MudTable for displaying courses -->
+                <MudTable Items="@CRElements" MultiSelection="true" @bind-SelectedItems="selectedItems" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading">
+                    <HeaderContent>
+                        <!-- Table Headers -->
+                        <MudTh>Course Code</MudTh>
+                        <MudTh>Course Title</MudTh>
+
+                        <MudTh>Unit</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <!-- Table Data -->
+                        <MudTd DataLabel="Course Code">@context.CourseCode</MudTd>
+                            <MudTd DataLabel="Course Title">@context.Name</MudTd>
+
+                            <MudTd DataLabel="Unit">@context.CourseUnit</MudTd>
+                            <MudTd DataLabel="Remove">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@( () => RemoveCourse(context))" />
+                            </MudTd>
+                            <!-- Additional actions can be added here -->
+                        </RowTemplate>
+                    </MudTable>
+
+                    <!-- Course Selection and Actions -->
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudSelect Margin="Margin.Dense" @bind-Value="SelectedCourseCode" T="string" Label="Add new Course" Variant="Variant.Outlined">
+                            @if (AllCourses != null)
+                        {
+                            @foreach (var course in AllCourses)
+                            {
+                                <MudSelectItem Value="@course.CourseCode">@course.Name</MudSelectItem>
+                            }
+                        }
+
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="AddCourse">Add Course</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="SaveCourses">Submit</MudButton>
+                </MudItem>
+               </MudPaper>
+           </MudTabPanel>
+           <MudTabPanel Text="Picture">
+              <MudPaper Class="pa-4">
+                <MudCard>
+                   
+                    <video @ref="videoElement" autoplay width="120px" height="120px"></video>
+                    
+                    <MudButton OnClick="StartVideo" Disabled="@(videoStarted)">Start Video</MudButton>
+                    <MudButton OnClick="StopVideo" Disabled="@(!videoStarted)">Stop Video</MudButton>
+                    <MudButton OnClick="CaptureImage" Disabled="@(!videoStarted)">Capture Image</MudButton>
+                    <hr />
+                    @if (!string.IsNullOrEmpty(Base64Image))
+                    {
+                        <img src="@Base64Image" alt="Captured Image" />
+                    }
+                   
+                </MudCard>
+            </MudPaper>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private bool videoStarted = false;
+    [Parameter]
+    public ElementReference videoElement{ get; set; }
+
+
+    [Parameter]
+    public long StudentId{ get; set; }
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; }
+
+    public StudentEnrolmentDto StudentDetails;
+
+    private HubConnection hubConnection;
+    private IEnumerable<CourseDto> CRElements = new List<CourseDto>();
+    private IEnumerable<CourseDto> AllCourses = new List<CourseDto>();
+    private HashSet<CourseDto> selectedItems = new HashSet<CourseDto>();
+    private string _selectedItemText = "No row clicked";
+    private string SelectedCourseCode;
+    public bool _loading { get; set; }
+    private string Base64Image = string.Empty;
+    public string imageDataUrl = "data:image/png;base64,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";
+    protected override async Task OnInitializedAsync()
+    {
+        StudentDetails = new StudentEnrolmentDto();
+        _loading = true;
+        StudentDetails =await studentRepository.GetStudentEnrolledByStudentId(StudentId);
+        SemesterType currentSemester=new SemesterType();
+        var currentSemesterList = await semesterRepository.GetActiveSemester();
+        currentSemester = currentSemesterList.FirstOrDefault().SemesterType;
+        if (StudentDetails != null && currentSemesterList != null)
+        {
+            CRElements = await courseRepository.GetStudentCourse(
+                StudentDetails.ProgramSetup.DepartmentId,
+                StudentDetails.LevelId,
+                currentSemester);
+        }
+        AllCourses = await courseRepository.GetAllCourse();
+        _loading = false;
+        hubConnection = new HubConnectionBuilder()
+           .WithUrl(Navigation.ToAbsoluteUri("/FingerprintHub"))
+           .Build();
+
+
+        hubConnection.On<string, string>("EnrollmentAcknowledgment", (requestId, result) =>
+            {
+                snackBar.Add($"Enroll fingerprint request received for user {requestId}, Request ID: {result}");
+
+                Console.WriteLine($"Enrollment acknowledgment received for request ID {requestId}. Result: {result}");
+            });
+
+        // Handle connection events
+        hubConnection.Closed += async (error) =>
+        {
+            snackBar.Add($"Connection closed: {error}");
+            Console.WriteLine($"Connection closed: {error}");
+            // Attempt to restart the connection or handle the closure as needed
+        };
+
+
+
+    }
+
+    private async Task StartVideo()
+    {
+        Console.WriteLine("Calling the camera object");
+        try
+        {
+            await InitializeCamera();
+            videoStarted = true;
+        }
+        catch (Exception ex)
+        {
+            // Handle the exception
+            Console.Error.WriteLine($"Error starting video: {ex.Message}");
+        }
+    }
+    private async Task StopVideo()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("stopVideo", videoElement);
+            videoStarted = false;
+        }
+        catch (Exception ex)
+        {
+            // Handle the exception
+            Console.Error.WriteLine($"Error stopping video: {ex.Message}");
+
+        }
+    }
+    private async Task CaptureImage()
+    {
+        try
+        {
+            Console.WriteLine("Calling the Capture Image");
+            Base64Image =  await JSRuntime.InvokeAsync<string>("captureImage3", videoElement);
+            StateHasChanged();
+            Console.WriteLine(Base64Image);
+            if (Base64Image is not null)
+            {
+                imageDataUrl = Base64Image.ToString();
+                // Handle imageDataUrl2 as needed
+            }
+            else
+            {
+                Console.WriteLine("Image Capture is null");
+            }
+            StudentDetails.Student.CaptureStatus=CaptureStatus.Captured;
+            StudentDetails.Student.DateCaptured = DateTime.Now;
+
+
+            //StudentDetails.UserImage = imageDataUrl.ToString();
+            var imageModel = new { Image = Base64Image, Id = StudentId };
+            var response = await HttpClient.PostAsJsonAsync("/api/image", imageModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Image uploaded successfully
+                Console.WriteLine("Image uploaded successfully");
+                StudentDetails.Student.UserImage = response.Content.ToString();
+            }
+            else
+            {
+                // Handle error
+                Console.WriteLine($"Error: {response.StatusCode}");
+            }
+
+            await studentRepository.UpdateStudent(StudentDetails);
+            snackBar.Add("Image successfully Captured");
+            Console.WriteLine("image capturing");
+            //Save image to the folder 
+            //End Save Image to folder
+        }
+        catch (Exception ex)
+        {
+            // Handle the exception
+            Console.Error.WriteLine($"Error capturing image: {ex.Message}");
+
+        }
+    }
+
+    private async Task InitializeCamera()
+    {
+
+        try
+        {
+            if (await JSRuntime.InvokeAsync<bool>("isNavigatorMediaDevicesSupported"))
+            {
+
+                await JSRuntime.InvokeVoidAsync("startVideo", videoElement);
+            }
+            else
+            {
+                // Handle the case where the necessary APIs are not supported
+                Console.Error.WriteLine("Navigator.mediaDevices is not supported.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle initialization errors
+            Console.Error.WriteLine($"Error initializing camera: {ex.Message}");
+        }
+
+    }
+
+
+    private async Task InitiateFingerprintEnrolment()
+    {
+        // Get the user ID from the server or any other source
+        string userId ="123";
+        string Group = "ACU";
+        string clientId = "BioServer1";
+        try
+        {
+            if (hubConnection.State == HubConnectionState.Disconnected)
+            {
+                // Start the connection
+                await hubConnection.StartAsync();
+            }
+            await hubConnection.InvokeAsync("RequestEnrollFingerprint", StudentId.ToString(),Group,clientId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+
+
+
+    }
+    private void AddCourse()
+    {
+        var courseToAdd = AllCourses.FirstOrDefault(c => c.CourseCode == SelectedCourseCode);
+        if (courseToAdd != null && !CRElements.Any(r => r.CourseCode == courseToAdd.CourseCode))
+        {
+            CRElements = CRElements.Append(courseToAdd).ToList();
+            snackBar.Add("Course Added successfully", Severity.Info);
+        }
+        else
+        {
+            snackBar.Add("Course not found or already added", Severity.Error);
+        }
+    }
+    private void RemoveCourse(CourseDto course)
+    {
+        if (course != null & course.Status != "C")
+        {
+            // Re-assign CRElements without the removed course
+            CRElements = CRElements.Where(c => c != course).ToList();
+
+            snackBar.Add($"Course {course.Name} removed successfully", Severity.Info);
+        }
+        else
+        {
+            snackBar.Add($"Cannot remove Course {course.Name}", Severity.Error);
+
+        }
+    }
+    private void SaveCourses()
+    {
+        List<CourseRegistrationDto> CourseReg = new List<CourseRegistrationDto>();
+        foreach (var item in selectedItems)
+        {
+            CourseRegistrationDto CourseRegTemp=new CourseRegistrationDto();
+            CourseRegTemp.CourseId=item.Id;
+            CourseRegTemp.StudentId = StudentId;
+            CourseRegTemp.ProgramSetupId = StudentDetails.ProgramSetupId;
+            CourseRegTemp.SessionId = 3;
+            CourseReg.Add(CourseRegTemp);
+        }
+        courseRegistrationRepository.CreateCourseRegistrations(CourseReg);
+        snackBar.Add("Courses Successfully Saved");
+    }
+}

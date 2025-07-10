@@ -1,0 +1,141 @@
+@page "/busary/applicantpayScheduleUploadDetails/{ApplicantPayCategoryId:long}"
+@using System.Net.Http.Json
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using ACUnified.Business.Repository.IRepository
+@using Hangfire
+@using ACUnified.Business.Services
+@layout ACUnifiedLayout  
+@inject ISnackbar snackBar
+@inject IApplicantPayUploadCategoryRepository payUploadCategoryRepository
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "Bursary")]
+<MudContainer>
+    <MudTable ServerData="@(new Func<TableState, Task<TableData<ApplicantPayUploadCategoryDto>>>(ServerReload))"
+              Dense="true" Hover="true" @ref="table">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Applicant Pay Upload Category Listing</MudText>
+            <MudSpacer />
+            <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortLabel="name_field" T="ApplicantPayUploadCategory">Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="instal1_field" T="ApplicantPayUploadCategory">1st Instalment</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="instal2_field" T="ApplicantPayUploadCategory">2nd Instalment</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="instal3_field" T="ApplicantPayUploadCategory">3rd Instalment</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="instal4_field" T="ApplicantPayUploadCategory">2nd&3rd Instalment</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="tpd_field" T="ApplicantPayUploadCategory">Total Paid Due</MudTableSortLabel></MudTh>
+            @*         <MudTh><MudTableSortLabel SortLabel="phone_field" T="ApplicantPayUploadCategory">Phone</MudTableSortLabel></MudTh>
+            *@        @* <MudTh><MudTableSortLabel SortLabel="position_field" T="Student">Position</MudTableSortLabel></MudTh> *@
+            @* <MudTh><MudTableSortLabel SortLabel="mass_field" T="Student">Molar mass</MudTableSortLabel></MudTh> *@
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                @context.Name
+            </MudTd>
+            <MudTd DataLabel="TotalPayDue">@context.PayInstalment1.ToString("#,##.00")</MudTd>
+            <MudTd DataLabel="Instal1">@context.PayInstalment2.ToString("#,##.00")</MudTd>
+            <MudTd DataLabel="Instal2">@context.PayInstalment3.ToString("#,##.00")</MudTd>
+            <MudTd DataLabel="Instal3">@context.PayInstalment4.ToString("#,##.00")</MudTd>
+            <MudTd DataLabel="Instal4">@context.TotalPayDue.ToString("#,##.00")</MudTd>
+
+            @*    <MudTd DataLabel="Matric">@context.Matric</MudTd>
+            <MudTd DataLabel="Phone">@context.MobileNumber</MudTd>
+            *@   @* <MudTd DataLabel="Position">@context.Position</MudTd> *@
+            @* <MudTd DataLabel="Molar mass">@context.Molar</MudTd> *@
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudText>Loading...</MudText>
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+    <MudButton StartIcon="@Icons.Material.TwoTone.AutoFixHigh" OnClick="GenerateFees" Variant="Variant.Filled" Color="Color.Primary">Generate Student Fees</MudButton>
+</MudContainer>
+
+
+@code {
+    private IEnumerable<ApplicantPayUploadCategoryDto> pagedData;
+    private MudTable<ApplicantPayUploadCategoryDto> table;
+    private int totalItems;
+    private string searchString = null;
+
+    [Parameter]
+    public long ApplicantPayCategoryId { get; set; }
+
+    private IEnumerable<ApplicantPayUploadCategoryDto> data;
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllPayCategoryAsync();
+    }
+
+    private async Task GetAllPayCategoryAsync()
+    {
+        data = (await payUploadCategoryRepository.GetPayUploadCategoryBatch(ApplicantPayCategoryId)).ToList();
+    }
+
+
+
+    /// <summary>
+    /// Here we simulate getting the paged, filtered and ordered data from the server
+    /// </summary>
+    private async Task<TableData<ApplicantPayUploadCategoryDto>> ServerReload(TableState state)
+    {
+        IEnumerable<ApplicantPayUploadCategoryDto> data = (await payUploadCategoryRepository.GetPayUploadCategoryBatch(ApplicantPayCategoryId)).ToList();
+        await Task.Delay(300);
+        data = data.Where(element =>
+        {
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            // if (element.TotalPayDue.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            //     return true;
+            // if (element.Matric.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            //     return true;
+            // if (element.MobileNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            //     return true;
+            return false;
+        }).ToArray();
+        totalItems = data.Count();
+        switch (state.SortLabel)
+        {
+            case "name_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.Name);
+                break;
+            case "amount_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.TotalPayDue);
+                break;
+                // case "phone_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.MobileNumber);
+                //     break;
+                // case "position_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+                //     break;
+                // case "mass_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+                //     break;
+        }
+
+        pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+        return new TableData<ApplicantPayUploadCategoryDto>() { TotalItems = totalItems, Items = pagedData };
+    }
+
+    private void OnSearch(string text)
+    {
+        searchString = text;
+        table.ReloadServerData();
+    }
+
+    public async void GenerateFees()
+    {
+       //var jobId = BackgroundJob.Enqueue<StudentFeeGenerationService>(x => x.GenerateFee(PayCategoryId));
+
+        snackBar.Add("Generating Fees...", Severity.Success);
+    }
+}

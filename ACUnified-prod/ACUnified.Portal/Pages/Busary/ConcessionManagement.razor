@@ -1,0 +1,138 @@
+﻿@page "/busary/concessionDetails"
+@using System.Net.Http.Json
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@layout ACUnifiedLayout
+@inject ISnackbar snackBar
+@inject IPayConcessionRepository payConcessionRepository
+@inject NavigationManager Navigation
+@inject IProgramSetupRepository ProgramSetupRepository
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "Bursary")]
+<MudTable ServerData="@(new Func<TableState, Task<TableData<PayConcessionDto>>>(ServerReloads))"
+          Dense="true" Hover="true" @ref="table1">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Concession  Management</MudText>
+        <MudSpacer />
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch1(s))" Placeholder="Search" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortLabel="name_field" T="string">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="matric_field" T="string">Matric</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="concessionAmount_field" T="decimal">Concession Amount</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <div>@context.Student.FirstName @context.Student.OtherName @context.Student.LastName</div>
+        </MudTd>
+        <MudTd DataLabel="Matric">@context.Student.Matric</MudTd>
+
+        <MudTd DataLabel="ConcessionAmount">@context.Amount.Value.ToString("0.00")</MudTd>
+
+      <MudTd DataLabel="">
+            @if (context.Student.UserId != null)
+            {
+             <MudFab  Color="Color.Primary" Icon="@Icons.Material.Filled.Info"OnClick="@(() => ShowConcessionModal(context.Student.UserId))" Size="Size.Small" IconSize="Size.Small" />
+                
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No matching records found</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private IEnumerable<PayConcessionDto> pagedDatas;
+    private MudTable<PayConcessionDto> table1;
+
+    private int totalItems;
+    private string searchString = null;
+
+    private IEnumerable<PayConcessionDto> datas;
+    protected override async Task OnInitializedAsync()
+    {
+        datas = (await payConcessionRepository.GetAllPayConcession()).ToList();
+
+    }
+
+   
+    private async Task NavigateToDetails(long StudentId)
+    {
+        Navigation.NavigateTo($"/ict/biorecapture/{StudentId}");
+
+    }
+
+
+    /// <summary>
+    /// Here we simulate getting the paged, filtered and ordered data from the server
+    /// </summary>
+    private async Task<TableData<PayConcessionDto>> ServerReloads(TableState state)
+    {
+        IEnumerable<PayConcessionDto> datas = (await payConcessionRepository.GetAllPayConcession()).ToList();
+        await Task.Delay(300);
+        datas = datas.Where(element =>
+        {
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            if (element.Student.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.Matric.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.MobileNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }).ToArray();
+        totalItems = datas.Count();
+        switch (state.SortLabel)
+        {
+            case "name_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.LastName);
+                break;
+            case "matric_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.Matric);
+                break;
+            case "phone_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.MobileNumber);
+                break;
+                
+                // case "position_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+                //     break;
+                // case "mass_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+                //     break;
+        }
+
+        pagedDatas = datas.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+        return new TableData<PayConcessionDto>() { TotalItems = totalItems, Items = pagedDatas };
+    }
+
+    private void OnSearch1(string text)
+    {
+        searchString = text;
+        table1.ReloadServerData();
+    }
+    private async Task ShowConcessionModal(string UserIdNo)
+    {
+        var parameters = new DialogParameters { ["UserId"] = UserIdNo };
+        var dialog = DialogService.Show<ConcessionInfoDialog>("Concession Information", parameters, options: new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, Position = DialogPosition.TopCenter });
+
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+
+        }
+
+    }
+}

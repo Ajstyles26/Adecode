@@ -1,0 +1,782 @@
+@page "/ict/matriculation"
+@using ACUnified.Business.Services.IServices
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using FuzzySharp;
+@using System.Collections.Generic
+@using System.Text
+@using System.IO
+@using Microsoft.JSInterop
+@layout ACUnifiedLayout
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.Extensions.DependencyInjection
+@attribute [Authorize(Roles = "ICT")]
+@inject IMatriculationService MatriculationService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IServiceProvider ServicesHelper
+@inject IJSRuntime JSRuntime
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Matriculation Number Management</MudText>
+
+    <!-- Generation Controls Section -->
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mb-4 h-100">
+                <MudText Typo="Typo.h6" Class="mb-3">Generate Matriculation Numbers</MudText>
+                <MudText Class="mb-3">
+                    This action will generate matriculation numbers for all eligible students who have:
+                    <ul>
+                        <li>Reached application stage 11 or above</li>
+                        <li>Do not have a matriculation number assigned yet</li>
+                        <li>Either BSC or TRANSFER degree types</li>
+                    </ul>
+                </MudText>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="GenerateAllMatriculationNumbers"
+                           Disabled="@_isProcessing">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Processing...</MudText>
+                    }
+                    else
+                    {
+                        <span>Generate All Matriculation Numbers</span>
+                    }
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+           Color="Color.Warning"
+           OnClick="FixDuplicates"
+           Disabled="@_isFixingDuplicates">
+    @if (_isFixingDuplicates)
+    {
+        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+        <MudText Class="ms-2">Fixing...</MudText>
+    }
+    else
+    {
+        <span>Fix Duplicate Matric Numbers</span>
+    }
+</MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mb-4 h-100">
+                <MudText Typo="Typo.h6" Class="mb-3">Generate Individual Matriculation Number</MudText>
+
+                <MudTextField @bind-Value="_applicationId"
+                              Label="Application ID"
+                              Variant="Variant.Outlined"
+                              Class="mb-3"
+                              Disabled="@_isSingleProcessing" />
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           OnClick="GenerateSingleMatriculationNumber"
+                           Disabled="@(_isSingleProcessing || string.IsNullOrEmpty(_applicationId))">
+                    @if (_isSingleProcessing)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Processing...</MudText>
+                    }
+                    else
+                    {
+                        <span>Generate Matriculation Number</span>
+                    }
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Matriculation Numbers Display Section -->
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-3">Generated Matriculation Numbers</MudText>
+
+        <MudGrid Class="mb-3">
+            <MudItem xs="12" md="4">
+                <MudSelect T="string" Label="Filter By Program" Variant="Variant.Outlined"
+                           Value="@_selectedProgram" ValueChanged="@((string val) => OnProgramFilterChanged(val))" FullWidth="true">
+                    <MudSelectItem Value="@string.Empty">All Programs</MudSelectItem>
+                    @foreach (var program in _availablePrograms)
+                    {
+                        <MudSelectItem Value="@program">@program</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField Value="@_searchTerm"
+                              ValueChanged="@((string val) => OnSearchTermChanged(val))"
+                              Label="Search by Name or Matric No"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              FullWidth="true"
+                              Immediate="true"
+                              DebounceInterval="300" />
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex align-end">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Info"
+                           OnClick="ExportAllMatriculationNumbersToCSV"
+                           Disabled="@(_isExporting || _filteredMatriculationList.Count == 0)">
+                    @if (_isExporting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Exporting...</MudText>
+                    }
+                    else
+                    {
+                        <span>Export to CSV</span>
+                    }
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (_filteredMatriculationList.Count > 0)
+        {
+            <MudTable Items="@_filteredMatriculationList" Dense="true" Hover="true" Bordered="true" Striped="true"
+                      Pagination="true" RowsPerPage="15">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<ApplicationFormDto, object>(x => x.BioData?.LastName)">Student Name</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<ApplicationFormDto, object>(x => x.FinalisedCourse)">Program</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<ApplicationFormDto, object>(x => x.MatriculationNumber)">Matriculation Number</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<ApplicationFormDto, object>(x => x.MatriculationDate)">Generated Date</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Student Name">@(context.BioData?.LastName + " " + context.BioData?.FirstName + " " + context.BioData?.OtherName)</MudTd>
+                    <MudTd DataLabel="Program">@(context.FinalisedCourse ?? context.ProgramSetup?.Name ?? "Not Specified")</MudTd>
+                    <MudTd DataLabel="Matriculation Number">@context.MatriculationNumber</MudTd>
+                    <MudTd DataLabel="Generated At">@(context.MatriculationDate?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-3">No matriculation numbers found matching your criteria.</MudAlert>
+        }
+    </MudPaper>
+
+    <!-- Admin Actions Section -->
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-3">Administrative Actions</MudText>
+        <MudText Class="mb-3 text-warning">
+            Warning: The following action will delete all matriculation numbers and dates from the system.
+            This operation cannot be undone. Use with caution.
+        </MudText>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Error"
+                   OnClick="@(() => _showResetConfirmation = true)"
+                   Disabled="@_isResetting">
+            @if (_isResetting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Resetting...</MudText>
+            }
+            else
+            {
+                <span>Reset All Matriculation Numbers</span>
+            }
+        </MudButton>
+        
+        <MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-3">Upload CSV to Check Matriculation Match</MudText>
+    <MudText Class="mb-2">Upload your form responses. The system will return matched matric numbers.</MudText>
+    
+    <InputFile OnChange="HandleFileUpload" />
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Success"
+               OnClick="ProcessUploadedFile"
+               Disabled="@(_uploadedFile == null)">
+        Match Uploaded Records
+    </MudButton>
+</MudPaper>
+<MudText Typo="Typo.h6" Class="mt-5 mb-2">Export Only Candidates from Uploaded CSV</MudText>
+<InputFile OnChange="HandleExportFilterFile" />
+<MudButton Variant="Variant.Filled"
+           Color="Color.Info"
+           OnClick="ExportFilteredByUploadedMatricNumbers"
+           Disabled="@(_exportFilterMatricList == null || !_exportFilterMatricList.Any())">
+    Export Filtered Matriculation Numbers
+</MudButton>
+
+
+        <MudDialog @bind-IsVisible="_showResetConfirmation">
+            <TitleContent>
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" Color="Color.Warning" />
+                    Confirm Reset
+                </MudText>
+            </TitleContent>
+            <DialogContent>
+                <MudText>Are you sure you want to delete ALL matriculation numbers? This action cannot be undone.</MudText>
+            </DialogContent>
+            <DialogActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@(() => _showResetConfirmation = false)">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ResetAllMatriculationNumbers">Confirm Reset</MudButton>
+            </DialogActions>
+        </MudDialog>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private bool _isProcessing = false;
+    private bool _isSingleProcessing = false;
+    private bool _isResetting = false;
+    private bool _isExporting = false;
+    private bool _showResetConfirmation = false;
+    private string _applicationId = string.Empty;
+    private string _searchTerm = string.Empty;
+    private string _selectedProgram = string.Empty;
+    private bool _isFixingDuplicates = false;
+
+    private List<ApplicationFormDto> _allMatriculationList = new List<ApplicationFormDto>();
+    private List<ApplicationFormDto> _filteredMatriculationList = new List<ApplicationFormDto>();
+    private HashSet<string> _availablePrograms = new HashSet<string>();
+        private IBrowserFile _exportFilterFile;
+private HashSet<string> _exportFilterMatricList = new HashSet<string>();
+
+
+    private IBrowserFile _uploadedFile;
+private string _uploadedContent = string.Empty;
+
+private void HandleFileUpload(InputFileChangeEventArgs e)
+{
+    _uploadedFile = e.File;
+}
+private async Task ProcessUploadedFile()
+{
+    try
+    {
+        if (_uploadedFile == null)
+        {
+            Snackbar.Add("Please upload a valid CSV file first.", Severity.Warning);
+            return;
+        }
+
+        using var stream = _uploadedFile.OpenReadStream();
+        using var reader = new StreamReader(stream);
+        _uploadedContent = await reader.ReadToEndAsync();
+
+        var lines = _uploadedContent.Split('\n').Skip(1); // Skip header
+
+        var result = new StringBuilder();
+        result.AppendLine("Timestamp,Full Name,Department,Faculty,Matric Given before,Actual Matric Number,System Full Name");
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var columns = line.Split(',');
+
+            if (columns.Length < 5) continue;
+
+            string timestamp = columns[0].Trim();
+            string uploadedFullName = columns[1].Trim();
+            string department = columns[2].Trim();
+            string faculty = columns[3].Trim();
+            string givenMatricRaw = columns[4].Trim();
+            string matchedMatric = "Not Found";
+            string systemFullName = "Not Matched";
+
+            ApplicationFormDto matched = null;
+
+            // Normalize the matric number
+            string normalizedMatric = NormalizeMatricNumber(givenMatricRaw);
+
+            // Try to find a match in system records
+            var candidate = _allMatriculationList.FirstOrDefault(x =>
+                string.Equals(x.MatriculationNumber?.Trim(), normalizedMatric, StringComparison.OrdinalIgnoreCase));
+
+            if (candidate != null)
+            {
+                // Check name match
+                var systemName = $"{candidate.BioData?.LastName} {candidate.BioData?.FirstName} {candidate.BioData?.OtherName}".ToLower();
+                var nameParts = uploadedFullName.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                bool namePartExists = nameParts.Any(p => systemName.Contains(p));
+
+                // Check department match (fuzzy logic)
+                string systemDept = candidate.ProgramSetup?.Department?.Name ?? "";
+                bool deptMatch = FuzzyMatch(systemDept, department);
+
+                if (namePartExists && deptMatch)
+                {
+                    matched = candidate;
+                    matchedMatric = candidate.MatriculationNumber ?? "Not Found";
+                    systemFullName = $"{candidate.BioData?.LastName} {candidate.BioData?.FirstName} {candidate.BioData?.OtherName}".Trim();
+                }
+            }
+
+            result.AppendLine($"{timestamp},{uploadedFullName},{department},{faculty},{givenMatricRaw},{matchedMatric},{systemFullName}");
+        }
+
+        string outputFileName = $"Matched_Matric_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        await DownloadCsvFile(outputFileName, result.ToString());
+
+        Snackbar.Add("Matching completed. CSV download started.", Severity.Success);
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error during matching: {ex.Message}", Severity.Error);
+    }
+}
+
+private async void HandleExportFilterFile(InputFileChangeEventArgs e)
+{
+    _exportFilterFile = e.File;
+
+    try
+    {
+        using var stream = _exportFilterFile.OpenReadStream();
+        using var reader = new StreamReader(stream);
+        string content = await reader.ReadToEndAsync();
+
+        _exportFilterMatricList.Clear();
+        var lines = content.Split('\n').Skip(1); // skip header
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var columns = line.Split(',');
+
+            if (columns.Length < 6) continue;
+
+            string actualMatricNumber = NormalizeMatricNumber(columns[5].Trim()); // column 5 is 'Actual Matric Number'
+
+            if (!string.IsNullOrWhiteSpace(actualMatricNumber))
+                _exportFilterMatricList.Add(actualMatricNumber);
+        }
+
+        Snackbar.Add($"Loaded {_exportFilterMatricList.Count} matric numbers for export filter.", Severity.Info);
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error reading export filter CSV: {ex.Message}", Severity.Error);
+    }
+}
+private async Task ExportFilteredByUploadedMatricNumbers()
+{
+    try
+    {
+        _isExporting = true;
+
+        var filtered = _allMatriculationList
+            .Where(x => _exportFilterMatricList.Contains(NormalizeMatricNumber(x.MatriculationNumber ?? "")))
+            .ToList();
+
+        if (!filtered.Any())
+        {
+            Snackbar.Add("No matching matriculation numbers found in system.", Severity.Warning);
+            return;
+        }
+
+        _filteredMatriculationList = filtered; // optionally store for reuse
+        await ExportAllMatriculationNumbersToCSV(); // reuses your export logic
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error exporting filtered list: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        _isExporting = false;
+    }
+}
+
+
+private string NormalizeMatricNumber(string raw)
+{
+    if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+
+    string cleaned = new string(raw.Where(char.IsLetterOrDigit).ToArray()).ToUpper();
+
+    if (cleaned.Length >= 6)
+    {
+        string prefix = cleaned.Substring(0, cleaned.Length - 3);
+        string suffix = cleaned.Substring(cleaned.Length - 3);
+        return $"{prefix}/{suffix}";
+    }
+
+    return cleaned;
+}
+
+private bool FuzzyMatch(string a, string b, int threshold = 85)
+{
+    if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+        return false;
+
+    return Fuzz.Ratio(a.ToLower().Trim(), b.ToLower().Trim()) >= threshold;
+}
+
+
+
+private bool MatchStrings(string a, string b)
+{
+    if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+        return false;
+
+    return a.Trim().ToLower().Contains(b.Trim().ToLower()) ||
+           b.Trim().ToLower().Contains(a.Trim().ToLower());
+}
+
+
+    private async Task GenerateAllMatriculationNumbers()
+    {
+        try
+        {
+            _isProcessing = true;
+            var count = await MatriculationService.GenerateAndSaveMatriculationNumbers();
+
+            Snackbar.Add($"Successfully generated {count} matriculation numbers", Severity.Success);
+
+            // Refresh the matriculation numbers list
+            await LoadAllMatriculationNumbers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error generating matriculation numbers: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+    private async Task FixDuplicates()
+{
+    try
+    {
+        _isFixingDuplicates = true;
+        var fixedCount = await MatriculationService.FixDuplicateMatriculationNumbers();
+        Snackbar.Add($"Fixed {fixedCount} duplicate matriculation numbers.", Severity.Success);
+        await LoadAllMatriculationNumbers();
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error fixing duplicates: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        _isFixingDuplicates = false;
+    }
+}
+
+    
+    
+    private async Task GenerateSingleMatriculationNumber()
+{
+    if (string.IsNullOrEmpty(_applicationId) || !long.TryParse(_applicationId, out long applicationId))
+    {
+        Snackbar.Add("Please enter a valid Application ID", Severity.Warning);
+        return;
+    }
+
+    try
+    {
+        _isSingleProcessing = true;
+        var matricNumber = await MatriculationService.GenerateMatriculationNumberById(applicationId);
+
+        if (string.IsNullOrEmpty(matricNumber))
+        {
+            Snackbar.Add("Unable to generate matriculation number. Please check the student's program details.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add($"Successfully generated matriculation number: {matricNumber}", Severity.Success);
+            await LoadAllMatriculationNumbers();
+        }
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Error generating matriculation number: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        _isSingleProcessing = false;
+        _applicationId = string.Empty;
+    }
+}
+
+
+    private async Task ResetAllMatriculationNumbers()
+    {
+        try
+        {
+            _isResetting = true;
+            _showResetConfirmation = false;
+
+            var count = await MatriculationService.ResetAllMatriculationNumbers();
+
+            Snackbar.Add($"Successfully reset {count} matriculation numbers", Severity.Success);
+
+            // Refresh the list after reset
+            await LoadAllMatriculationNumbers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error resetting matriculation numbers: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isResetting = false;
+        }
+    }
+
+    private async Task LoadAllMatriculationNumbers()
+    {
+        try
+        {
+            // Get the repository service
+            var repository = (IApplicationFormRepository)ServicesHelper.GetService(typeof(IApplicationFormRepository));
+            if (repository != null)
+            {
+                // Get all applications with matriculation numbers
+                _allMatriculationList = (await repository.GetApplicationsWithMatriculationNumbers()).ToList();
+
+                // Extract all unique programs for filtering
+                _availablePrograms.Clear();
+                foreach (var app in _allMatriculationList)
+                {
+                    string program = app.FinalisedCourse ?? app.ProgramSetup?.Name ?? "Not Specified";
+                    if (!string.IsNullOrWhiteSpace(program))
+                    {
+                        _availablePrograms.Add(program);
+                    }
+                }
+
+                // Apply initial filtering
+                ApplyFilters();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading matriculation numbers: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = _allMatriculationList.ToList(); // Create a copy to avoid modifying the original list
+
+        // Filter by program if selected
+        if (!string.IsNullOrEmpty(_selectedProgram))
+        {
+            filtered = filtered.Where(a =>
+                (a.FinalisedCourse ?? a.ProgramSetup?.Name ?? "Not Specified") == _selectedProgram
+            ).ToList();
+        }
+
+        // Filter by search term if provided
+        if (!string.IsNullOrEmpty(_searchTerm))
+        {
+            string searchLower = _searchTerm.ToLower().Trim();
+            filtered = filtered.Where(a =>
+                ((a.BioData?.LastName + " " + a.BioData?.FirstName + " " + (a.BioData?.OtherName ?? ""))?.ToLower().Contains(searchLower) ?? false) ||
+                (a.MatriculationNumber?.ToLower().Contains(searchLower) ?? false) ||
+                ((a.BioData?.LastName ?? "") + " " + (a.BioData?.FirstName ?? "")).ToLower().Contains(searchLower)
+            ).ToList();
+        }
+
+        // Update the filtered list
+        _filteredMatriculationList = filtered;
+
+        // Force UI refresh
+        StateHasChanged();
+
+        // Log filter results for debugging
+        Console.WriteLine($"Filtering results: {_filteredMatriculationList.Count} items found with search term '{_searchTerm}' and program '{_selectedProgram}'");
+    }
+
+    // Event handlers for filter changes
+    private void OnProgramFilterChanged(string program)
+    {
+        _selectedProgram = program;
+        ApplyFilters();
+    }
+
+    private void OnSearchTermChanged(string searchTerm)
+    {
+        _searchTerm = searchTerm;
+        ApplyFilters();
+        StateHasChanged(); // Ensure UI updates with the new search term
+    }
+
+    private async Task ExportAllMatriculationNumbersToCSV()
+    {
+        try
+        {
+            _isExporting = true;
+
+            // Use the filtered list for export
+            var applications = _filteredMatriculationList;
+            if (!applications.Any())
+            {
+                Snackbar.Add("No matriculation numbers found to export", Severity.Warning);
+                return;
+            }
+
+            // Build CSV content
+            var csv = new StringBuilder();
+
+            // Add header
+            csv.AppendLine("user_id,UTME_No,ACU_Adm_No,matricNumber,Surname,Othernames,Gender,BirthDate,MStatus,Religion,StudentPhone,StudentEmail,State,LGA,Nationality,Dept,Programme,Entry_Session,Entry_Year,Entry_Mode,Entry_Level,Degree_ID,Options,Current_Level,Status");
+
+            // Add data rows
+              int userId = 1;
+            foreach (var app in applications)
+            {
+
+                string UTME_No = app.AcademicQualification?.UTMERegNo ?? "N/A";
+                string ACU_Adm_No = app.FormRefNo ?? "N/A";
+                string matricNumber = app.MatriculationNumber ?? "Not Assigned";
+                string surname = app.BioData?.LastName ?? "N/A";
+                string othernames = app.BioData?.FirstName + " " + app.BioData?.OtherName;
+                string gender = app.BioData?.Gender ?? "N/A";
+string birthDate = app.BioData?.DOB != null ? app.BioData.DOB.ToString("yyyy-MM-dd") : "N/A";
+                string mStatus = app.BioData?.MaritalStatus ?? "N/A";
+                string religion = app.OtherDetails?.Denomination ?? "N/A";
+                string studentPhone = app.BioData?.MobileNumber ?? "N/A";
+                string studentEmail = app.BioData?.Email ?? "N/A";
+                string state = app.BioData?.State ?? "N/A";
+                string lga = app.BioData?.LGA ?? "N/A";
+                string Nationality = app.BioData?.Nationality ?? "N/A";
+                string dept = app.FinalisedCourse ?? app.ProgramSetup?. Department?.Name ?? "N/A";
+                string Programm = app.FinalisedCourse ?? app.ProgramSetup?.Name ?? "Not Specified";
+                string Entry_Session = app.BioData?.Session?.Name?? "N/A";
+                string Entry_Year =app.BioData?.Session?.Name?? "N/A";
+                string Entry_Mode = app.AcademicQualification?.Modeofentry ?? "N/A";
+                string Entry_Level = app.Level?.Name ?? "N/A";
+                string Degree_ID = app.DegreeId.ToString() ?? "N/A";
+                string Options = "0";
+                string Current_Level = app.Level?.Name ?? "N/A";
+                string Status = "0";
+                string Matric_No = app.MatriculationNumber ?? "N/A";
+                string Degree_IDs = app.DegreeId.ToString() ?? "N/A";
+                string kinGender = app.NextOfKin?.Gender ?? "N/A"; // Assuming NextOfKin has a Gender property
+                string kin_Title = GetTitleBasedOnGender(kinGender, app.NextOfKin?.Gender?? "N/A");
+                string kin_FullName = app.NextOfKin?.LastName + " " + app.NextOfKin?.FirstName + " " + app.NextOfKin?.OtherName ?? "N/A";
+                string kin_phone = app.NextOfKin?.MobileNumber ?? "N/A";
+                string kin_Email = app.NextOfKin?.Email ?? "N/A";
+                string kin_Relationship = app.NextOfKin?.Relationship ?? "N/A";
+                string kin_Address = app.NextOfKin?.Address ?? "N/A";
+
+
+
+
+                // Escape values that might contain commas
+                 string user_id = userId.ToString();
+                UTME_No = EscapeCsvValue(UTME_No);
+                ACU_Adm_No = EscapeCsvValue(ACU_Adm_No);
+                matricNumber = EscapeCsvValue(matricNumber);
+                surname = EscapeCsvValue(surname);
+                othernames = EscapeCsvValue(othernames);
+                gender = EscapeCsvValue(gender);    
+                birthDate = EscapeCsvValue(birthDate);
+                mStatus = EscapeCsvValue(mStatus);
+                religion = EscapeCsvValue(religion);
+                studentPhone = EscapeCsvValue(studentPhone);
+                studentEmail = EscapeCsvValue(studentEmail);
+                state = EscapeCsvValue(state);
+                lga = EscapeCsvValue(lga);
+                Nationality = EscapeCsvValue(Nationality);  
+                dept = EscapeCsvValue(dept);
+                Programm = EscapeCsvValue(Programm);
+                Entry_Session = EscapeCsvValue(Entry_Session);
+                Entry_Year = EscapeCsvValue(Entry_Year);
+                Entry_Mode = EscapeCsvValue(Entry_Mode);
+                Entry_Level = EscapeCsvValue(Entry_Level);
+                Degree_ID = EscapeCsvValue(Degree_ID);
+                Options = EscapeCsvValue(Options);
+                Current_Level = EscapeCsvValue(Current_Level);
+                Status = EscapeCsvValue(Status);
+                Matric_No = EscapeCsvValue(Matric_No);
+                kin_Title = EscapeCsvValue(kin_Title);               
+                kin_FullName = EscapeCsvValue(kin_FullName);
+                kin_phone = EscapeCsvValue(kin_phone);
+                kin_Email = EscapeCsvValue(kin_Email);
+                kin_Relationship = EscapeCsvValue(kin_Relationship);
+                kin_Address = EscapeCsvValue(kin_Address);
+
+                
+                csv.AppendLine($"{user_id},{UTME_No},{ACU_Adm_No},{matricNumber},{surname},{othernames},{gender},{birthDate},{mStatus},{religion},{studentPhone},{studentEmail},{state},{lga},{Nationality},{dept},{Programm},{Entry_Session},{Entry_Year},{Entry_Mode},{Entry_Level},{Degree_ID},{Options},{Current_Level},{Status},{Matric_No},{Degree_ID},{kin_Title},{kin_FullName},{kin_phone},{kin_Email},{kin_Relationship},{kin_Address}");
+
+                 userId++;
+            }
+
+            // Generate filename with timestamp
+            string fileName = $"Matriculation_Numbers_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+            // Download the file
+            await DownloadCsvFile(fileName, csv.ToString());
+
+            Snackbar.Add($"Successfully exported {applications.Count} matriculation numbers to CSV", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting matriculation numbers: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isExporting = false;
+        }
+    }
+
+    private string GetTitleBasedOnGender(string gender, string existingTitle)
+{
+    // If a title is already specified and not "N/A", keep it
+    if (!string.IsNullOrEmpty(existingTitle) && existingTitle != "N/A")
+        return existingTitle;
+        
+    // Otherwise assign based on gender
+    if (string.Equals(gender, "Female", StringComparison.OrdinalIgnoreCase))
+        return "Mrs.";
+    else if (string.Equals(gender, "Male", StringComparison.OrdinalIgnoreCase))
+        return "Mr.";
+    else
+        return "Mx."; // Gender-neutral option as fallback
+}
+
+    private string EscapeCsvValue(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "";
+
+        bool needsQuotes = value.Contains(",") || value.Contains("\"") || value.Contains("\r") || value.Contains("\n");
+
+        if (needsQuotes)
+        {
+            // Replace double quotes with two double quotes
+            value = value.Replace("\"", "\"\"");
+            // Wrap in quotes
+            return $"\"{value}\"";
+        }
+
+        return value;
+    }
+
+    private async Task DownloadCsvFile(string fileName, string content)
+    {
+        // Convert string to byte array
+        byte[] bytes = Encoding.UTF8.GetBytes(content);
+
+        // Create base64 string
+        string base64 = Convert.ToBase64String(bytes);
+
+        // Use existing JSInterop function to trigger download
+        await JSRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, base64);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllMatriculationNumbers();
+        await base.OnInitializedAsync();
+    }
+}

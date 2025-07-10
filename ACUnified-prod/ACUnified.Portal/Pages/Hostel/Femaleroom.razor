@@ -1,0 +1,278 @@
+@page "/PickRoom/{gender}"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using ACUnified.Data.Enum
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@layout ACUnifiedLayout
+@inject IHostelBuildingRepository hostelBuildingRepository
+@inject IHostelRoomsRepository HostelRoomsRepository
+@inject ISnackbar snackBar
+@inject NavigationManager NavigationManager
+
+@attribute [Authorize]
+
+<h3>@(char.ToUpper(Gender[0]) + Gender.Substring(1)) Hostels</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (loadError != null)
+{
+    <div class="alert alert-danger" role="alert">
+        @loadError
+    </div>
+}
+else if (!hostels.Any())
+{
+    <p>No @(Gender.ToLower()) hostels with available rooms found.</p>
+}
+else
+{
+    <div class="row">
+        @foreach (var hostel in hostels)
+        {
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@hostel.Name</h5>
+                        <p class="card-text">Available Rooms: @(hostelRoomCounts.ContainsKey(hostel.Id) ? hostelRoomCounts[hostel.Id] : 0)</p>
+                        <button class="btn btn-primary" @onclick="() => ToggleRoomDetails(hostel.Id)">
+                            @(expandedHostelId == hostel.Id ? "Hide Rooms" : "Show Rooms")
+                        </button>
+                    </div>
+                    @if (expandedHostelId == hostel.Id)
+                    {
+                        <div class="card-footer">
+                            @if (hostelRooms.ContainsKey(hostel.Id))
+                            {
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Room Number</th>
+                                            <th>Capacity</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                      @foreach (var room in hostelRooms[hostel.Id].Where(r => r.OccupancyStatus != OccupancyStatus.Occupied))
+                                      {
+                                          <tr>
+                                              <td>@room.RoomNumber</td>
+                                              <td>@room.Capacity</td>
+                                              <td>@room.OccupancyStatus</td>
+                                              <td>
+                                                  <button class="btn btn-sm btn-success" 
+                                                          @onclick="() => PickRoom(room.Id, hostel.Id)">
+                                                      Pick Room
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p>Loading room details...</p>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Gender { get; set; }
+
+    [Parameter]
+    public string RoomId { get; set; }
+
+    [Parameter]
+    public string HostelId { get; set; }
+
+    private long? parsedRoomId;
+    private long? parsedHostelId;
+    private IEnumerable<HostelBuildingDto> hostels = new List<HostelBuildingDto>();
+    private Dictionary<long, List<HostelRoomsDto>> hostelRooms = new Dictionary<long, List<HostelRoomsDto>>();
+    private Dictionary<long, int> hostelRoomCounts = new Dictionary<long, int>();
+    private bool isLoading = true;
+    private string loadError;
+    private long? expandedHostelId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHostels();
+        if (parsedRoomId.HasValue && parsedHostelId.HasValue)
+        {
+            await PickRoom(parsedRoomId.Value, parsedHostelId.Value);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if (long.TryParse(RoomId, out long roomId))
+        {
+            parsedRoomId = roomId;
+        }
+
+        if (long.TryParse(HostelId, out long hostelId))
+        {
+            parsedHostelId = hostelId;
+        }
+    }
+
+    private async Task LoadHostels()
+    {
+        isLoading = true;
+        loadError = null;
+
+        if (string.IsNullOrWhiteSpace(Gender) || (Gender.ToLower() != "male" && Gender.ToLower() != "female"))
+        {
+            loadError = "Invalid gender specified. Please use 'male' or 'female'.";
+            snackBar.Add(loadError, Severity.Error);
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        try
+        {
+            var result = await hostelBuildingRepository.GetHostelsByGender(Gender.ToLower());
+            if (result != null)
+            {
+                // Filter hostels to only include those with available rooms
+                var hostelList = result.ToList();
+                var hostelWithRooms = new List<HostelBuildingDto>();
+
+                foreach (var hostel in hostelList)
+                {
+                    var rooms = await HostelRoomsRepository.GetRoomsByHostelId(hostel.Id);
+                    var availableRooms = rooms.Where(r => r.OccupancyStatus != OccupancyStatus.Occupied).ToList();
+
+                    if (availableRooms.Any())
+                    {
+                        hostelWithRooms.Add(hostel);
+                        hostelRoomCounts[hostel.Id] = availableRooms.Count;
+                    }
+                }
+
+                hostels = hostelWithRooms;
+
+                // If no hostels with available rooms, show appropriate message
+                if (!hostels.Any())
+                {
+                    loadError = $"No {Gender.ToLower()} hostels with available rooms found.";
+                    snackBar.Add(loadError, Severity.Warning);
+                }
+            }
+            else
+            {
+                loadError = $"Unable to load {Gender.ToLower()} hostels. Please try again later.";
+                snackBar.Add(loadError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Error loading {Gender.ToLower()} hostels: {ex.Message}";
+            snackBar.Add(loadError, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ToggleRoomDetails(long hostelId)
+    {
+        if (expandedHostelId == hostelId)
+        {
+            expandedHostelId = null;
+        }
+        else
+        {
+            expandedHostelId = hostelId;
+            if (!hostelRooms.ContainsKey(hostelId))
+            {
+                await LoadHostelRooms(hostelId);
+            }
+        }
+    }
+
+    private async Task LoadHostelRooms(long hostelId)
+    {
+        try
+        {
+           var rooms = await HostelRoomsRepository.GetRoomsByHostelId(hostelId);
+            if (rooms != null)
+            {
+                hostelRooms[hostelId] = rooms.Where(r => r.OccupancyStatus != OccupancyStatus.Occupied).ToList();
+            }
+            else
+            {
+                snackBar.Add($"Unable to load rooms for hostel {hostelId}. Please try again later.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            snackBar.Add($"Error loading rooms for hostel {hostelId}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PickRoom(long roomId, long hostelId)
+    {
+        // Get the current user's application form
+        var currentUserApplicationForm = await GetCurrentUserApplicationForm();
+
+        if (currentUserApplicationForm == null || currentUserApplicationForm.LevelId == null)
+        {
+            snackBar.Add("Unable to retrieve user's level information.", Severity.Error);
+            return;
+        }
+
+        var room = await HostelRoomsRepository.GetRoomById(roomId);
+
+        if (room == null)
+        {
+            snackBar.Add("Room not found.", Severity.Error);
+            return;
+        }
+
+        // Check if the room is already occupied by the maximum number of students
+        if (room.OccupancyStatus == OccupancyStatus.Occupied)
+        {
+            snackBar.Add("This room is already fully occupied.", Severity.Warning);
+            return;
+        }
+
+        // Check if the room is already occupied by students of a different level
+        var roomOccupants = await HostelRoomsRepository.GetRoomOccupants(roomId);
+        if (roomOccupants.Any() && roomOccupants.Any(r => r.Occupants != null && r.Occupants.Any(o => o.LevelId != null && o.LevelId != currentUserApplicationForm.LevelId)))
+        {
+            snackBar.Add("This room is reserved for students of a different level.", Severity.Warning);
+            return;
+        }
+
+        // If all checks pass, navigate to the confirmation page
+        NavigationManager.NavigateTo($"/ConfirmRoomSelection/{roomId}/{hostelId}/{Gender}");
+    }
+
+    private async Task<ApplicationFormDto> GetCurrentUserApplicationForm()
+    {
+        // Implement logic to retrieve the current user's application form
+        // This might involve using a user service or repository
+        // For now, we'll return a mock object
+        return new ApplicationFormDto
+        {
+            Id = 1,
+            LevelId = 1, // Assume the current user is in level 1
+        };
+    }
+}

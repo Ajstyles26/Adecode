@@ -1,0 +1,124 @@
+@page "/busary/studentlisting"
+@using System.Net.Http.Json
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@layout ACUnifiedLayout  
+@inject ISnackbar snackBar
+@inject IStudentEnrolmentRepository studentEnrolmentRepository
+@inject NavigationManager Navigation
+@inject IProgramSetupRepository ProgramSetupRepository
+@attribute [Authorize(Roles = "Bursary")]
+<MudTable ServerData="@(new Func<TableState, Task<TableData<StudentEnrolmentDto>>>(ServerReloads))"
+          Dense="true" Hover="true" @ref="table1">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Student Listing</MudText>
+        <MudSpacer />
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch1(s))" Placeholder="Search" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortLabel="name_field" T="StudentEnrolment">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="matric_field" T="StudentEnrolment">Matric</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="phone_field" T="StudentEnrolment">Phone</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="phone_field" T="StudentEnrolment">Program</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="phone_field" T="StudentEnrolment">Level</MudTableSortLabel></MudTh>
+        @* <MudTh><MudTableSortLabel SortLabel="position_field" T="Student">Position</MudTableSortLabel></MudTh> *@
+        @* <MudTh><MudTableSortLabel SortLabel="mass_field" T="Student">Molar mass</MudTableSortLabel></MudTh> *@
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <div @onclick="@(()=>NavigateToDetails(@context.Id))">@context.Student.FirstName @context.Student.OtherName @context.Student.LastName</div>
+        </MudTd>
+        <MudTd DataLabel="Matric">@context.Student.Matric</MudTd>
+        <MudTd DataLabel="Phone">@context.Student.MobileNumber</MudTd>
+        <MudTd DataLabel="Program">@context.ProgramSetup.Name</MudTd>
+        <MudTd DataLabel="Level">@context.Level.Name</MudTd>
+        
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No matching records found</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+    @code {
+    private IEnumerable<StudentEnrolmentDto> pagedDatas;
+    private MudTable<StudentEnrolmentDto> table1;
+    
+    private int totalItems;
+    private string searchString = null;
+
+    private IEnumerable<StudentEnrolmentDto> datas;
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllStudentsAsync();
+       
+    }
+
+    private async Task GetAllStudentsAsync()
+    {
+        datas = (await studentEnrolmentRepository.GetAllStudentEnrolment()).ToList();
+    }
+    private async Task NavigateToDetails(long StudentId)
+    {
+        Navigation.NavigateTo($"/ict/biorecapture/{StudentId}");
+    
+    }
+
+
+    /// <summary>
+    /// Here we simulate getting the paged, filtered and ordered data from the server
+    /// </summary>
+    private async Task<TableData<StudentEnrolmentDto>> ServerReloads(TableState state)
+    {
+        IEnumerable<StudentEnrolmentDto> datas = (await studentEnrolmentRepository.GetAllStudentEnrolment()).ToList();
+        await Task.Delay(300);
+        datas = datas.Where(element =>
+        {
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            if (element.Student.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.Matric.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (element.Student.MobileNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }).ToArray();
+        totalItems = datas.Count();
+        switch (state.SortLabel)
+        {
+            case "name_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.LastName);
+                break;
+            case "matric_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.Matric);
+                break;
+            case "phone_field":
+                datas = datas.OrderByDirection(state.SortDirection, o => o.Student.MobileNumber);
+                break;
+            // case "position_field":
+            //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+            //     break;
+            // case "mass_field":
+            //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+            //     break;
+        }
+
+        pagedDatas = datas.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+        return new TableData<StudentEnrolmentDto>() {TotalItems = totalItems, Items = pagedDatas};
+    }
+
+    private void OnSearch1(string text)
+    {
+        searchString = text;
+        table1.ReloadServerData();
+    }
+}

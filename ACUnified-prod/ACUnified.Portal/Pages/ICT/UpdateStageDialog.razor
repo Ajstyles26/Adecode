@@ -1,0 +1,180 @@
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Data.Models
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@inject IProgramSetupRepository ProgramSetupRepository
+@inject IApplicationFormRepository ApplicationFormRepository
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="ApplicationStage" Label="New Stage" @bind-Value="application.ApplicantStage" Required>
+                        @foreach (ApplicationStage stage in Enum.GetValues(typeof(ApplicationStage)))
+                        {
+                            <MudSelectItem Value="@stage">@GetStageName(stage)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Decision" @bind-Value="application.Decision" Class="mt-4">
+                        <MudSelectItem Value="@("Pending")">Pending</MudSelectItem>
+                        <MudSelectItem Value="@("Approved")">Approved</MudSelectItem>
+                        <MudSelectItem Value="@("Rejected")">Rejected</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @if (application.ApplicantStage >= ApplicationStage.Stage4)
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" 
+                                    Label="Approved Course" 
+                                    @bind-Value="application.ApprovedCourse"
+                                    MaxLength="50"
+                                    Required="@(application.ApplicantStage >= ApplicationStage.Stage4)"
+                                    Class="mt-4" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" 
+                                    Label="Decision Comment" 
+                                    @bind-Value="application.DecisionComment"
+                                    MaxLength="50"
+                                    Required="@(application.ApplicantStage >= ApplicationStage.Stage4)"
+                                    Class="mt-4" />
+                    </MudItem>
+                }
+
+                @if (application.ApplicantStage >= ApplicationStage.Stage5)
+                {
+                   <MudItem xs="12" sm="6">
+                        <MudSelect T="string"
+                           Label="Finalized Course"
+                           Value="@application.FinalisedCourse"
+                           ValueChanged="@HandleFinalisedCourseChanged"
+                           Required="@(application.ApplicantStage >= ApplicationStage.Stage5)"
+                           Class="mt-4">
+                            @foreach (var programSetup in ProgramSetups)
+                            {
+                                <MudSelectItem Value="@programSetup.Name">@programSetup.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" 
+                                    Label="Finalized Decision" 
+                                    @bind-Value="application.FinalisedDecision"
+                                    Required="@(application.ApplicantStage >= ApplicationStage.Stage5)"
+                                    Class="mt-4" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField T="string" 
+                                    Label="Finalized Comment" 
+                                    @bind-Value="application.FinalisedComment"
+                                    MaxLength="50"
+                                    Required="@(application.ApplicantStage >= ApplicationStage.Stage5)"
+                                    Class="mt-4" />
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!isValid)">Update</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+[CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    
+    [Parameter] public ApplicationForm CurrentApplication { get; set; }
+ 
+
+    public ProgramSetupDto[] ProgramSetups;
+
+    private MudForm form;
+    private bool isLoading;
+    private bool isValid;
+    private ApplicationForm application = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ProgramSetups = (await ProgramSetupRepository.GetAllProgramSetup()).ToArray();
+        if (CurrentApplication != null)
+        {
+            application = new ApplicationForm
+            {
+                Id = CurrentApplication.Id,
+                ApplicantStage = CurrentApplication.ApplicantStage,
+                Decision = CurrentApplication.Decision ?? "Pending",
+                DecisionComment = CurrentApplication.DecisionComment,
+                ApprovedCourse = CurrentApplication.ApprovedCourse,
+                FinalisedCourse = CurrentApplication.FinalisedCourse,
+                ProgramSetupId = CurrentApplication.ProgramSetupId,
+                FinalisedDecision = CurrentApplication.FinalisedDecision,
+                FinalisedComment = CurrentApplication.FinalisedComment,
+                DecisionDate = CurrentApplication.DecisionDate ?? DateTime.Now,
+                FinalDecisionDate = CurrentApplication.FinalDecisionDate ?? DateTime.Now,
+                DecisionMakerUserId = CurrentApplication.DecisionMakerUserId,
+                FinalizedUserId = CurrentApplication.FinalizedUserId
+            };
+        }
+    }
+
+private async Task HandleFinalisedCourseChanged(string newCourse)
+{
+    application.FinalisedCourse = newCourse;
+    var finalProgram = ProgramSetups.Where(x => x.Name == newCourse).FirstOrDefault();
+    application.ProgramSetupId = finalProgram.Id;
+    if (finalProgram != null)
+    {
+        
+        var dto = new ApplicationFormDto
+        {
+            Id = application.Id,
+            ApplicantStage = application.ApplicantStage,
+            Decision = application.Decision,
+            DecisionComment = application.DecisionComment,
+            ApprovedCourse = application.ApprovedCourse,
+            FinalisedCourse = application.FinalisedCourse,
+            ProgramSetupId = application.ProgramSetupId,
+            FinalisedDecision = application.FinalisedDecision,
+            FinalisedComment = application.FinalisedComment,
+            DecisionDate = application.DecisionDate,
+            FinalDecisionDate = application.FinalDecisionDate,
+            DecisionMakerUserId = application.DecisionMakerUserId,
+            FinalizedUserId = application.FinalizedUserId
+        };
+        await ApplicationFormRepository.UpdateApplicationForm(dto);
+    }
+    StateHasChanged();
+}
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(application));
+    }
+    private void Cancel() => MudDialog.Cancel();
+
+    private string GetStageName(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => "Not Paid",
+        ApplicationStage.Stage2 => "Paid Not Submitted",
+        ApplicationStage.Stage3 => "Submitted",
+        ApplicationStage.Stage4 => "Decision Made",
+        ApplicationStage.Stage5 => "Provisional Admission",
+        ApplicationStage.Stage6 => "Acceptance Fee Paid",
+        ApplicationStage.Stage7 => "School Fees Paid",
+        ApplicationStage.Stage8 => "Hostel Selection",
+        ApplicationStage.Stage9 => "Hostel Confirmed",
+        ApplicationStage.Stage10 => "Medical",
+        ApplicationStage.Stage11 => "Matriculation",
+        _ => "Unknown Stage"
+    };
+}

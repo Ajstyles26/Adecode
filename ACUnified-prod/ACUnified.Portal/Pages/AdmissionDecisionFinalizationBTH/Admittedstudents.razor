@@ -1,0 +1,53 @@
+ @page "/admissionDecisionFinalizationBTH/AdmittedStudents"
+@layout ACUnifiedLayout
+@using Radzen.Blazor
+@using Radzen
+@using ACUnified.Data.DTOs
+@using ACUnified.Business.Services.IServices
+@using ACUnified.Business.IServices
+@inject ICsvExportService CsvExportService
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@inject IJSRuntime JSRuntime
+@inject IApplicationFormRepository ApplicationFormRepository
+@attribute [Authorize(Roles = "AdmissionDecisionFinalizationBTH")]
+<RadzenButton Text="Export to CSV" Click="@ExportToCsv" />
+<RadzenDataGrid TItem="ApplicationFormDto" Data="@AdmittedStudents" AllowFiltering="true" AllowPaging="true" AllowSorting="true" PageSize="10">
+    <Columns>
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="FormRefNo" Title="Form Ref No" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.FirstName" Title="First Name" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.LastName" Title="Last Name" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="FinalisedCourse" Title="Finalised Course" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.Gender" Title="Gender" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.State" Title="State" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.MobileNumber" Title="Mobile Number" />
+        <RadzenDataGridColumn TItem="ApplicationFormDto" Property="BioData.Email" Title="Email" />
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+       IEnumerable<ApplicationFormDto> AdmittedStudents;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        AdmittedStudents = await ApplicationFormRepository.GetAdmittedStudentsDetailsBTH();
+    }
+
+ private async Task ExportToCsv()
+{
+    await Task.Delay(100);
+    byte[] csvData = CsvExportService.ExportToCsv(AdmittedStudents);
+    var fileName = $"admitted_students_{DateTime.Now:yyyyMMddHHmmss}.csv";
+    
+    // Convert the byte array to a Base64 string
+    string base64 = Convert.ToBase64String(csvData);
+
+    // Use JSRuntime to invoke JavaScript for file download
+    await JSRuntime.InvokeVoidAsync("saveAsFile", fileName, base64);
+}
+}

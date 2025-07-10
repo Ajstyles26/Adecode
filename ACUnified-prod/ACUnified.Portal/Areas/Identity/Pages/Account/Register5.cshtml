@@ -1,0 +1,90 @@
+@page
+@model RegisterModel5
+@{
+    ViewData["Title"] = "New ICT Staff";
+    Layout = "_ACUnifiedLoginLayout";
+}
+<style>
+
+    .footer {
+        text-align: center;
+        padding: 10px 0;
+        background-color: #333;
+        color: #fff;
+    }
+
+    .gradient-custom-2 {
+        /* fallback for old browsers */
+        background: #735f3d;
+        /* Chrome 10-25, Safari 5.1-6 */
+        /*        background: -webkit-linear-gradient(to right, #ee7724, #d8363a, #dd3675, #b44593);*/
+        background: -webkit-linear-gradient(to right, #735f3d, #7e6843, #8a7249, #957b4f);
+        /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+        /*        background: linear-gradient(to right, #ee7724, #d8363a, #dd3675, #b44593);*/
+
+        background: linear-gradient(to right, #735f3d, #7e6843, #8a7249, #957b4f);
+    }
+
+/*    @@media (min-width: 768px) {
+        .gradient-form {
+            height: 100vh !important;
+        }
+    }
+
+    @@media (min-width: 769px) {
+        .gradient-custom-2 {
+            border-top-right-radius: .3rem;
+            border-bottom-right-radius: .3rem;
+        }
+    }*/
+</style>
+@*<h3 style="text-align:center">@ViewData["Title"]</h3>*@
+
+<div class="row mb-5" >
+    <div class="col-md-6">
+        <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+            <h3>ICT Staff (Demi God)</h3>
+            <hr />
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Surname" class="form-control" autocomplete="surname" aria-required="true" placeholder="surname" />
+                <label asp-for="Input.Surname">Surname</label>
+                <span asp-validation-for="Input.Surname" class="text-danger"></span>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Firstname" class="form-control" autocomplete="firstname" aria-required="true" placeholder="firstname" />
+                <label asp-for="Input.Firstname">First Name</label>
+                <span asp-validation-for="Input.Firstname" class="text-danger"></span>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Othername" class="form-control" autocomplete="othername" aria-required="true" placeholder="othername" />
+                <label asp-for="Input.Othername">OtherName</label>
+                <span asp-validation-for="Input.Othername" class="text-danger"></span>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                <label asp-for="Input.Email">Email</label>
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                <label asp-for="Input.Password">Password</label>
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                <label asp-for="Input.ConfirmPassword">Confirm Password</label>
+                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+            </div>
+            <button id="registerSubmit" type="submit" class="w-100 btn btn-lg btn-primary gradient-custom-2">Register</button>
+        </form>
+    </div>
+             <div class="col-md-4 col-md-offset-2 align-items-center d-none d-lg-flex flex-lg-row-fluid w-50 bgi-size-cover bgi-position-y-center bgi-position-x-start bgi-no-repeat" style="background-image: url(/images/agency.png)">
+           
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

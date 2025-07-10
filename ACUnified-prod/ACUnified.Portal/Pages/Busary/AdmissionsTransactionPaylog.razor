@@ -1,0 +1,148 @@
+ @page "/busary/applicantPaylog"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs
+@using ACUnified.Portal.Pages.Lecturer
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@inject ISnackbar snackBar
+@inject IApplicantPaymentLogRepository ApplicantPaymentLogService
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@attribute [Authorize(Roles = "Bursary")]
+
+<h3>Transaction Management</h3>
+
+<div class="ml-5 py-4">
+    <MudCard Elevation="25">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Applicant Transaction Management</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+    </MudCard>
+    <br />
+    <MudTextField @bind-Value="searchString" Placeholder="Search by Reference No, Client Name, or Email" 
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                  IconSize="Size.Medium" Class="mt-0 mb-4"></MudTextField>
+    <MudTable Items="@filteredPayments" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Reference No</MudTh>
+            <MudTh>Amount</MudTh>
+            <MudTh>Client Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Transaction Name</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Date</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Reference No">@context.ReferenceNo</MudTd>
+            <MudTd DataLabel="Amount">@context.Amount.ToString("N2")</MudTd>
+            <MudTd DataLabel="Client Name">@context.client_name</MudTd>
+            <MudTd DataLabel="Email">@context.email</MudTd>
+            <MudTd DataLabel="Transaction Name">@context.tran_name</MudTd>
+            <MudTd DataLabel="Status">@(context.isSuccessful ? "Successful" : "Failed")</MudTd>
+            <MudTd DataLabel="Date">@context.CreatedDate.ToShortDateString()</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Info" OnClick="@(() => ShowPayDetailsModal(context.ReferenceNo))" Size="Size.Small" IconSize="Size.Small" />
+                @* <MudFab Color="Color.Secondary" Icon="@Icons.Material.Filled.Receipt" OnClick="@(() => GeneratePdf(context.ReferenceNo))" Size="Size.Small" IconSize="Size.Small" />*@
+            </MudTd> 
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</div>
+
+@code {
+    private string searchString = "";
+    private List<ApplicantPaymentLogDto> payments = new List<ApplicantPaymentLogDto>();
+    private List<ApplicantPaymentLogDto> filteredPayments => payments
+        .Where(p => string.IsNullOrEmpty(searchString) 
+            || p.ReferenceNo.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || p.client_name.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || p.email.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetPaymentsAsync();
+    }
+
+    private async Task GetPaymentsAsync()
+    {
+        try
+        {
+            var result = await ApplicantPaymentLogService.GetAllPayment();
+            if (result != null)
+            {
+                payments = result.ToList();
+            }
+            else
+            {
+                snackBar.Add("No payments found or an error occurred.", Severity.Warning);
+            }
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data: " + e.Message, Severity.Error);
+        }
+    }
+
+    private async Task ShowPayDetailsModal(string payreference)
+    {
+        if (string.IsNullOrWhiteSpace(payreference))
+        {
+            snackBar.Add("Invalid reference number", Severity.Error);
+            return;
+        }
+
+        var paymentDetails = await ApplicantPaymentLogService.GetAllPaymentByReferenceNo(payreference);
+        if (paymentDetails == null)
+        {
+            snackBar.Add("Payment details not found", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters { ["Payment"] = paymentDetails };
+        var dialog = DialogService.Show<PaymentInfoDialog>("Payment Info", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, Position = DialogPosition.TopCenter });
+
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            await GetPaymentsAsync();
+        }
+    }
+
+    @* private async Task GeneratePdf(string referenceNo)
+    {
+        var paymentDetails = await ApplicantPaymentLogService.GetAllPaymentByReferenceNo(referenceNo);
+        if (paymentDetails == null)
+        {
+            snackBar.Add("Payment details not found", Severity.Warning);
+            return;
+        }
+
+        // TODO: Implement PDF generation logic here
+        // You'll need to create a ReceiptDTO from the paymentDetails and use it with your PDFReceipts service
+        // For example:
+        // var receiptData = new ReceiptDTO
+        // {
+        //     // Map fields from paymentDetails to ReceiptDTO
+        // };
+        // 
+        // using var pdfStream = new MemoryStream();
+        // PDFReceipts.GenerateReceiptPDF(receiptData, pdfStream);
+        // 
+        // var pdfBytes = pdfStream.ToArray();
+        // var base64 = Convert.ToBase64String(pdfBytes);
+        // var url = $"data:application/pdf;base64,{base64}";
+        // await JSRuntime.InvokeVoidAsync("downloadBase64File", url, $"Receipt_{referenceNo}.pdf");
+
+        snackBar.Add("PDF generation not implemented yet", Severity.Info);
+    }  *@
+} 

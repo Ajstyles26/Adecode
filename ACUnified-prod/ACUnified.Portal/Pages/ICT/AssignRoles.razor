@@ -1,0 +1,69 @@
+﻿@page "/ict/assign-roles"
+@layout ACUnifiedLayout
+@attribute [Authorize(Roles = "ICT")]
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+
+
+<h3>Assign Roles</h3>
+
+<!-- Display user list -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Iterate over users and display user details -->
+        @foreach (var user in Users)
+        {
+            <tr>
+                <td>@user.Email</td>
+                <td>@user.Email</td>
+                <td>
+                    <!-- Button for assigning roles -->
+                    <button @onclick="() => ShowAssignRolesDialog(user)">Assign Roles</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Dialog for assigning roles -->
+<MudDialog @ref="assignRolesDialog" Title="Assign Roles">
+    <!-- Form for assigning roles to the user -->
+    <ul>
+        @foreach (var role in AllRoles)
+        {
+            <li>
+                <input type="checkbox" @bind="selectedRoles" value="@role.Name" /> @role.Name
+            </li>
+        }
+    </ul>
+    <MudButton OnClick="ACUAssignRoles">Save</MudButton>
+</MudDialog>
+
+@code {
+    MudDialog assignRolesDialog;
+    List<IdentityRole> AllRoles { get; set; } = new List<IdentityRole>();
+    List<string> selectedRoles { get; set; } = new List<string>();
+    List<ApplicationUser> Users { get; set; } = new List<ApplicationUser>();
+
+    // Method to show assign roles dialog
+    void ShowAssignRolesDialog(ApplicationUser user)
+    {
+        // Populate AllRoles list
+        // selectedRoles = user.Roles.Select(r => r.Name).ToList();
+        assignRolesDialog.Show();
+    }
+
+    // Method to assign roles to the user
+    void ACUAssignRoles()
+    {
+        // Assign roles logic
+        //assignRolesDialog.Hide();
+    }
+}

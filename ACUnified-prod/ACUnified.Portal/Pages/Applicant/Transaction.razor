@@ -1,0 +1,209 @@
+@page "/applicant/Transaction"
+@using ACUnified.Business.Services.IServices
+@using ACUnified.Data.DTOs
+
+@layout ACUnifiedLayout
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@using System.Security.Claims
+@inject IBioDataRepository BiodataRepository
+@inject ISnackbar snackBar
+@inject IApplicantPaymentRepository paymentService
+
+@inject IHTMLTemplateFileService _HTMLTemplate;
+@inject IHTML2PDFService _HTML2PDFService;
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+
+@inject IApplicationFormRepository applicationForm
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+<MudContainer>
+     <MudText Typo="Typo.h6">Payment History</MudText>
+     <MudTable ServerData="@(new Func<TableState, Task<TableData<ApplicantPaymentDto>>>(ServerReload))"
+         Dense="true" Hover="true" @ref="table">
+        <ToolBarContent>
+
+            <MudSpacer />
+            <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Amount</MudTh>
+            <MudTh>Response</MudTh>
+            <MudTh>Created Date</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+           @if(@context!=null){
+
+                <MudTd DataLabel="Name">@context.ApplicantPayCategory.Name</MudTd>
+                <MudTd DataLabel="Amount Paid">@context.Amount.ToString("###,#")</MudTd>
+                <MudTd DataLabel="PayResponse">@context.Comments</MudTd>
+                <MudTd DataLabel="Created Date">@context.CreatedDate</MudTd>
+                <MudTd>
+                    <MudButton OnClick="@(async () => await GeneratePdf2(@context.ReferenceNo))">Download receipt</MudButton>
+                </MudTd>
+            }
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudText>Loading...</MudText>
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+     </MudTable>
+</MudContainer>
+
+
+@code{
+    private IEnumerable<ApplicantPaymentDto> pagedData;
+    private MudTable<ApplicantPaymentDto> table;
+    private int totalItems;
+    private string searchString = null;
+    public IEnumerable<ApplicantPaymentDto> applicantPaymentDto = new List<ApplicantPaymentDto>();
+    public ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    public bool _loading { get; set; }
+    private void OnSearch(string text)
+    {
+        searchString = text;
+
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+                applicantPaymentDto = await paymentService.GetAllPaymentByUserId(userId); 
+
+            }
+            else
+            {
+                snackBar.Add("Please pay mandatory fees ", Severity.Error, configure =>
+                {
+                    configure.CloseAfterNavigation = false;
+                });
+                Navigation.NavigateTo("/applicant/Dashboard", forceLoad: true);
+            }
+
+
+        }
+        else
+        {
+            snackBar.Add("Please login ", Severity.Error);
+            Navigation.NavigateTo("/Identity/Account/Logout2", forceLoad: true);
+        }
+        _loading = false;
+
+
+    }
+
+    private async Task<TableData<ApplicantPaymentDto>> ServerReload(TableState state)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        IEnumerable<ApplicantPaymentDto> data = (await paymentService.GetAllPaymentByUserId(userId)).ToList();
+        await Task.Delay(300);
+
+        if (data != null)
+        {
+            data = data.Where(element =>
+       {
+           if (string.IsNullOrWhiteSpace(searchString))
+               return true;
+           // if (element..Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           // if (element.ProgramSetup.Department.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           // if (element.ProgramSetup.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           return false;
+       }).ToArray();
+            totalItems = data.Count();
+            switch (state.SortLabel)
+            {
+                // case "name_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Name);
+                //     break;
+                // case "department_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Department.Name);
+                //     break;
+                // case "programsetup_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Name);
+                //     break;
+                // case "position_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+                //     break;
+                // case "mass_field":
+                //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+                //     break;
+            }
+
+            pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+            return new TableData<ApplicantPaymentDto>() { TotalItems = totalItems, Items = pagedData };
+        }
+        else return null;
+    }
+
+    private async Task GeneratePdf2(string referenceNo)
+   
+{
+    IEnumerable<PaymentDto> rPaymentDto = new List<PaymentDto>();
+    string htmlbody = await _HTMLTemplate.GetTemplateFileAsync("Templates/AcuFormfee.html");
+    var currentDetailList = await paymentService.GetAllPaymentByReferenceNo(referenceNo);
+    var currentDetail = currentDetailList.FirstOrDefault();
+    if (currentDetail != null)
+    {
+        
+        htmlbody = htmlbody.Replace("{{Surname}}", currentDetail.client_name);
+        htmlbody = htmlbody.Replace("{{Grand total}}","₦"+ currentDetail.Amount.ToString("0.00"));
+        htmlbody = htmlbody.Replace("{{Faculty}}", currentDetail.Comments);
+        htmlbody = htmlbody.Replace("{{Middlename}}",currentDetail.CreatedDate.ToString());
+        htmlbody = htmlbody.Replace("{{ReceiptSn}}", currentDetail.ReferenceNo);
+        htmlbody = htmlbody.Replace("{{Session}}", "2024/2025");
+        htmlbody = htmlbody.Replace("{{Level}}",currentDetail.ApplicantPayCategory.Name);  
+
+
+        var html2pdf = _HTML2PDFService.GeneratePDF(htmlbody);
+
+        // Convert byte array to base64 string
+        var base64 = Convert.ToBase64String(html2pdf);
+
+        // Create a URL for the PDF
+        var url = $"data:application/pdf;base64,{base64}";
+
+        // Use JavaScript to trigger the download
+        await JSRuntime.InvokeVoidAsync("console.log", url);
+        // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+        await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "downloaded.pdf");
+        // htmlbody = htmlbody.Replace("{{Session}}", );
+        // htmlbody = htmlbody.Replace("{contactInfo.lastname}", user.Surname);
+        // htmlbody = htmlbody.Replace("{contactInfo.resetLink}", HtmlEncoder.Default.Encode(callbackUrl));
+
+
+    }
+    else
+    {
+        // Handle the case where no payment detail is found
+        Console.WriteLine("No payment detail found for the given reference number.");
+    }
+}
+
+}
+   

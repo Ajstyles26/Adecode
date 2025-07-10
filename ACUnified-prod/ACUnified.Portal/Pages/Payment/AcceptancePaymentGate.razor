@@ -1,0 +1,244 @@
+﻿@page "/AcceptancePaymentGate/{name}"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentLogRepository paymentRepository
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject HttpClient Http
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@attribute [Authorize]
+
+<MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Applicant Order Page</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudText Typo="Typo.h5" GutterBottom="true">Billing address</MudText>
+            <MudGrid>
+
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@paymentModel.payerName" Label="Name" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="paymentModel.payerEmail" Label="Email" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12" Class="d-flex justify-center">
+                    <MudButton OnClick="OnPaymentClickAsync" Variant="Variant.Filled" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Continue to Payment</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudItem>
+        <MudItem xs="5">
+            <MudText Typo="Typo.h5" GutterBottom="true">Cart</MudText>
+
+            <MudText>Pay ref: @paymentModel.orderId</MudText>
+
+            <MudPaper Class="d-flex flex-column" Style="height:100%;" Outlined="true">
+                <MudList Clickable="true">
+                    <MudListItem Icon="@Icons.Material.Filled.BookOnline">
+
+                        <div class="d-flex">
+                            <MudText>@paymentModel.payerName</MudText>
+                            <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails.Amount.ToString("###,#")</MudText>
+                        </div>
+                    </MudListItem>
+                </MudList>
+                <div class="mt-auto">
+                    <MudDivider />
+                    <div class="d-flex pa-4">
+                        <MudText>Total:</MudText>
+                        <MudText Class="ml-auto">
+                            <b>NGN @currentPayDetails.Amount.ToString("###,#")</b>
+                        </MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    <form id="remitaForm" action="@baseurl" method="POST">
+        <input type="hidden" name="payerName" id="payerName" value="@paymentModel.payerName" />
+        <input type="hidden" name="payerEmail" id="payerEmail" value="@paymentModel.payerEmail" />
+        <input type="hidden" name="payerPhone" id="payerPhone" value="@paymentModel.payerPhone" />
+        <input type="hidden" name="orderId" id="orderId" value="@paymentModel.orderId" />
+        <input type="hidden" name="merchantId" id="merchantId" value="@paymentModel.merchantId" />
+        <input type="hidden" name="serviceTypeId" id="serviceTypeId" value="@paymentModel.serviceTypeId" />
+        <input type="hidden" name="responseurl" id="responseurl" value="@paymentModel.responseurl" />
+        <input type="hidden" name="amt" id="amt" value="@paymentModel.amount" />
+        <input type="hidden" name="hash" id="hash" value="@paymentModel.hash" />
+        <input type="hidden" name="paymenttype" id="paymenttype" value="@paymentModel.paymentType" />
+    </form>
+</MudContainer>
+
+
+
+@code {
+
+
+    [Parameter]
+    public string name { get; set; }
+    public string baseurl = "https://login.remita.net/remita/ecomm/init.reg";
+    private PaymentModel paymentModel = new PaymentModel();
+
+    public bool _loading { get; set; }
+
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentLogDto currentApplicantPaymentLog = new ApplicantPaymentLogDto();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        currentSession = await currentAcademicSession.GetActiveApplicantSession();
+        currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+        currentPayDetails = await payDetailsRepository.GetPayDetailsByName(name);
+        if (userId != null)
+        {
+            var userInformation = await UserManager.FindByIdAsync(userId);
+            paymentModel.payerName = userInformation.Firstname + " " + userInformation.Surname;
+            paymentModel.payerEmail = userInformation.Email;
+            paymentModel.merchantId = "2268484533";
+            paymentModel.apiKey = "018543";
+
+            paymentModel.responseurl = Navigation.BaseUri+"Payment/ProcessTransactionLogReceipt5";
+            paymentModel.payerPhone = userInformation.PhoneNumber;
+            //paymentModel.amount =100;
+            //remove this after payment
+            // if (userInformation.Email == "agbenigaking@gmail.com")
+            // {
+            //     paymentModel.amount = 5000;
+            // }
+            // else{
+                paymentModel.amount = currentPayDetails.Amount;
+            // }
+             
+            //change this later.
+            @* paymentModel.orderId = Guid.NewGuid().ToString("N"); *@
+            //paymentModel.orderId = "ACU2024APF" +  Guid.NewGuid().ToString("N");
+            //
+            string formNumber = currentApplicationForm.FormRefNo ?? "ACU/APC"; 
+            string serialNumber = GenerateSerialNumber();
+           paymentModel.orderId = $"BTH/{formNumber}/ACP/{serialNumber}";
+            paymentModel.serviceTypeId = "2209175152";
+            if (name == "BTHBA")
+            {
+                
+                paymentModel.serviceTypeId = "2209175152";
+            }
+            else
+            {
+                paymentModel.orderId = $"BSC/{formNumber}/ACP/{serialNumber}";
+                paymentModel.serviceTypeId = "2209175152";
+            }
+            
+            var hashString = paymentModel.merchantId + paymentModel.serviceTypeId + paymentModel.orderId + paymentModel.amount + paymentModel.responseurl + paymentModel.apiKey;
+            using var sha512 = System.Security.Cryptography.SHA512.Create();
+            var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+            paymentModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+            currentApplicantPaymentLog = new ApplicantPaymentLogDto();
+            currentApplicantPaymentLog.ReferenceNo = paymentModel.orderId;
+            currentApplicantPaymentLog.Amount = paymentModel.amount;
+            currentApplicantPaymentLog.email = userInformation.Email;
+            currentApplicantPaymentLog.client_name = userInformation.Firstname + " " + userInformation.Surname;
+            currentApplicantPaymentLog.RRRRNo = "";
+            currentApplicantPaymentLog.isSuccessful = false;
+            currentApplicantPaymentLog.ApplicantPayCategoryId = currentPayDetails.ApplicantPayCategoryId;
+            currentApplicantPaymentLog.ApplicantPayDetailsId = currentPayDetails.Id;
+            currentApplicantPaymentLog.UserId = userId;
+            var currentSessionList = await currentAcademicSession.GetActiveApplicantSession();
+            currentApplicantPaymentLog.SessionId = currentSessionList.FirstOrDefault().Id;
+            currentApplicantPaymentLog.Comments = name + " ApplicationForm " + currentSessionList.FirstOrDefault().Name;
+
+            
+
+        }
+        _loading = false;
+
+
+  string GenerateSerialNumber()
+    {
+        return new Random().Next(10000000, 99999999).ToString("D8");
+    }
+
+
+
+        // Determine service type id based on session data
+        // var portalPath = context.Session.GetString("Portal_Path");
+        // paymentModel.ServiceTypeId = portalPath switch
+        // {
+        //     "Path_Acceptance" => "2209175152",
+        //     "Path_Medical" => "6928155878",
+        //     "COVID19_Path_Medical" => "7192384127",
+        //     "Application_Form" => "6928026774",
+        //     _ => "2267186704"
+        // };
+
+        // Determine service id based on session data
+        // var billCategory = context.Session.GetString("billCategory_Ss");
+        // paymentModel.ServiceId = billCategory switch
+        // {
+        //     "RBE" => "8131999996",
+        //     "RBI" => "8131523497",
+        //     "RMC" => "8132016305",
+        //     "RPC" => "8132056804",
+        //     _ => null
+        // };
+
+        // Generate hash
+
+
+    }
+
+
+    private async Task OnPaymentClickAsync()
+    {
+        //save the log into the database with only reference number 
+        //ApplicantPaymentLog Table
+       
+
+
+        //save the payment and also the application form
+        var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPaymentLog);
+
+        await jsRuntime.InvokeVoidAsync("submitForm", "remitaForm");
+    }
+    public class PaymentModel
+    {
+        public string payerName { get; set; }
+        public string payerEmail { get; set; }
+        public string payerPhone { get; set; }
+        public decimal amount { get; set; }
+        public string paymentType { get; set; }
+        public string merchantId { get; set; }
+        public string serviceTypeId { get; set; }
+        public string orderId { get; set; }
+        public string responseurl { get; set; }
+        public string apiKey { get; set; }
+        public string hash { get; set; }
+
+    }
+
+}

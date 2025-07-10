@@ -1,0 +1,28 @@
+@page "/ict/admission/success/{Id:int}"
+@layout ACUnifiedLayout
+@inject NavigationManager NavigationManager
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex flex-column align-center justify-center" Style="height: 70vh">
+    <MudCard Elevation="3" Class="pa-8 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" Class="mb-4" />
+        
+        <MudText Typo="Typo.h4" Class="mb-4">Admission Successful</MudText>
+        
+        <MudText Typo="Typo.body1" Class="mb-6">
+            The student has been successfully admitted with ID: <b>@Id</b>
+        </MudText>
+        
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/ict/admission"))">
+            Process Another Admission
+        </MudButton>
+        
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="ml-2" OnClick="@(() => NavigationManager.NavigateTo("/ict"))">
+            Return to Dashboard
+        </MudButton>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+}

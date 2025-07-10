@@ -1,0 +1,441 @@
+@page "/ict/StudentCourseSummary"
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using ACUnified.Business.Repository.IRepository
+@layout ACUnifiedLayout
+@inject ICourseRegistrationRepository CourseRegistrationService
+@inject ISnackbar Snackbar
+ @using System.Text
+ @using System.IO
+ @using System.IO.Compression
+ @using Microsoft.JSInterop 
+ @inject IJSRuntime JS
+
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "ICT")]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudCard Elevation="4">
+        <MudCardHeader>
+            <MudText Typo="Typo.h5">Student Course Summary</MudText>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" Label="Filter By Program" Variant="Variant.Outlined"
+                               Value="@selectedProgram" ValueChanged="@((string val) => OnProgramFilterChanged(val))" FullWidth="true">
+                        <MudSelectItem Value="@string.Empty">All Programs</MudSelectItem>
+                       @foreach (var program in availablePrograms.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+{
+    <MudSelectItem Value="@program">@program</MudSelectItem>
+}
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                   <!-- Add this button next to your existing "Delete Duplicates for Selected" button -->
+<MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="DeleteDuplicatesForSelected" Disabled="@(!selectedItems.Any())" Class="mb-4 mr-2">
+    Delete Duplicates for Selected
+</MudButton>
+<MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ExportToCSV" Disabled="@(filteredSummaries == null || !filteredSummaries.Any())" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Download" Class="mr-2" />
+    Export to CSV
+</MudButton>
+                    @if (isLoading)
+                    {
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                    }
+                    else if (filteredSummaries != null && filteredSummaries.Any())
+                    {
+                        <MudTable ServerData="LoadData" @ref="table" Dense="true" Hover="true" Bordered="true" MultiSelection="true" @bind-SelectedItems="selectedItems">
+                            <HeaderContent>
+                                <MudTh>
+                                    <MudTableSortLabel SortLabel="form_ref" T="CourseRegistrationDto">Form Reference</MudTableSortLabel>
+                                </MudTh>
+                                <MudTh>
+                                    <MudTableSortLabel SortLabel="name" T="CourseRegistrationDto">Student Name</MudTableSortLabel>
+                                </MudTh>
+                                <MudTh>
+                                    <MudTableSortLabel SortLabel="matric_number" T="CourseRegistrationDto">Matric Number</MudTableSortLabel>
+                                </MudTh>
+                                <MudTh>
+                                    <MudTableSortLabel SortLabel="total_courses" T="CourseRegistrationDto">Total Courses</MudTableSortLabel>
+                                </MudTh>
+                                <MudTh>
+                                    <MudTableSortLabel SortLabel="total_units" T="CourseRegistrationDto">Total Units</MudTableSortLabel>
+                                </MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.ApplicationForm?.FormRefNo</MudTd>
+                                <MudTd>@GetFullName(context.ApplicationForm?.BioData)</MudTd>
+                                <MudTd>@context.ApplicationForm?.MatriculationNumber</MudTd>
+                                <MudTd>@context.TotalCourses</MudTd>
+                                <MudTd>@context.TotalUnits</MudTd>
+                                <MudTd>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenEditCourseDialog(context))">Edit Courses</MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteDuplicates(context))">Delete Duplicates</MudButton>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No student course summaries found.</MudAlert>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private MudTable<CourseRegistrationDto> table;
+    private IEnumerable<CourseRegistrationDto> studentSummaries;
+    private IEnumerable<CourseRegistrationDto> filteredSummaries;
+    private HashSet<CourseRegistrationDto> selectedItems = new HashSet<CourseRegistrationDto>();
+    private bool isLoading = false;
+    private HashSet<string> availablePrograms = new HashSet<string>();
+    private string selectedProgram = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStudentSummaries();
+    }
+// Add this to your @code block in StudentCourseSummary.razor
+
+
+private async Task ExportToCSV()
+{
+    if (filteredSummaries == null || !filteredSummaries.Any())
+    {
+        Snackbar.Add("No data to export.", Severity.Warning);
+        return;
+    }
+
+    try
+    {
+        isLoading = true;
+        
+        // Create a temporary timestamp for filenames
+        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        
+        // Create the summary CSV
+        var summaryCSV = new StringBuilder();
+        summaryCSV.AppendLine("Form Reference,Student Name,Matric Number,Program,Total Courses,Total Units");
+
+        // Add summary data rows
+        foreach (var summary in filteredSummaries)
+        {
+            string formRef = summary.ApplicationForm?.FormRefNo ?? "N/A";
+            string studentName = GetFullName(summary.ApplicationForm?.BioData);
+            string matricNumber = summary.ApplicationForm?.MatriculationNumber ?? "N/A";
+            string program = summary.ApplicationForm?.ProgramSetup?.Name ?? "Not Specified";
+            int totalCourses = summary.TotalCourses;
+            int totalUnits = summary.TotalUnits;
+
+            // Escape any commas in the data
+            formRef = formRef.Contains(",") ? $"\"{formRef}\"" : formRef;
+            studentName = studentName.Contains(",") ? $"\"{studentName}\"" : studentName;
+            matricNumber = matricNumber.Contains(",") ? $"\"{matricNumber}\"" : matricNumber;
+            program = program.Contains(",") ? $"\"{program}\"" : program;
+
+            summaryCSV.AppendLine($"{formRef},{studentName},{matricNumber},{program},{totalCourses},{totalUnits}");
+        }
+        
+        // Create detailed courses CSV
+        var detailedCoursesCSV = new StringBuilder();
+        detailedCoursesCSV.AppendLine("Form Reference,Student Name,Matric Number,Course Code,Course Name,Course Units,Semester,Session,Program");
+        
+        // Get detailed course registrations for each student
+        foreach (var summary in filteredSummaries)
+        {
+            if (summary.ApplicationFormId.HasValue)
+            {
+                var studentCourses = await CourseRegistrationService.GetCourseRegistrationByApplicationFormId(summary.ApplicationFormId.Value);
+                if (studentCourses != null && studentCourses.Any())
+                {
+                    foreach (var course in studentCourses)
+                    {
+                        string formRef = summary.ApplicationForm?.FormRefNo ?? "N/A";
+                        string studentName = GetFullName(summary.ApplicationForm?.BioData);
+                        string matricNumber = summary.ApplicationForm?.MatriculationNumber ?? "N/A";
+                        string courseCode = course.Course?.CourseCode ?? "N/A";
+                        string courseName = course.Course?.Name ?? "N/A";
+                        int courseUnits = course.Course?.CourseUnit ?? 0;
+                        string semester = course.Semester?.Name ?? "N/A";
+                        string session = course.Session?.Name ?? "N/A";
+                        string program = summary.ApplicationForm?.ProgramSetup?.Name ?? "Not Specified";
+
+                        // Escape any commas in string data
+                        formRef = formRef.Contains(",") ? $"\"{formRef}\"" : formRef;
+                        studentName = studentName.Contains(",") ? $"\"{studentName}\"" : studentName;
+                        matricNumber = matricNumber.Contains(",") ? $"\"{matricNumber}\"" : matricNumber;
+                        courseCode = courseCode.Contains(",") ? $"\"{courseCode}\"" : courseCode;
+                        courseName = courseName.Contains(",") ? $"\"{courseName}\"" : courseName;
+                        semester = semester.Contains(",") ? $"\"{semester}\"" : semester;
+                        session = session.Contains(",") ? $"\"{session}\"" : session;
+                        program = program.Contains(",") ? $"\"{program}\"" : program;
+
+                        detailedCoursesCSV.AppendLine($"{formRef},{studentName},{matricNumber},{courseCode},{courseName},{courseUnits},{semester},{session},{program}");
+                    }
+                }
+            }
+        }
+
+        // Create a zip file containing both CSV files
+        using (var memoryStream = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+            {
+                // Add summary CSV to the zip
+                var summaryEntry = archive.CreateEntry($"StudentCourseSummary_{timestamp}.csv");
+                using (var entryStream = summaryEntry.Open())
+                using (var writer = new StreamWriter(entryStream))
+                {
+                    await writer.WriteAsync(summaryCSV.ToString());
+                }
+
+                // Add detailed courses CSV to the zip
+                var detailedEntry = archive.CreateEntry($"StudentDetailedCourses_{timestamp}.csv");
+                using (var entryStream = detailedEntry.Open())
+                using (var writer = new StreamWriter(entryStream))
+                {
+                    await writer.WriteAsync(detailedCoursesCSV.ToString());
+                }
+            }
+
+            // Convert to base64
+            var zipBytes = memoryStream.ToArray();
+            var base64String = Convert.ToBase64String(zipBytes);
+            
+            // Generate and download zip file
+            await JS.InvokeVoidAsync("downloadFileFromStream", $"StudentCourseData_{timestamp}.zip", base64String);
+        }
+        
+        Snackbar.Add("Export successful! Files include student summary and detailed courses.", Severity.Success);
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        isLoading = false;
+    }
+}
+    
+    private async Task LoadStudentSummaries()
+    {
+        isLoading = true;
+        try
+        {
+            studentSummaries = await CourseRegistrationService.GetAllStudentCourseSummaries();
+            if (studentSummaries == null || !studentSummaries.Any())
+            {
+                Snackbar.Add("No student course summaries found.", Severity.Info);
+                filteredSummaries = null;
+                availablePrograms.Clear();
+            }
+            else
+            {
+                // Extract unique programs for filtering
+                availablePrograms.Clear();
+                foreach (var summary in studentSummaries)
+                {
+                    string program = summary.ApplicationForm?.ProgramSetup?.Name ?? "Not Specified";
+                    if (!string.IsNullOrWhiteSpace(program))
+                    {
+                        availablePrograms.Add(program);
+                    }
+                }
+                ApplyProgramFilter();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading student summaries: {ex.Message}", Severity.Error);
+            studentSummaries = null;
+            filteredSummaries = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyProgramFilter()
+    {
+        if (studentSummaries == null)
+        {
+            filteredSummaries = null;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(selectedProgram))
+        {
+            filteredSummaries = studentSummaries.Where(s =>
+                (s.ApplicationForm?.ProgramSetup?.Name ?? "Not Specified") == selectedProgram).ToList();
+        }
+        else
+        {
+            filteredSummaries = studentSummaries.ToList();
+        }
+    }
+
+    private async Task OnProgramFilterChanged(string program)
+    {
+        selectedProgram = program;
+        ApplyProgramFilter();
+        await table.ReloadServerData();
+    }
+
+    private async Task<TableData<CourseRegistrationDto>> LoadData(TableState state)
+    {
+        isLoading = true;
+        try
+        {
+            if (filteredSummaries == null)
+            {
+                Snackbar.Add("Error loading student course summaries", Severity.Error);
+                return new TableData<CourseRegistrationDto> { Items = new List<CourseRegistrationDto>(), TotalItems = 0 };
+            }
+
+            var summariesList = filteredSummaries.ToList();
+
+            // Apply sorting
+            summariesList = state.SortLabel switch
+            {
+                "form_ref" => state.SortDirection == SortDirection.Ascending
+                    ? summariesList.OrderBy(x => x.ApplicationForm?.FormRefNo).ToList()
+                    : summariesList.OrderByDescending(x => x.ApplicationForm?.FormRefNo).ToList(),
+                "name" => state.SortDirection == SortDirection.Ascending
+                    ? summariesList.OrderBy(x => GetFullName(x.ApplicationForm?.BioData)).ToList()
+                    : summariesList.OrderByDescending(x => GetFullName(x.ApplicationForm?.BioData)).ToList(),
+                "matric_number" => state.SortDirection == SortDirection.Ascending
+                    ? summariesList.OrderBy(x => x.ApplicationForm?.MatriculationNumber).ToList()
+                    : summariesList.OrderByDescending(x => x.ApplicationForm?.MatriculationNumber).ToList(),
+                "total_courses" => state.SortDirection == SortDirection.Ascending
+                    ? summariesList.OrderBy(x => x.TotalCourses).ToList()
+                    : summariesList.OrderByDescending(x => x.TotalCourses).ToList(),
+                "total_units" => state.SortDirection == SortDirection.Ascending
+                    ? summariesList.OrderBy(x => x.TotalUnits).ToList()
+                    : summariesList.OrderByDescending(x => x.TotalUnits).ToList(),
+                _ => summariesList
+            };
+
+            return new TableData<CourseRegistrationDto>
+            {
+                Items = summariesList,
+                TotalItems = summariesList.Count
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+            return new TableData<CourseRegistrationDto> { Items = new List<CourseRegistrationDto>(), TotalItems = 0 };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OpenEditCourseDialog(CourseRegistrationDto summary)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ApplicationFormId", summary.ApplicationFormId },
+            { "MatricNumber", summary.ApplicationForm?.MatriculationNumber }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditCourseDialog>("Edit Courses", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadStudentSummaries(); // Refresh the table
+        }
+    }
+
+    private async Task DeleteDuplicates(CourseRegistrationDto summary)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Are you sure you want to delete duplicate course registrations for {GetFullName(summary.ApplicationForm?.BioData)}?" },
+            { "ButtonText", "Delete" },
+            { "Color", Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog1>("Confirm Delete Duplicates", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            try
+            {
+                var deletedCount = await CourseRegistrationService.DeleteDuplicateCourseRegistrations(summary.ApplicationFormId.Value);
+                Snackbar.Add($"Deleted {deletedCount} duplicate course registrations.", Severity.Success);
+                await LoadStudentSummaries(); // Refresh the table
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting duplicates: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteDuplicatesForSelected()
+    {
+        if (!selectedItems.Any())
+        {
+            Snackbar.Add("No students selected", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Are you sure you want to delete duplicate course registrations for {selectedItems.Count} selected students?" },
+            { "ButtonText", "Delete" },
+            { "Color", Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog1>("Confirm Delete Duplicates for Selected", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            try
+            {
+                int totalDeleted = 0;
+                foreach (var summary in selectedItems)
+                {
+                    var deletedCount = await CourseRegistrationService.DeleteDuplicateCourseRegistrations(summary.ApplicationFormId.Value);
+                    totalDeleted += deletedCount;
+                }
+                Snackbar.Add($"Deleted {totalDeleted} duplicate course registrations across {selectedItems.Count} students", Severity.Success);
+                selectedItems.Clear();
+                await table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting duplicates for selected students: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private string GetFullName(BioData bioData)
+    {
+        if (bioData == null)
+            return "Unknown";
+
+        var nameParts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(bioData.LastName))
+            nameParts.Add(bioData.LastName);
+        if (!string.IsNullOrWhiteSpace(bioData.FirstName))
+            nameParts.Add(bioData.FirstName);
+        if (!string.IsNullOrWhiteSpace(bioData.OtherName))
+            nameParts.Add(bioData.OtherName);
+
+        return nameParts.Any() ? string.Join(" ", nameParts) : "Unknown";
+    }
+}

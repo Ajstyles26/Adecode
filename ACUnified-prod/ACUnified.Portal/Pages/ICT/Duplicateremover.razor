@@ -1,0 +1,161 @@
+@page "/ict/duplicate-remover"
+@using System.Globalization
+@layout ACUnifiedLayout
+@using System.IO
+@using System.Linq
+@using System.Threading.Tasks
+@using CsvHelper
+@using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JS
+
+<h3>CSV Duplicate Remover</h3>
+
+<div>
+    <h4>Upload CSV File</h4>
+    <p>Upload a CSV file to remove duplicate rows. Required headers:</p>
+    <ul>
+        @foreach (var header in expectedHeaders)
+        {
+            <li>@header</li>
+        }
+    </ul>
+    
+    <InputFile OnChange="@OnInputFileChange" />
+    <p>Upload one CSV file (max 10MB).</p>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p style="color: red;">@errorMessage</p>
+    }
+</div>
+
+@if (formattedFile.HasValue)
+{
+    <h4>Deduplicated File</h4>
+    <div>
+        <p>Rows before deduplication: @originalRowCount</p>
+        <p>Rows after deduplication: @deduplicatedRowCount</p>
+        <button @onclick="() => DownloadFile(formattedFile.Value.FileName, formattedFile.Value.Content)" class="btn btn-primary m-1">
+            Download @formattedFile.Value.FileName
+        </button>
+    </div>
+}
+
+@code {
+    // Updated expected headers based on the provided list
+    private readonly string[] expectedHeaders = { 
+        "ID", 
+        "Applicant Name", 
+        "Level", 
+        "Course", 
+        "Matriculation Number", 
+        "Total Amount", 
+        "Total Paid", 
+        "Outstanding Amount", 
+        "Due Date", 
+        "Payment Status" 
+    };
+    
+    private (string FileName, byte[] Content)? formattedFile;
+    private string? errorMessage;
+    private int originalRowCount;
+    private int deduplicatedRowCount;
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        formattedFile = null;
+        errorMessage = null;
+        originalRowCount = 0;
+        deduplicatedRowCount = 0;
+
+        var files = e.GetMultipleFiles(1); // Allow only one file
+        if (files.Count != 1)
+        {
+            errorMessage = "Please upload exactly one CSV file.";
+            StateHasChanged();
+            return;
+        }
+
+        var file = files[0];
+        List<Dictionary<string, string>> records;
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
+            using var reader = new StreamReader(stream);
+            using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+
+            await csv.ReadAsync();
+            csv.ReadHeader();
+
+            // Validate headers
+            var actualHeaders = csv.HeaderRecord;
+            if (!expectedHeaders.All(h => actualHeaders.Contains(h)))
+            {
+                errorMessage = $"Invalid headers. Expected: {string.Join(", ", expectedHeaders)}. Found: {string.Join(", ", actualHeaders)}.";
+                StateHasChanged();
+                return;
+            }
+
+            // Read records into a list of dictionaries
+            records = new List<Dictionary<string, string>>();
+            while (await csv.ReadAsync())
+            {
+                var record = new Dictionary<string, string>();
+                foreach (var header in actualHeaders)
+                {
+                    record[header] = csv.GetField(header) ?? "";
+                }
+                records.Add(record);
+            }
+
+            originalRowCount = records.Count;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing {file.Name}: {ex.Message}";
+            StateHasChanged();
+            return;
+        }
+
+        // Remove duplicates (case-sensitive, exact matches across all columns)
+        var distinctRecords = records
+            .GroupBy(r => string.Join("|", r.Values))
+            .Select(g => g.First())
+            .ToList();
+
+        deduplicatedRowCount = distinctRecords.Count;
+
+        // Write deduplicated records to a new CSV
+        using var memoryStream = new MemoryStream();
+        using var writer = new StreamWriter(memoryStream);
+        using var csvWriter = new CsvWriter(writer, CultureInfo.InvariantCulture);
+
+        // Write headers
+        foreach (var header in expectedHeaders)
+        {
+            csvWriter.WriteField(header);
+        }
+        await csvWriter.NextRecordAsync();
+
+        // Write records
+        foreach (var record in distinctRecords)
+        {
+            foreach (var header in expectedHeaders)
+            {
+                csvWriter.WriteField(record[header]);
+            }
+            await csvWriter.NextRecordAsync();
+        }
+
+        await writer.FlushAsync();
+        formattedFile = ($"Deduplicated_{file.Name}", memoryStream.ToArray());
+
+        StateHasChanged();
+    }
+
+    private async Task DownloadFile(string fileName, byte[] content)
+    {
+        var base64String = Convert.ToBase64String(content);
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, base64String);
+    }
+}

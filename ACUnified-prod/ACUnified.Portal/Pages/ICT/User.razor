@@ -1,0 +1,1084 @@
+﻿@page "/ict/users"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@using ACUnified.Data.Models
+@using ACUnified.Data.Enum
+@using ACUnified.Business.Services
+@using ACUnified.Business.Services.IServices
+@using MudBlazor
+@layout ACUnifiedLayout
+@using System.Text.RegularExpressions
+@using System.Text
+
+
+@attribute [Authorize(Roles = "ICT")]
+
+<PageTitle>User Management</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <!-- Header -->
+    <MudGrid>
+        <MudItem xs="6">
+            <MudText Typo="Typo.h4">User Management</MudText>
+        </MudItem>
+        <MudItem xs="6" Class="d-flex justify-end">
+            <MudButton Color="Color.Primary" 
+                      StartIcon="@Icons.Material.Filled.PersonAdd"
+                      OnClick="ShowCreateUserDialog">
+                Add New User
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Search and Actions Bar -->
+    <MudGrid Class="mt-4">
+        <MudItem xs="6">
+            <MudTextField @bind-Value="searchTerm"
+                         Label="Search users..."
+                         Variant="Variant.Outlined"
+                         Adornment="Adornment.End"
+                         AdornmentIcon="@(string.IsNullOrEmpty(searchTerm) ? Icons.Material.Filled.Search : Icons.Material.Filled.Clear)"
+                         OnAdornmentClick="@(() => { if(!string.IsNullOrEmpty(searchTerm)) ClearSearch(); })"
+                         OnKeyUp="DebouncedSearch" />
+        </MudItem>
+        <MudItem xs="6" Class="d-flex justify-end align-center">
+            <MudButton Color="Color.Warning"
+                      StartIcon="@Icons.Material.Filled.Lock"
+                      Disabled="@(!selectedUserIds.Any())"
+                      OnClick="@(() => BulkAction("lock"))"
+                      Class="mx-2">
+                Lock
+            </MudButton>
+            <MudButton Color="Color.Success"
+                      StartIcon="@Icons.Material.Filled.LockOpen"
+                      Disabled="@(!selectedUserIds.Any())"
+                      OnClick="@(() => BulkAction("unlock"))"
+                      Class="mx-2">
+                Unlock
+            </MudButton>
+            <MudButton Color="Color.Error"
+                      StartIcon="@Icons.Material.Filled.Delete"
+                      Disabled="@(!selectedUserIds.Any())"
+                      OnClick="@(() => BulkAction("delete"))"
+                      Class="mx-2">
+                Delete
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    @if (IsLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="my-4" />
+    }
+    else if (!Users.Any())
+    {
+        <MudPaper Class="d-flex justify-center align-center pa-4 mt-4" Height="200px">
+            <MudText>No users found</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudTable Items="@Users"
+                  Dense="true"
+                  Hover="true"
+                  MultiSelection="true"
+                  @bind-SelectedItems="selectedUsers"
+                  SortLabel="Sort By"
+                  Loading="@IsLoading"
+                  LoadingProgressColor="Color.Primary">
+            <HeaderContent>
+                <MudTh>
+                    <MudCheckBox @bind-Checked="selectAll"
+                                Color="Color.Primary"
+                                OnCheckedChanged="ToggleSelectAll" />
+                </MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ApplicationUser, object>(x => x.Surname)">Name</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ApplicationUser, object>(x => x.Email)">Email</MudTableSortLabel></MudTh>
+                <MudTh>Phone</MudTh>
+                <MudTh>User Type</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Application Stage</MudTh>
+                <MudTh>ACU No</MudTh>
+                <MudTh>Matric No</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudCheckBox @bind-Checked="selectedUserIds[context.Id]"
+                                Color="Color.Primary"
+                                OnCheckedChanged="@(() => ToggleUserSelection(context.Id))" />
+                </MudTd>
+                <MudTd>@($"{context.Surname} {context.Firstname} {context.Othername}")</MudTd>
+                <MudTd>@context.Email</MudTd>
+                <MudTd>@context.PhoneNumber</MudTd>
+                <MudTd>
+                    <MudChip Color="Color.Primary" Size="Size.Small">
+                        @GetUserTypeDisplay(context.CurrentUserType)
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    @{
+                        var (color, text) = GetUserStatusInfo(context);
+                        <MudChip Color="@color" Size="Size.Small">@text</MudChip>
+                    }
+                </MudTd>
+                <MudTd>
+                    <MudChip Color="@GetApplicationStageColor(context.CurrentApplicationStage)" 
+                            Size="Size.Small">
+                        @GetApplicationStageDescription(context.CurrentApplicationStage)
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.ACUNo</MudTd>
+                <MudTd>@context.MatricNo</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                 Color="Color.Primary"
+                                 Size="Size.Small"
+                                 OnClick="@(() => EditUser(context))" />
+                    <MudIconButton Icon="@(context.AuthenticationStatus == AuthStatus.DefaultPW ? 
+                                        Icons.Material.Filled.LockOpen : 
+                                        Icons.Material.Filled.Lock)"
+                                 Color="@(context.AuthenticationStatus == AuthStatus.DefaultPW ? 
+                                        Color.Success : Color.Warning)"
+                                 Size="Size.Small"
+                                 OnClick="@(() => ResetUserPassword(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                 Color="Color.Error"
+                                 Size="Size.Small"
+                                 OnClick="@(() => DeleteUser(context))" />
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" />
+            </PagerContent>
+        </MudTable>
+    }
+
+    <!-- User Dialog -->
+    <MudDialog @bind-IsVisible="showDialog"
+               Options="new DialogOptions { MaxWidth = MaxWidth.ExtraLarge }">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(selectedUser == null ? "Create User" : "Edit User")</MudText>
+        </TitleContent>
+        <DialogContent>
+            <EditForm Model="@editUserModel" OnValidSubmit="HandleValidSubmits">
+                <DataAnnotationsValidator />
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error" Class="my-2">
+                            <MudText>
+                                <ValidationSummary />
+                            </MudText>
+                        </MudAlert>
+                    </MudItem>
+
+                    <!-- Basic Information -->
+                    <MudItem xs="4">
+                        <MudTextField @bind-Value="editUserModel.Email"
+                                    Label="Email"
+                                    Required="true"
+                                    Variant="Variant.Outlined" />
+
+                        <MudTextField @bind-Value="editUserModel.Firstname"
+                                    Label="First Name"
+                                    Required="true"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+
+                        <MudTextField @bind-Value="editUserModel.Surname"
+                                    Label="Surname"
+                                    Required="true"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+
+                        <MudTextField @bind-Value="editUserModel.Othername"
+                                    Label="Other Name"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+
+                        <MudTextField @bind-Value="editUserModel.PhoneNumber"
+                                    Label="Phone Number"
+                                    Required="true"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+                    </MudItem>
+
+                    <!-- System Information -->
+                    <MudItem xs="4">
+                        <MudSelect @bind-Value="editUserModel.CurrentUserType"
+                                 Label="User Type"
+                                 Required="true"
+                                 Variant="Variant.Outlined">
+                            @foreach (UserType userType in Enum.GetValues(typeof(UserType)))
+                            {
+                                <MudSelectItem Value="@userType">@GetUserTypeDisplay(userType)</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudSelect @bind-Value="editUserModel.CurrentApplicationStage"
+                                 Label="Application Stage"
+                                 Variant="Variant.Outlined"
+                                 Class="mt-3">
+                            @foreach (ApplicationStage stage in Enum.GetValues(typeof(ApplicationStage)))
+                            {
+                                <MudSelectItem Value="@stage">@GetApplicationStageDescription(stage)</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudTextField @bind-Value="editUserModel.ACUNo"
+                                    Label="ACU Number"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+
+                        <MudTextField @bind-Value="editUserModel.MatricNo"
+                                    Label="Matric Number"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+
+                        <MudTextField @bind-Value="editUserModel.Session"
+                                    Label="Session"
+                                    Variant="Variant.Outlined"
+                                    Class="mt-3" />
+                    </MudItem>
+
+                    <!-- Password and Institution -->
+                    <MudItem xs="4">
+                        @if (selectedUser == null)
+                        {
+                            <MudTextField @bind-Value="editUserModel.Password"
+                                        Label="Password"
+                                        Required="true"
+                                        Variant="Variant.Outlined"
+                                        InputType="InputType.Password" />
+
+                            <MudTextField @bind-Value="editUserModel.ConfirmPassword"
+                                        Label="Confirm Password"
+                                        Required="true"
+                                        Variant="Variant.Outlined"
+                                        InputType="InputType.Password"
+                                        Class="mt-3" />
+
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                                @PasswordPolicyService.GetPasswordRequirements()
+                            </MudText>
+                        }
+
+                        @if (ShowInstitutionProvider())
+                        {
+                            <MudSelect T="long?" @bind-Value="editUserModel.InstitutionProviderId"
+                                     Label="Institution Provider"
+                                     Variant="Variant.Outlined"
+                                     Class="mt-3">
+                                @foreach (var provider in InstitutionProviders)
+                                {
+                                    <MudSelectItem Value="@provider.Id">@provider.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="CloseDialog">Cancel</MudButton>
+            <MudButton Color="Color.Primary" OnClick="HandleValidSubmit">Save</MudButton>
+        </DialogActions>
+    </MudDialog>
+</MudContainer>
+
+@code {
+    [Inject] public UserManager<ApplicationUser> UserManager { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
+    [Inject] public IRolesManagement RolesManagement { get; set; } = default!;
+    [Inject] public ILogger<UserManagement> Logger { get; set; } = default!;
+    [Inject] public IPasswordPolicyService PasswordPolicyService { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+  
+
+    private List<ApplicationUser> Users = new();
+    private bool IsLoading = true;
+    private bool showDialog = false;
+    private ApplicationUser? selectedUser;
+    private EditUserModel editUserModel = new();
+    private string searchTerm = "";
+    private Dictionary<string, bool> selectedUserIds = new();
+    private HashSet<ApplicationUser> selectedUsers = new();
+    private bool selectAll = false;
+    private Timer? _debounceTimer;
+    private List<InstitutionProvider> InstitutionProviders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        InitializeDebounceTimer();
+        await LoadData();
+        @* InstitutionProviders = await InstitutionProviderService.GetAllAsync(); *@
+    }
+
+    private (Color color, string text) GetUserStatusInfo(ApplicationUser user) =>
+        user.AuthenticationStatus == AuthStatus.DefaultPW ?
+            (Color.Warning, "Default Password") :
+        user.AuthenticationStatus == AuthStatus.ConfirmationCodeSent ?
+            (Color.Info, "Code Sent") :
+        user.AuthenticationStatus == AuthStatus.ConfirmationCodeUsed ?
+            (Color.Success, "Code Used") :
+        user.AuthenticationStatus == AuthStatus.PWChangeCompleted ?
+            (Color.Success, "Completed") :
+            (Color.Error, "Unknown");
+
+    private void InitializeDebounceTimer()
+    {
+        _debounceTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await HandleSearch();
+                StateHasChanged();
+            });
+        }, null, Timeout.Infinite, Timeout.Infinite);
+    }
+private async Task LoadData()
+{
+    IsLoading = true;
+    try
+    {
+        // Start with base query
+        IQueryable<ApplicationUser> query = UserManager.Users;
+
+        // Apply search filter if search term exists
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            searchTerm = searchTerm.ToLower();
+            query = query.Where(u =>
+                u.Email.ToLower().Contains(searchTerm) ||
+                u.UserName.ToLower().Contains(searchTerm) ||
+                u.Firstname.ToLower().Contains(searchTerm) ||
+                u.Surname.ToLower().Contains(searchTerm) ||
+                (u.ACUNo != null && u.ACUNo.ToLower().Contains(searchTerm)) ||
+                (u.MatricNo != null && u.MatricNo.ToLower().Contains(searchTerm)) ||
+                (u.PhoneNumber != null && u.PhoneNumber.Contains(searchTerm)));
+        }
+
+        // Include any related data if needed
+        // query = query.Include(u => u.RelatedEntity);
+
+        // Execute query
+        Users = await query.ToListAsync();
+        
+        // Reset selection state
+        selectedUserIds = Users.ToDictionary(u => u.Id, _ => false);
+        selectAll = false;
+        
+        // Update UI
+        StateHasChanged();
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error loading users");
+        Snackbar.Add("Failed to load users", Severity.Error);
+    }
+    finally
+    {
+        IsLoading = false;
+    }
+}
+
+// Add this method to handle user locking/unlocking
+private async Task LockUnlockUser(ApplicationUser user, bool shouldLock)
+{
+    try
+    {
+        if (shouldLock)
+        {
+            // Lock user for 100 years (effectively permanent until unlocked)
+            await UserManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
+            Snackbar.Add($"User {user.Email} has been locked", Severity.Success);
+        }
+        else
+        {
+            // Remove lockout
+            await UserManager.SetLockoutEndDateAsync(user, null);
+            Snackbar.Add($"User {user.Email} has been unlocked", Severity.Success);
+        }
+        await LoadData(); // Refresh the data
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error updating user lock status");
+        Snackbar.Add("Failed to update user status", Severity.Error);
+    }
+}
+
+// Add this method to check if a user is locked
+private async Task<bool> IsUserLocked(ApplicationUser user)
+{
+    var lockoutEnd = await UserManager.GetLockoutEndDateAsync(user);
+    return lockoutEnd.HasValue && lockoutEnd.Value > DateTimeOffset.UtcNow;
+}
+
+// Add this method to get roles for a user
+private async Task<IList<string>> GetUserRoles(ApplicationUser user)
+{
+    return await UserManager.GetRolesAsync(user);
+}
+
+// Update the bulk action method
+private async Task BulkAction(string action)
+{
+    var selectedUsers = Users.Where(u => selectedUserIds.GetValueOrDefault(u.Id)).ToList();
+    
+    if (!selectedUsers.Any())
+    {
+        Snackbar.Add("Please select users to perform this action", Severity.Warning);
+        return;
+    }
+
+    var confirmMessage = action switch
+    {
+        "lock" => "Are you sure you want to lock the selected users?",
+        "unlock" => "Are you sure you want to unlock the selected users?",
+        "delete" => "Are you sure you want to delete the selected users?",
+        _ => string.Empty
+    };
+
+    var parameters = new DialogParameters
+    {
+        { "ContentText", confirmMessage },
+        { "ButtonText", "Confirm" },
+        { "Color", Color.Error }
+    };
+
+    var dialog = DialogService.Show<ConfirmDialog>("Confirm", parameters);
+    var result = await dialog.Result;
+    
+    if (result.Canceled) return;
+
+    IsLoading = true;
+    
+    try
+    {
+        foreach (var user in selectedUsers)
+        {
+            switch (action)
+            {
+                case "lock":
+                    await UserManager.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddYears(100));
+                    break;
+                case "unlock":
+                    await UserManager.SetLockoutEndDateAsync(user, null);
+                    break;
+                case "delete":
+                    await UserManager.DeleteAsync(user);
+                    break;
+            }
+        }
+
+        Snackbar.Add($"Successfully processed {selectedUsers.Count} users", Severity.Success);
+        await LoadData();
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error performing bulk action");
+        Snackbar.Add($"Error processing users: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        IsLoading = false;
+    }
+}
+
+    // Search Functionality
+    private void DebouncedSearch()
+    {
+        _debounceTimer?.Change(300, Timeout.Infinite);
+    }
+
+    private async Task HandleSearch()
+    {
+        await LoadData();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = "";
+        await LoadData();
+    }
+
+    // Selection Handling
+    private void ToggleSelectAll()
+    {
+        selectAll = !selectAll;
+        foreach (var user in Users)
+        {
+            selectedUserIds[user.Id] = selectAll;
+        }
+    }
+
+    private void ToggleUserSelection(string userId)
+    {
+        if (selectedUserIds.ContainsKey(userId))
+        {
+            selectedUserIds[userId] = !selectedUserIds[userId];
+        }
+        else
+        {
+            selectedUserIds[userId] = true;
+        }
+        
+        selectAll = Users.All(u => selectedUserIds.GetValueOrDefault(u.Id));
+    }
+
+    // Bulk Actions
+
+
+    // User Dialog Management
+    private void ShowCreateUserDialog()
+    {
+        selectedUser = null;
+        editUserModel = new EditUserModel
+        {
+            CurrentUserType = UserType.Applicant,
+            CurrentApplicationStage = ApplicationStage.Stage1,
+            Session = DateTime.Now.Year.ToString()
+        };
+        showDialog = true;
+    }
+
+    private async Task EditUser(ApplicationUser user)
+    {
+        selectedUser = user;
+        editUserModel = new EditUserModel
+        {
+            Email = user.Email,
+            Firstname = user.Firstname,
+            Surname = user.Surname,
+            Othername = user.Othername ?? "",
+            PhoneNumber = user.PhoneNumber ?? "",
+            CurrentUserType = user.CurrentUserType,
+            CurrentApplicationStage = user.CurrentApplicationStage,
+            ACUNo = user.ACUNo,
+            MatricNo = user.MatricNo,
+            Session = user.Session ?? "",
+            InstitutionProviderId = user.InstitutionProviderId
+        };
+        showDialog = true;
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+        selectedUser = null;
+        editUserModel = new();
+    }
+
+
+private bool ValidateUserInput()
+{
+    // Basic validation
+    if (string.IsNullOrWhiteSpace(editUserModel.Email) ||
+        string.IsNullOrWhiteSpace(editUserModel.Firstname) ||
+        string.IsNullOrWhiteSpace(editUserModel.Surname) ||
+        string.IsNullOrWhiteSpace(editUserModel.PhoneNumber))
+    {
+        Snackbar.Add("Please fill in all required fields", Severity.Error);
+        return false;
+    }
+
+    // Email validation
+    if (!new EmailAddressAttribute().IsValid(editUserModel.Email))
+    {
+        Snackbar.Add("Please enter a valid email address", Severity.Error);
+        return false;
+    }
+
+    // Phone number validation
+    if (!new PhoneAttribute().IsValid(editUserModel.PhoneNumber))
+    {
+        Snackbar.Add("Please enter a valid phone number", Severity.Error);
+        return false;
+    }
+
+    // Password validation for new users
+    if (selectedUser == null)
+    {
+        if (string.IsNullOrWhiteSpace(editUserModel.Password) ||
+            string.IsNullOrWhiteSpace(editUserModel.ConfirmPassword))
+        {
+            Snackbar.Add("Password is required for new users", Severity.Error);
+            return false;
+        }
+
+        if (editUserModel.Password != editUserModel.ConfirmPassword)
+        {
+            Snackbar.Add("Passwords do not match", Severity.Error);
+            return false;
+        }
+    }
+
+    // Session validation
+    if (!string.IsNullOrEmpty(editUserModel.Session) && !IsValidSession(editUserModel.Session))
+    {
+        Snackbar.Add("Invalid session format. Use YYYY/YYYY format.", Severity.Error);
+        return false;
+    }
+
+    // ACU Number validation
+    if (!string.IsNullOrEmpty(editUserModel.ACUNo) && !IsValidACUNo(editUserModel.ACUNo))
+    {
+        Snackbar.Add("Invalid ACU Number format", Severity.Error);
+        return false;
+    }
+
+    // Matric Number validation
+    if (!string.IsNullOrEmpty(editUserModel.MatricNo) && !IsValidMatricNo(editUserModel.MatricNo))
+    {
+        Snackbar.Add("Invalid Matric Number format", Severity.Error);
+        return false;
+    }
+
+    return true;
+}
+    // User Operations
+      private async Task HandleValidSubmits()
+    {
+        try
+        {
+            if (!ValidateUserInput())
+                return;
+
+            if (selectedUser == null)
+            {
+                await CreateNewUser();
+            }
+            else
+            {
+                await UpdateExistingUser();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving user");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CreateNewUser()
+    {
+        var newUser = new ApplicationUser
+        {
+            UserName = editUserModel.Email,
+            Email = editUserModel.Email,
+            Firstname = editUserModel.Firstname,
+            Surname = editUserModel.Surname,
+            Othername = editUserModel.Othername,
+            PhoneNumber = editUserModel.PhoneNumber,
+            CurrentUserType = editUserModel.CurrentUserType,
+            CurrentApplicationStage = editUserModel.CurrentApplicationStage,
+            AuthenticationStatus = AuthStatus.DefaultPW,
+            UWPId = GenerateUniqueUWPId(),
+            ACUNo = editUserModel.ACUNo,
+            MatricNo = editUserModel.MatricNo,
+            Session = editUserModel.Session,
+            InstitutionProviderId = editUserModel.InstitutionProviderId
+        };
+
+        var result = await UserManager.CreateAsync(newUser, editUserModel.Password);
+        if (!result.Succeeded)
+        {
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+
+        await RolesManagement.GenerateRolesFromPagesAsync();
+        await RolesManagement.AddToRoles(newUser);
+
+        Snackbar.Add("User created successfully", Severity.Success);
+        showDialog = false;
+        await LoadData();
+    }
+
+    private async Task UpdateExistingUser()
+    {
+        if (selectedUser == null) return;
+
+        selectedUser.Email = editUserModel.Email;
+        selectedUser.UserName = editUserModel.Email;
+        selectedUser.Firstname = editUserModel.Firstname;
+        selectedUser.Surname = editUserModel.Surname;
+        selectedUser.Othername = editUserModel.Othername;
+        selectedUser.PhoneNumber = editUserModel.PhoneNumber;
+        selectedUser.CurrentUserType = editUserModel.CurrentUserType;
+        selectedUser.CurrentApplicationStage = editUserModel.CurrentApplicationStage;
+        selectedUser.ACUNo = editUserModel.ACUNo;
+        selectedUser.MatricNo = editUserModel.MatricNo;
+        selectedUser.Session = editUserModel.Session;
+        selectedUser.InstitutionProviderId = editUserModel.InstitutionProviderId;
+
+        var result = await UserManager.UpdateAsync(selectedUser);
+        if (!result.Succeeded)
+        {
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+
+        Snackbar.Add("User updated successfully", Severity.Success);
+        showDialog = false;
+        await LoadData();
+    }
+private async Task ResetUserPassword(ApplicationUser user)
+{
+    if (user == null)
+    {
+        Snackbar.Add("Invalid user selected", Severity.Error);
+        return;
+    }
+
+    // Show confirmation dialog
+    var parameters = new DialogParameters
+    {
+        { "ContentText", $"Are you sure you want to reset the password for user {user.Email}?" },
+        { "ButtonText", "Reset" },
+        { "Color", Color.Warning }
+    };
+
+    var dialogResult = await DialogService.Show<ConfirmDialog>("Confirm Password Reset", parameters).Result;
+    if (dialogResult.Canceled) return;
+
+    try
+    {
+        // Use fixed password
+        const string newPassword = "Dorcas1234@";
+
+        // Generate reset token
+        var resetToken = await UserManager.GeneratePasswordResetTokenAsync(user);
+        if (string.IsNullOrEmpty(resetToken))
+        {
+            throw new Exception("Failed to generate password reset token");
+        }
+
+        // Attempt password reset
+        var resetResult = await UserManager.ResetPasswordAsync(user, resetToken, newPassword);
+        if (!resetResult.Succeeded)
+        {
+            var errors = string.Join(", ", resetResult.Errors.Select(e => e.Description));
+            throw new Exception($"Password reset failed: {errors}");
+        }
+
+        // Update user status
+        user.AuthenticationStatus = AuthStatus.DefaultPW;
+        var updateResult = await UserManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            Logger.LogWarning("Failed to update user authentication status after password reset");
+        }
+
+        // Show success message
+        Snackbar.Add("Password has been reset successfully", Severity.Success);
+        
+        // Optionally refresh the user list to show updated status
+        await LoadData();
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error during password reset for user {Email}", user.Email);
+        Snackbar.Add($"Password reset failed: {ex.Message}", Severity.Error);
+    }
+}
+
+// Enhanced password generation method
+@* private static string GenerateSecureDefaultPassword()
+{
+    const string uppercaseChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";  // Excluding I and O
+    const string lowercaseChars = "abcdefghijkmnpqrstuvwxyz";  // Excluding l and o
+    const string numberChars = "23456789";                      // Excluding 0 and 1
+    const string specialChars = "@#$%^&*";
+
+    var random = new Random();
+    var password = new StringBuilder();
+
+    // Ensure at least one character from each category
+    password.Append(uppercaseChars[random.Next(uppercaseChars.Length)]);
+    password.Append(lowercaseChars[random.Next(lowercaseChars.Length)]);
+    password.Append(numberChars[random.Next(numberChars.Length)]);
+    password.Append(specialChars[random.Next(specialChars.Length)]);
+
+    // Fill the rest of the password
+    const string allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+    while (password.Length < 12)  // Increased length for better security
+    {
+        password.Append(allChars[random.Next(allChars.Length)]);
+    }
+
+    // Shuffle the password
+    return new string(password.ToString().ToCharArray().OrderBy(x => random.Next()).ToArray());
+} *@
+
+// Add this new dialog component for displaying the password
+public class DisplayDialog : ComponentBase
+{
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public string ContentText { get; set; }
+    [Parameter] public string ButtonText { get; set; }
+    [Parameter] public Color Color { get; set; }
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(true));
+}
+    
+
+    private async Task DeleteUser(ApplicationUser user)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", "Are you sure you want to delete this user?" },
+            { "ButtonText", "Delete" },
+            { "Color", Color.Error }
+        };
+
+        var result = await DialogService.Show<ConfirmDialog>("Confirm Delete", parameters).Result;
+        if (result.Canceled) return;
+
+        try
+        {
+            var deleteResult = await UserManager.DeleteAsync(user);
+            if (deleteResult.Succeeded)
+            {
+                Snackbar.Add("User deleted successfully", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                throw new Exception(string.Join(", ", deleteResult.Errors.Select(e => e.Description)));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting user");
+            Snackbar.Add("Failed to delete user", Severity.Error);
+        }
+    }
+
+    // Helper Methods
+    private static string GenerateDefaultPassword()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var random = new Random();
+        return new string(Enumerable.Repeat(chars, 8)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    private static long GenerateUniqueUWPId()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var random = new Random().Next(1000, 9999);
+        return long.Parse($"{timestamp}{random}");
+    }
+
+    private bool ShowInstitutionProvider()
+    {
+        return editUserModel.CurrentUserType == UserType.Student ||
+               editUserModel.CurrentUserType == UserType.Applicant;
+    }
+
+    private string GetUserTypeDisplay(UserType userType)
+    {
+        return userType.ToString().Replace("_", " ");
+    }
+
+    private string GetApplicationStageDescription(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => "Not Paid",
+            ApplicationStage.Stage2 => "Paid",
+            ApplicationStage.Stage3 => "Submitted Application",
+            ApplicationStage.Stage4 => "Decision Made",
+            ApplicationStage.Stage5 => "Provisional Admission",
+            ApplicationStage.Stage6 => "Paid Acceptance Fee",
+            ApplicationStage.Stage7 => "Paid School Fees",
+            ApplicationStage.Stage8 => "Hostel Room Selection",
+            ApplicationStage.Stage9 => "Student Portal Access",
+            ApplicationStage.Stage10 => "Stage 10",
+            ApplicationStage.Stage11 => "Stage 11",
+            _ => stage.ToString()
+        };
+    }
+
+    private Color GetApplicationStageColor(ApplicationStage stage)
+    {
+        return stage switch
+        {
+            ApplicationStage.Stage1 => Color.Error,
+            ApplicationStage.Stage2 => Color.Primary,
+            ApplicationStage.Stage3 => Color.Info,
+            ApplicationStage.Stage4 => Color.Warning,
+            ApplicationStage.Stage5 => Color.Success,
+            ApplicationStage.Stage6 => Color.Primary,
+            ApplicationStage.Stage7 => Color.Success,
+            ApplicationStage.Stage8 => Color.Info,
+            ApplicationStage.Stage9 => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
+      public class EditUserModel
+    {
+        [Required]
+        [EmailAddress]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", ErrorMessage = "Please enter a valid email address")]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [Display(Name = "First Name")]
+        [RegularExpression(@"^[a-zA-Z\s-]{2,50}$", ErrorMessage = "First name can only contain letters, spaces, and hyphens")]
+        public string Firstname { get; set; } = "";
+
+        [Required]
+        [Display(Name = "Surname")]
+        [RegularExpression(@"^[a-zA-Z\s-]{2,50}$", ErrorMessage = "Surname can only contain letters, spaces, and hyphens")]
+        public string Surname { get; set; } = "";
+
+        [Display(Name = "Other Name")]
+        public string Othername { get; set; } = "";
+
+        [Required]
+        [Phone]
+        [Display(Name = "Phone Number")]
+        public string PhoneNumber { get; set; } = "";
+
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+
+        [Required]
+        public UserType CurrentUserType { get; set; }
+
+        public ApplicationStage CurrentApplicationStage { get; set; } = ApplicationStage.Stage1;
+
+        [RegularExpression(@"^[A-Z0-9-/]{0,50}$", ErrorMessage = "Invalid ACU Number format")]
+        public string ACUNo { get; set; } = "";
+
+        [RegularExpression(@"^[A-Z0-9-/]{0,50}$", ErrorMessage = "Invalid Matric Number format")]
+        public string MatricNo { get; set; } = "";
+
+        [RegularExpression(@"^[0-9]{4}/[0-9]{4}$", ErrorMessage = "Session must be in format YYYY/YYYY")]
+        public string Session { get; set; } = "";
+
+        public long? InstitutionProviderId { get; set; }
+    }
+
+    // Helper method for generating current session format
+    private string GetCurrentSession()
+    {
+        int currentYear = DateTime.Now.Year;
+        return $"{currentYear}/{currentYear + 1}";
+    }
+
+    // Update the ShowCreateUserDialog method to set default session
+    @* private void ShowCreateUserDialog()
+    {
+        selectedUser = null;
+        editUserModel = new EditUserModel
+        {
+            CurrentUserType = UserType.Applicant,
+            CurrentApplicationStage = ApplicationStage.Stage1,
+            Session = GetCurrentSession()
+        };
+        showDialog = true;
+    } *@
+
+    // Update the EditUser method to handle the session format
+    @* private async Task EditUser(ApplicationUser user)
+    {
+        selectedUser = user;
+        editUserModel = new EditUserModel
+        {
+            Email = user.Email,
+            Firstname = user.Firstname,
+            Surname = user.Surname,
+            Othername = user.Othername ?? "",
+            PhoneNumber = user.PhoneNumber ?? "",
+            CurrentUserType = user.CurrentUserType,
+            CurrentApplicationStage = user.CurrentApplicationStage,
+            ACUNo = user.ACUNo,
+            MatricNo = user.MatricNo,
+            Session = user.Session ?? GetCurrentSession(),
+            InstitutionProviderId = user.InstitutionProviderId
+        };
+        showDialog = true;
+    } *@
+
+    // Add validation helper methods
+    private bool IsValidSession(string session)
+    {
+        if (string.IsNullOrEmpty(session)) return false;
+        
+        var regex = new Regex(@"^[0-9]{4}/[0-9]{4}$");
+        if (!regex.IsMatch(session)) return false;
+
+        var years = session.Split('/');
+        if (int.Parse(years[1]) != int.Parse(years[0]) + 1) return false;
+
+        return true;
+    }
+
+    private bool IsValidACUNo(string acuNo)
+    {
+        if (string.IsNullOrEmpty(acuNo)) return true; // Optional field
+        return new Regex(@"^[A-Z0-9-/]{0,50}$").IsMatch(acuNo);
+    }
+
+    private bool IsValidMatricNo(string matricNo)
+    {
+        if (string.IsNullOrEmpty(matricNo)) return true; // Optional field
+        return new Regex(@"^[A-Z0-9-/]{0,50}$").IsMatch(matricNo);
+    }
+
+    // Update the validation in HandleValidSubmit
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Additional validation
+            if (!IsValidSession(editUserModel.Session))
+            {
+                Snackbar.Add("Invalid session format. Use YYYY/YYYY format.", Severity.Error);
+                return;
+            }
+
+            if (!IsValidACUNo(editUserModel.ACUNo))
+            {
+                Snackbar.Add("Invalid ACU Number format.", Severity.Error);
+                return;
+            }
+
+            if (!IsValidMatricNo(editUserModel.MatricNo))
+            {
+                Snackbar.Add("Invalid Matric Number format.", Severity.Error);
+                return;
+            }
+
+            if (selectedUser == null)
+            {
+                await CreateNewUser();
+            }
+            else
+            {
+                await UpdateExistingUser();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving user");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,354 @@
+@page "/busary/applicantTransactions"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs;
+@using ACUnified.Portal.Pages.Lecturer
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@inject ISnackbar snackBar
+@inject IApplicantPaymentRepository ApplicantPaymentService
+  @inject IApplicationFormRepository ApplicationFormService 
+@inject IDialogService DialogService
+@inject IPDFRepository PDFReceipts
+@inject IJSRuntime JSRuntime
+@attribute [Authorize(Roles = "Bursary")]
+<h3>Transaction Management</h3>
+
+<div class="ml-5 py-4">
+<MudCard Elevation="25">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Applicant Transaction Management</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+   
+</MudCard>
+<br />
+    <MudTable Elevation="25" 
+              Filter="new Func<ApplicantPaymentDto, bool>(Search2)" 
+              @bind-Items="payments" 
+              Filterable="true" 
+              QuickFilter="@_quickFilter1"
+              SortLabel="Sort By"
+              Dense="true"
+              Hover="true"
+              Striped="true">
+    <ToolBarContent>
+        <MudButton Variant="Variant.Filled" 
+               Color="Color.Primary" 
+               OnClick="BulkUpdateApplicationFormIds" 
+               StartIcon="@Icons.Material.Filled.Update" 
+               Class="ml-2">
+        Update All Links
+    </MudButton>
+        <MudSpacer />
+        
+        <MudTextField @bind-Value="searchString2" Placeholder="Search for Applicant Transaction..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.Id)">Id</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.ReferenceNo)">Reference No</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.isSuccessful)">Successful</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.Amount)">Amount</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.client_name)">Client Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.CreatedDate)">Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ApplicantPaymentDto, object>(x=>x.email)">Email</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.ReferenceNo</MudTd>
+        <MudTd DataLabel="Successful">@context.isSuccessful</MudTd>
+        <MudTd DataLabel="Description">@context.Amount.ToString("#,##0.00")</MudTd>
+        <MudTd DataLabel="client_name">@context.client_name</MudTd>
+        <MudTd DataLabel="Date">@context.CreatedDate</MudTd>
+        <MudTd DataLabel="UserID">@context.email</MudTd>
+        <MudTd DataLabel="">
+            <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Info" OnClick="@(() => ShowPayDetailsModal(context.ReferenceNo))" Size="Size.Small" IconSize="Size.Small" />
+            <MudFab Color="Color.Secondary" Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" IconSize="Size.Small" />
+              <MudFab Color="Color.Success" Icon="@Icons.Material.Filled.Update" OnClick="@(() => UpdateApplicationFormId(context))" Size="Size.Small" IconSize="Size.Small" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+</div>
+
+@code{
+    private string searchString2 = "";
+    private ApplicantPaymentDto payment = new ApplicantPaymentDto();
+    private List<ApplicantPaymentDto> payments = new List<ApplicantPaymentDto>();
+         public class SimpleDialog : ComponentBase
+    {
+        [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+        [Parameter] public string Message { get; set; }
+
+        protected override void OnInitialized()
+        {
+            Message ??= "Processing...";
+        }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenComponent<MudDialog>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)((builder2) => {
+                builder2.OpenComponent<MudProgressCircular>(2);
+                builder2.AddAttribute(3, "Color", Color.Primary);
+                builder2.AddAttribute(4, "Indeterminate", true);
+                builder2.CloseComponent();
+                builder2.AddMarkupContent(5, "<div class=\"mt-3\">");
+                builder2.AddContent(6, Message);
+                builder2.AddMarkupContent(7, "</div>");
+            }));
+            builder.CloseComponent();
+        }
+    }
+
+      private async Task BulkUpdateApplicationFormIds()
+{
+    try
+    {
+        // Show loading dialog
+        var loading = DialogService.Show<SimpleDialog>("Updating Payment Links...",
+            new DialogParameters { ["Message"] = "Please wait while we update all payment links..." },
+            new DialogOptions { DisableBackdropClick = true, NoHeader = true });
+
+        var applicationForms = await ApplicationFormService.GetAll();
+        int successCount = 0;
+        int failCount = 0;
+        
+        // Process all payments that don't have an ApplicationFormId set
+        foreach (var payment in payments.Where(p => !p.ApplicationFormId.HasValue && !string.IsNullOrEmpty(p.UserId)))
+        {
+            var matchingForm = applicationForms.FirstOrDefault(f => f.UserId == payment.UserId);
+            
+            if (matchingForm != null)
+            {
+                payment.ApplicationFormId = matchingForm.Id;
+                var updateSuccess = await ApplicantPaymentService.UpdatePayment(payment);
+                
+                if (updateSuccess)
+                    successCount++;
+                else
+                    failCount++;
+            }
+        }
+
+        // Close loading dialog
+        await loading.Result;
+
+        // Show results
+        var message = $"Update complete:\n{successCount} payments linked successfully\n{failCount} payments failed to update";
+        var severity = failCount == 0 ? Severity.Success : Severity.Warning;
+        snackBar.Add(message, severity);
+
+        // Refresh the table
+        await GetPaymentAsync();
+    }
+    catch (Exception ex)
+    {
+        snackBar.Add($"Error during bulk update: {ex.Message}", Severity.Error);
+    }
+}
+ 
+    protected override async Task OnInitializedAsync()
+    {
+         GetPaymentAsync();
+    }
+     private async Task UpdateApplicationFormId(ApplicantPaymentDto payment)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(payment.UserId))
+            {
+                snackBar.Add("User ID is missing", Severity.Warning);
+                return;
+            }
+
+            var applicationForms = await ApplicationFormService.GetAll();
+            var matchingForm = applicationForms.FirstOrDefault(f => f.UserId == payment.UserId);
+
+            if (matchingForm == null)
+            {
+                snackBar.Add("No matching application form found", Severity.Warning);
+                return;
+            }
+
+            // Update the ApplicationFormId
+            payment.ApplicationFormId = matchingForm.Id;
+            
+            // Use the consolidated UpdatePayment method
+            var updateSuccess = await ApplicantPaymentService.UpdatePayment(payment);
+
+            if (updateSuccess)
+            {
+                snackBar.Add("Payment successfully linked to Application Form", Severity.Success);
+                await GetPaymentAsync();
+            }
+            else
+            {
+                snackBar.Add("Failed to update payment", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            snackBar.Add($"Error updating payment: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task GetPaymentAsync()
+    {
+        try
+        {
+            var result = await ApplicantPaymentService.GetAllPayment();
+            payments = result.ToList();
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving data", Severity.Error);
+        }
+    }
+private bool Search2(ApplicantPaymentDto payment)
+{
+    if (string.IsNullOrWhiteSpace(searchString2)) return true;
+     
+    if (payment.ReferenceNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+       return true;
+
+    if (payment.client_name.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+       return true;
+
+        if (payment.email.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+       return true;
+
+    return false;
+}
+
+private Func<ApplicantPaymentDto, bool> _quickFilter1 => x =>
+{
+    if (string.IsNullOrWhiteSpace(searchString2))
+        return true;
+
+    if (x.ReferenceNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+        return true;
+
+    if (x.client_name.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+        return true;
+
+    if ($"{x.ReferenceNo} {x.Amount} {x.client_name} {x.email}".Contains(searchString2))
+        return true;
+
+    return false;
+};
+    private async Task Save()
+    {
+        // await ApplicantPaymentService.CreatePayment(payment);
+        // payment = new ApplicantPaymentDto();
+        // snackBar.Add("Payment Successfully Saved.", Severity.Success);
+        // GetPaymentAsync();
+    }
+    private async Task Edit(long id)
+    {
+        payment = await ApplicantPaymentService.GetPayment(id);
+    }
+    private async Task Delete(long id)
+    {
+        await ApplicantPaymentService.DeletePayment(id);
+        snackBar.Add("Payment Deleted.", Severity.Success);
+        GetPaymentAsync();
+    }
+    private async Task OpenEditDialog(long id)
+    {
+        var parameters = new DialogParameters { ["Transaction"] = await ApplicantPaymentService.GetPayment(id) };
+        var dialog =  DialogService.Show<PaymentInfoDialog>("Edit Payment", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+             GetPaymentAsync();
+        }
+      
+    }
+    @* private Func<ApplicantPaymentDto, bool> _quickFilter1 => x =>
+       {
+       if (string.IsNullOrWhiteSpace(searchString2))
+           return true;
+
+       if (x.ReferenceNo.Contains(searchString2, StringComparison.OrdinalIgnoreCase))
+           return true;
+
+    
+
+       if ($"{x.ReferenceNo} {x.Amount}".Contains(searchString2))
+           return true;
+
+       return false;
+       }; *@
+    
+ private async Task ShowPayDetailsModal(string payreference)
+{
+    Console.WriteLine($"ShowPayDetailsModal called with referenceNo: {payreference}");
+    if (string.IsNullOrWhiteSpace(payreference))
+    {
+        snackBar.Add("Invalid reference number", Severity.Error);
+        return;
+    }
+
+    var parameters = new DialogParameters { ["referenceNo"] = payreference };
+    var dialog = DialogService.Show<PaymentInfoDialog>("Payment Info", parameters, 
+        new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, Position = DialogPosition.TopCenter });
+
+    var result = await dialog.Result;
+    if (!result.Canceled)
+    {
+        // Handle any post-dialog actions if needed
+    }
+}
+    
+    private async Task GeneratePdf(string referenceNo)
+    {
+        List<ApplicantPaymentDto> rPaymentDto=new List<ApplicantPaymentDto>();
+        StudentEnrolmentDto rStudentDto=new StudentEnrolmentDto();
+        List<ReceiptItemDTO> currentReceipt = new List<ReceiptItemDTO>();
+        foreach (var currentPay in rPaymentDto)
+        {
+            currentReceipt.Add(new ReceiptItemDTO()
+            {
+                CategoryDescription = currentPay.tran_name,
+                Amount = currentPay.Amount
+            });
+        }
+       
+        var receiptData = new SchoolReceiptDTO()
+        {
+            SchoolName = "Ajayi Crowther University",
+            Address = "Ajayi Crowther University, Oyo P.M.B. 1066, Oyo,Oyo State, Nigeria.",
+            Date = rPaymentDto.FirstOrDefault().CreatedDate,
+            StudentName = rStudentDto.Student.FirstName+" "+rStudentDto.Student.LastName,
+            Level = rStudentDto.Level.Name,
+                
+            Items = new List<ReceiptItemDTO>
+            {
+                new ReceiptItemDTO() { CategoryDescription = "Tuition Fee", Amount = 500.00m },
+                new ReceiptItemDTO() { CategoryDescription = "Library Fee", Amount = 50.00m },
+            },
+            QRCodeData = "Sample QR Code Data"
+        };
+    // Use the service to generate the PDF
+        using var pdfStream = new MemoryStream();
+        PDFReceipts.GenerateReceiptPDF(receiptData,pdfStream);
+        
+    // Convert the PDF stream to a byte array
+        var pdfBytes = pdfStream.ToArray();
+    // Convert byte array to base64 string
+        var base64 = Convert.ToBase64String(pdfBytes);
+    // Create a URL for the PDF
+        var url = $"data:application/pdf;base64,{base64}";
+    // Use JavaScript to trigger the download
+        await JSRuntime.InvokeVoidAsync("console.log", url);
+    // await JSRuntime.InvokeVoidAsync("window.open", url, "_blank");
+        await JSRuntime.InvokeVoidAsync("downloadBase64File", url, "downloaded.pdf");
+        
+    }
+    
+   
+}

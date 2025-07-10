@@ -1,0 +1,523 @@
+@page "/applicant/Hostel-portal"
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+@using MudBlazor
+@using ACUnified.Data.Enum
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@inject IApplicantPaymentRepository ApplicantPaymentRepository
+@inject IHostelDebtorListRepository Repository
+@inject IApplicationFormRepository applicationForm
+@inject IApplicantPaymentLogRepository paymentRepository
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject UserManager<ApplicationUser> UserManager
+
+@layout ACUnifiedLayout
+@attribute [Authorize(Roles = "FreshApplicantDashboard")]
+
+<PageTitle>Student Hostel Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5">Student Hostel Portal</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+
+        @if (isLoading)
+        {
+            <MudCardContent>
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+                <MudText Align="Align.Center">Loading your hostel information...</MudText>
+            </MudCardContent>
+        }
+        else if (debtorRecord == null)
+        {
+            <MudCardContent>
+                <MudAlert Severity="Severity.Info">
+                    No payment information found. Please contact support if you believe this is an error.
+                </MudAlert>
+            </MudCardContent>
+        }
+        else
+        {
+            <MudCardContent>
+                <!-- Payment Summary Section -->
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <MudText Typo="Typo.subtitle1">Total Amount</MudText>
+                            <MudText Typo="Typo.h5" Color="Color.Primary">₦@debtorRecord.TotalAmount.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <MudText Typo="Typo.subtitle1">Amount Paid</MudText>
+                            <MudText Typo="Typo.h5" Color="Color.Success">₦@debtorRecord.TotalPaid.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <MudText Typo="Typo.subtitle1">Outstanding Amount</MudText>
+                            <MudText Typo="Typo.h5" Color="Color.Error">₦@debtorRecord.OutstandingAmount.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                <!-- Room Selection and Payment Section -->
+                @if (debtorRecord.OutstandingAmount > 0)
+                {
+                    <MudItem xs="12" Class="mt-6">
+                        <MudPaper Class="pa-4">
+                            <!-- Room Selection Section -->
+                            <MudCard Elevation="3" Class="pa-4 mb-6">
+                                <MudText Typo="Typo.h6" Class="mb-4">Step 1: Change to Premium Hostel</MudText>
+                                <MudText Class="mb-4">Please select your room before proceeding with payment</MudText>
+
+                                @if (currentApplicationForm?.BioData?.Gender == "Male")
+                                {
+                                    <MudButton ButtonType="ButtonType.Button"
+                                               Variant="Variant.Filled"
+                                               OnClick="@(() => NavigatePickRoomPage("Male"))"
+                                               Color="Color.Primary"
+                                               Size="Size.Large"
+                                               Class="mb-2">Select Male Hostel Room</MudButton>
+                                }
+                                else if (currentApplicationForm?.BioData?.Gender == "Female")
+                                {
+                                    <MudButton ButtonType="ButtonType.Button"
+                                               Variant="Variant.Filled"
+                                               OnClick="@(() => NavigatePickRoomPage("Female"))"
+                                               Color="Color.Primary"
+                                               Size="Size.Large"
+                                               Class="mb-2">Select Female Hostel Room</MudButton>
+                                }
+                            </MudCard>
+
+                            <!-- Payment Section -->
+                            <MudText Typo="Typo.h6" Class="mb-4">Step 2: Select Payment Plan</MudText>
+                            <MudGrid>
+                                <MudItem xs="12" sm="6">
+                                    <MudCard Elevation="3" Class="pa-4">
+                                        <MudText Typo="Typo.h6">Premium Hostel</MudText>
+                                        <MudText Class="mt-2">Upgrade to Premium Hostel Accommodation</MudText>
+                                        @{
+                                            var premiumAmount = CalculatePremiumAmount();
+                                        }
+                                        <MudText Typo="Typo.h5" Color="Color.Primary" Class="mt-4">
+                                            ₦@(premiumAmount.ToString("N2"))
+                                        </MudText>
+                                        <MudText Typo="Typo.caption">Premium accommodation features</MudText>
+                                        <MudButton Color="Color.Primary" 
+                                                 Variant="Variant.Filled" 
+                                                 FullWidth="true"
+                                                 Class="mt-4" 
+                                                 OnClick="async () => await InitiatePayment(premiumAmount, PayPlan.SecondThirdInstalment)">
+                                            Pay Premium Amount
+                                        </MudButton> 
+                                    </MudCard>
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudCard Elevation="3" Class="pa-4">
+                                        <MudText Typo="Typo.h6">Regular Hostel</MudText>
+                                        <MudText Class="mt-2">Balance for Regular Hostel Accommodation</MudText>
+                                        @{
+                                            var regularAmount = CalculateRegularAmount();
+                                        }
+                                        <MudText Typo="Typo.h5" Color="Color.Secondary" Class="mt-4">
+                                            ₦@(regularAmount.ToString("N2"))
+                                        </MudText>
+                                        <MudText Typo="Typo.caption">Standard accommodation features</MudText>
+                                        <MudButton Color="Color.Secondary"
+                                                   Variant="Variant.Filled"
+                                                   FullWidth="true"
+                                                   Class="mt-4"
+                                                   OnClick="async () => await InitiatePayment(regularAmount, PayPlan.SecondInstalment)">
+                                            Pay Regular Amount
+                                        </MudButton>
+                                    </MudCard>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" Class="mt-6">
+                        <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
+                            All payments have been completed. You can proceed to pick your room if you haven't already.
+                        </MudAlert>
+                        @if (currentApplicationForm?.BioData?.Gender == "Male")
+                        {
+                            <MudButton ButtonType="ButtonType.Button"
+                                       Variant="Variant.Filled"
+                                       OnClick="@(() => NavigatePickRoomPage("Male"))"
+                                       Color="Color.Success"
+                                       Class="mt-4">Pick Male Hostel Room</MudButton>
+                        }
+                        else if (currentApplicationForm?.BioData?.Gender == "Female")
+                        {
+                            <MudButton ButtonType="ButtonType.Button"
+                                       Variant="Variant.Filled"
+                                       OnClick="@(() => NavigatePickRoomPage("Female"))"
+                                       Color="Color.Success"
+                                       Class="mt-4">Pick Female Hostel Room</MudButton>
+                        }
+                    </MudItem>
+                }
+
+                @* <!-- Payment History Section -->
+                @if (paymentHistory.Any())
+                {
+                    <MudItem xs="12" Class="mt-6">
+                        <MudText Typo="Typo.h6" Class="mb-4">Payment History</MudText>
+                        <MudTable Items="@paymentHistory" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Date</MudTh>
+                                <MudTh>Reference</MudTh>
+                                <MudTh>Amount</MudTh>
+                                <MudTh>Status</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.CreatedDate.ToShortDateString()</MudTd>
+                                <MudTd>@context.ReferenceNo</MudTd>
+                                <MudTd>₦@context.Amount.ToString("N2")</MudTd>
+                                <MudTd>
+                                    <MudChip Color="@(context.isSuccessful ? Color.Success : Color.Error)">
+                                        @(context.isSuccessful ? "Successful" : "Pending")
+                                    </MudChip>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudItem> *@
+                }
+            </MudCardContent>
+        }
+    </MudCard>
+
+    <!-- Hidden Remita Form -->
+    <form id="remitaForm" action="@remitaBaseUrl" method="POST" style="display:none;">
+        <input type="hidden" name="merchantId" id="merchantId" value="@remitaModel.merchantId" />
+        <input type="hidden" name="serviceTypeId" id="serviceTypeId" value="@remitaModel.serviceTypeId" />
+        <input type="hidden" name="hash" id="hash" value="@remitaModel.hash" />
+        <input type="hidden" name="orderId" id="orderId" value="@remitaModel.orderId" />
+        <input type="hidden" name="amt" id="amt" value="@remitaModel.amount" />
+        <input type="hidden" name="responseurl" id="responseurl" value="@remitaModel.responseurl" />
+        <input type="hidden" name="payerName" id="payerName" value="@remitaModel.payerName" />
+        <input type="hidden" name="payerEmail" id="payerEmail" value="@remitaModel.payerEmail" />
+        <input type="hidden" name="payerPhone" id="payerPhone" value="@remitaModel.payerPhone" />
+    </form>
+</MudContainer>
+
+ @code {
+    private HostelDebtorListDto debtorRecord;
+    private ApplicationFormDto currentApplicationForm;
+    // private List<ApplicantPaymentLogDto> paymentHistory = new();
+    private List<ApplicantPaymentDto> paymentHistory = new();
+    private bool isLoading = true;
+    private PaymentModel remitaModel = new();
+    private const string remitaBaseUrl = "https://login.remita.net/remita/ecomm/init.reg";
+    private const decimal PREMIUM_HOSTEL_AMOUNT = 335000m;
+
+    public class PaymentModel
+    {
+        public string payerName { get; set; } = string.Empty;
+        public string payerEmail { get; set; } = string.Empty;
+        public string payerPhone { get; set; } = string.Empty;
+        public decimal amount { get; set; }
+        public string paymentType { get; set; } = string.Empty;
+        public string merchantId { get; set; } = string.Empty;
+        public string serviceTypeId { get; set; } = string.Empty;
+        public string orderId { get; set; } = string.Empty;
+        public string responseurl { get; set; } = string.Empty;
+        public string apiKey { get; set; } = string.Empty;
+        public string hash { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStudentData();
+    }
+
+    private void NavigatePickRoomPage(string gender)
+    {
+        NavigationManager.NavigateTo($"/PickRoom/{gender}");
+    }
+
+    private decimal CalculatePremiumAmount()
+    {
+        return PREMIUM_HOSTEL_AMOUNT - debtorRecord.TotalPaid;
+    }
+
+    private decimal CalculateRegularAmount()
+    {
+        return debtorRecord.OutstandingAmount;
+    }
+    private async Task LoadStudentData()
+    {
+        try
+        {
+            isLoading = true;
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                Snackbar.Add("User not found", Severity.Error);
+                return;
+            }
+
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm == null || currentApplicationForm.Id <= 0)
+            {
+                Snackbar.Add("Please complete your application registration first", Severity.Warning);
+                NavigationManager.NavigateTo("/applicant/Dashboard", forceLoad: true);
+                return;
+            }
+
+            // Check application stage and redirect if stage is 13
+            if (currentApplicationForm.ApplicantStage == ApplicationStage.Stage13)
+            {
+                Snackbar.Add("This page is not accessible at the current application stage", Severity.Warning);
+                NavigationManager.NavigateTo("/applicant/Dashboard", forceLoad: true);
+                return;
+            }
+
+            // Get debtor recordPayment History
+            var debtorRecords = await Repository.GetByApplicationFormIdAsync(currentApplicationForm.Id);
+            debtorRecord = debtorRecords.FirstOrDefault();
+
+            @* // Get payment history *@
+             var allPayments = await ApplicantPaymentRepository.GetAllPaymentByUserId(userId);
+            paymentHistory = allPayments.OrderByDescending(x => x.CreatedDate).ToList(); 
+
+            // If debtor record is missing, check if a fallback payment already exists
+            if (debtorRecord == null)
+            {
+                var fallbackExists = allPayments.Any(p =>
+                    p.Amount == 0 &&
+                    p.ApplicantPayDetailsId == 104 &&
+                    p.ApplicantPayCategoryId == 60 &&
+                    p.isSuccessful == true);
+
+                if (!fallbackExists)
+                {
+                    // Try get last real payment for user info
+                    var lastPayment = allPayments.FirstOrDefault();
+                    if (lastPayment != null)
+                    {
+                        var fallbackPayment = new ApplicantPaymentDto
+                            {
+                                ReferenceNo = $"Fallback-{Guid.NewGuid().ToString("N").Substring(0, 10)}",
+                                Amount = 0,
+                                email = lastPayment.email,
+                                client_name = lastPayment.client_name,
+                                UserId = lastPayment.UserId,
+                                ApplicantPayDetailsId = 104,
+                                ApplicantPayCategoryId = 60,
+                                RRRRNo = "",
+                                isSuccessful = true,
+                                Comments = "Fallback hostel payment created due to missing debtor record",
+                                ApplicationFormId = currentApplicationForm.Id,
+                                CreatedDate = DateTime.Now
+                            };
+
+                        await ApplicantPaymentRepository.CreateApplicantPayments(fallbackPayment);
+                        Snackbar.Add("Fallback hostel payment record created successfully.", Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add("Unable to create fallback payment: no previous payment data found.", Severity.Error);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading payment information: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error in LoadStudentData: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+     
+    private string GetPaymentPlanDisplay(PayPlan plan)
+    {
+        return plan switch
+        {
+            PayPlan.FirstInstalment => "First Installment",
+            PayPlan.SecondInstalment => "Second Installment",
+            PayPlan.SecondThirdInstalment => "Full Payment",
+            PayPlan.NotPaid => "Not Paid",
+            _ => plan.ToString()
+        };
+    }
+
+    private async Task InitiatePayment(decimal amount, PayPlan selectedPlan)
+    {
+        try
+        {
+            Console.WriteLine($"Initiating payment - Amount: {amount}, Plan: {selectedPlan}");
+
+            if (amount <= 0)
+            {
+                Snackbar.Add("Invalid payment amount", Severity.Error);
+                return;
+            }
+
+            if (currentApplicationForm == null || !currentApplicationForm.ProgramSetupId.HasValue)
+            {
+                Snackbar.Add("Invalid application form", Severity.Error);
+                return;
+            }
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userInformation = await UserManager.FindByIdAsync(userId);
+
+            if (userInformation == null)
+            {
+                Snackbar.Add("User information not found", Severity.Error);
+                return;
+            }
+
+            var paymentDetails = await payDetailsRepository.GetPayDetailsByProgramSetupId(
+                currentApplicationForm.ProgramSetupId.Value);
+            var applicablePayDetail = paymentDetails?.FirstOrDefault();
+
+            if (applicablePayDetail == null)
+            {
+                Snackbar.Add("Payment configuration not found", Severity.Error);
+                return;
+            }
+
+            string formRefNo = currentApplicationForm.FormRefNo ?? "ACU/APC";
+            string serialNumber = GenerateSerialNumber();
+            string orderId = $"{formRefNo}/{selectedPlan}/{serialNumber}";
+
+            decimal expectedAmount = selectedPlan switch
+            {
+                PayPlan.SecondThirdInstalment => CalculatePremiumAmount(),
+                PayPlan.SecondInstalment => CalculateRegularAmount(),
+                _ => amount
+            };
+
+            if (Math.Abs(expectedAmount - amount) > 0.01m)
+            {
+                Console.WriteLine($"Amount mismatch - Expected: {expectedAmount}, Provided: {amount}");
+                Snackbar.Add("Payment amount validation failed. Please try again.", Severity.Error);
+                return;
+            }
+
+            remitaModel = new PaymentModel
+                {
+                    payerName = $"{userInformation.Firstname} {userInformation.Surname}",
+                    payerEmail = userInformation.Email,
+                    payerPhone = userInformation.PhoneNumber,
+                    merchantId = "2268484533",
+                    serviceTypeId = "14649764100",
+                    amount = expectedAmount,
+                    orderId = orderId,
+                    responseurl = $"{NavigationManager.BaseUri}Payment/ProcessTransactionLogReceipt7",
+                    apiKey = "018543"
+                };
+
+            string hashString = remitaModel.merchantId +
+                              remitaModel.serviceTypeId +
+                              remitaModel.orderId +
+                              remitaModel.amount.ToString() +
+                              remitaModel.responseurl +
+                              remitaModel.apiKey;
+
+            using var sha512 = System.Security.Cryptography.SHA512.Create();
+            var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+            remitaModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+            var paymentLog = new ApplicantPaymentLogDto
+                {
+                    ReferenceNo = remitaModel.orderId,
+                    Amount = remitaModel.amount,
+                    email = userInformation.Email,
+                    client_name = remitaModel.payerName,
+                    ApplicantPayDetailsId = 104,
+                    ApplicantPayCategoryId = 60,
+                    RRRRNo = "",
+                    isSuccessful = false,
+                    UserId = userId,
+                    Comments = $"Payment Portal Payment - {selectedPlan} - Amount: {remitaModel.amount}"
+                };
+
+            await paymentRepository.CreateApplicantPayment(paymentLog);
+            Console.WriteLine($"Payment log created - Reference: {paymentLog.ReferenceNo}");
+
+            StateHasChanged();
+            await Task.Delay(100);
+
+            var amtElement = await JSRuntime.InvokeAsync<IJSObjectReference>("document.getElementById", "amt");
+            var formAmount = amtElement != null ? await amtElement.InvokeAsync<string>("getAttribute", "value") : null;
+            if (!decimal.TryParse(formAmount, out decimal formAmountDecimal) || Math.Abs(formAmountDecimal - expectedAmount) > 0.01m)
+            {
+                Console.WriteLine($"Form amount mismatch - Expected: {expectedAmount}, Form: {formAmount}");
+                Snackbar.Add("Payment amount validation failed. Please refresh and try again.", Severity.Error);
+                return;
+            }
+
+            await JSRuntime.InvokeVoidAsync("submitForm", "remitaForm");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Payment initiation error: {ex}");
+            Snackbar.Add($"Error initiating payment: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GenerateSerialNumber()
+    {
+        return new Random().Next(10000000, 99999999).ToString("D8");
+    }
+} 
+
+ @* Add this script section at the bottom of your page  *@
+<script>
+    window.submitForm = function (formId) {
+        console.log('Submitting form:', formId);
+        try {
+            const form = document.getElementById(formId);
+            if (form) {
+                console.log('Form found, logging values:');
+                const formData = new FormData(form);
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
+
+                const amount = formData.get('amt');
+                if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+                    console.error('Invalid amount in form:', amount);
+                    return;
+                }
+
+                console.log('Submitting form to:', form.action);
+                form.submit();
+            } else {
+                console.error('Form not found:', formId);
+            }
+        } catch (error) {
+            console.error('Error submitting form:', error);
+        }
+    }
+</script> 

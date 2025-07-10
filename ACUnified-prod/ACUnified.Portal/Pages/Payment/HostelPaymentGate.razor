@@ -1,0 +1,399 @@
+@page "/HostelPaymentGate/{name}"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentLogRepository paymentRepository
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject HttpClient Http
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@attribute [Authorize]
+
+<MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Applicant Order Page</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudText Typo="Typo.h5" GutterBottom="true">Billing address</MudText>
+            <MudGrid>
+
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@paymentModel.payerName" Label="Name" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="paymentModel.payerEmail" Label="Email" ReadOnly="true" />
+                </MudItem>
+                @if (name == "BSC")
+                {
+                    <MudItem xs="12">
+                        <MudSelect T="HostelType" Label="Hostel Type" @bind-Value="@HostelTypeInput">
+                            <MudSelectItem T="HostelType" Value=HostelType.Regular>Regular </MudSelectItem>
+                            <MudSelectItem T="HostelType" Value=HostelType.Premium>Premium </MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                }
+               
+                <MudItem xs="12" Class="d-flex justify-center justify-space-between">
+                    <MudButton OnClick="OnHalfPaymentClickAsync"  Variant="Variant.Filled"   DisableElevation="true"   Color="Color.Primary" Size="Size.Large"  Class="mt-8"> Pay Half </MudButton>
+                    <MudButton OnClick="OnPaymentClickAsync" Variant="Variant.Filled" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Continue to Payment</MudButton>
+                </MudItem>
+                        <MudItem xs="12" Class="d-flex justify-center">
+                 <MudText Typo="Typo.h5" GutterBottom="true">Note payment for Premium Hostel is Currently unavailable you can either wait or pay for Regular Hostel. Room can't be changed when submitted </MudText>
+                
+        </MudItem>
+            </MudGrid>
+        </MudItem>
+
+
+        <MudItem xs="5">
+            <MudText Typo="Typo.h5" GutterBottom="true">Cart</MudText>
+
+            <MudText>Pay ref: @paymentModel.orderId</MudText>
+
+            <MudPaper Class="d-flex flex-column" Style="height:100%;" Outlined="true">
+                <MudList Clickable="true">
+                    <MudListItem Icon="@Icons.Material.Filled.BookOnline">
+
+                        <div class="d-flex">
+                            <MudText>@paymentModel.payerName</MudText>
+                            @if (name == "BSC")
+                            {
+                                @if (HostelTypeInput == HostelType.Regular)
+                                {
+                                    <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails1.Amount.ToString("###,#")</MudText>
+                                }
+                                @if (HostelTypeInput == HostelType.Premium)
+                                {
+                                    <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails2.Amount.ToString("###,#")</MudText>
+                                }
+                            }
+                            @if (name != "BSC")
+                            {
+                                <MudText Inline="true" Class="ml-auto">NGN @currentPayDetails.Amount.ToString("###,#")</MudText>
+
+                            }
+
+                          
+                        </div>
+                    </MudListItem>
+                </MudList>
+                <div class="mt-auto">
+                    <MudDivider />
+                    <div class="d-flex pa-4">
+                        <MudText>Total:</MudText>
+                        <MudText Class="ml-auto">
+                             @if (name == "BSC")
+                            {
+                                @if (HostelTypeInput == HostelType.Regular)
+                                {
+                                    <b>NGN @currentPayDetails1.Amount.ToString("###,#")</b>
+                                    
+                                }
+
+                                @if (HostelTypeInput == HostelType.Premium)
+                                {
+                                    <b>NGN @currentPayDetails2.Amount.ToString("###,#")</b>
+                                }
+                            }
+                            @if (name != "BSC")
+                            {
+                                <b>NGN @currentPayDetails.Amount.ToString("###,#")</b>
+                            }
+                        </MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    <form id="remitaForm" action="@baseurl" method="POST">
+        <input type="hidden" name="payerName" id="payerName" value="@paymentModel.payerName" />
+        <input type="hidden" name="payerEmail" id="payerEmail" value="@paymentModel.payerEmail" />
+        <input type="hidden" name="payerPhone" id="payerPhone" value="@paymentModel.payerPhone" />
+        <input type="hidden" name="orderId" id="orderId" value="@paymentModel.orderId" />
+        <input type="hidden" name="merchantId" id="merchantId" value="@paymentModel.merchantId" />
+        <input type="hidden" name="serviceTypeId" id="serviceTypeId" value="@paymentModel.serviceTypeId" />
+        <input type="hidden" name="responseurl" id="responseurl" value="@paymentModel.responseurl" />
+        <input type="hidden" name="amt" id="amt" value="@paymentModel.amount" />
+        <input type="hidden" name="hash" id="hash" value="@paymentModel.hash" />
+        <input type="hidden" name="paymenttype" id="paymenttype" value="@paymentModel.paymentType" />
+    </form>
+</MudContainer>
+
+
+
+@code {
+
+    [Parameter]
+    public string name { get; set; }
+    public string baseurl = "https://login.remita.net/remita/ecomm/init.reg";
+    private PaymentModel paymentModel = new PaymentModel();
+    private  HostelType HostelTypeInput = HostelType.None;
+    
+    public bool _loading { get; set; }
+
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicantPayDetailsDto currentPayDetails1 = new ApplicantPayDetailsDto();
+    ApplicantPayDetailsDto currentPayDetails2 = new ApplicantPayDetailsDto();
+   
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentLogDto currentApplicantPaymentLog = new ApplicantPaymentLogDto();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+    public string userId;
+    protected override async Task OnInitializedAsync()
+    {
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        currentSession = await currentAcademicSession.GetActiveApplicantSession();
+        currentPayDetails = await payDetailsRepository.GetPayDetailsByName(name);
+        currentPayDetails1 = await payDetailsRepository.GetPayDetailsByName("TutionRegularBSC");
+        currentPayDetails2 = await payDetailsRepository.GetPayDetailsByName("TutionIndependentBSC");
+          currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+        if (userId != null)
+        {
+            var userInformation = await UserManager.FindByIdAsync(userId);
+            paymentModel.payerName = userInformation.Firstname + " " + userInformation.Surname;
+            paymentModel.payerEmail = userInformation.Email;
+            paymentModel.payerPhone = userInformation.PhoneNumber;
+
+            currentApplicantPaymentLog.email = userInformation.Email;
+            currentApplicantPaymentLog.client_name = userInformation.Firstname + " " + userInformation.Surname;
+            currentApplicantPaymentLog.UserId = userId; 
+        }
+
+        _loading = false;
+    }
+
+    
+private async Task OnPaymentClickAsync()
+{
+    if (userId == null)
+    {
+        snackBar.Add("User not authenticated", Severity.Error);
+        return;
+    }
+
+    paymentModel.merchantId = "2268484533";
+    paymentModel.apiKey = "018543";
+    paymentModel.responseurl = Navigation.BaseUri + "Payment/ProcessTransactionLogReceipt2";
+
+    
+
+     if (HostelTypeInput == HostelType.None)
+    {
+        snackBar.Add("Please Provide Conversion Category", Severity.Error);
+        return;
+    } 
+ 
+    var currentSessionList = await currentAcademicSession.GetActiveApplicantSession();
+    var currentSession = currentSessionList.FirstOrDefault();
+
+    currentApplicantPaymentLog = new ApplicantPaymentLogDto
+    {
+        ReferenceNo = paymentModel.orderId,
+        Amount = paymentModel.amount,
+        email = paymentModel.payerEmail,
+        client_name = paymentModel.payerName,
+        RRRRNo = "",
+        isSuccessful = false,
+        UserId = userId,
+        SessionId = currentSession?.Id
+    };
+
+    if (HostelTypeInput == HostelType.Regular)
+    {
+        await ProcessRegularPayment();
+    }
+    else if (HostelTypeInput == HostelType.Premium)
+    {
+        await ProcessIndependentPayment();
+    }
+    // Payment processing logic for all courses
+
+
+    // Save the payment log
+    var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPaymentLog);
+
+    // Submit the form
+    await jsRuntime.InvokeVoidAsync("submitForm", "remitaForm");
+}
+
+
+   private async Task ProcessRegularPayment()
+{
+    paymentModel.amount = currentPayDetails1.Amount;
+    paymentModel.orderId = $"{currentApplicationForm.FormRefNo}/Regular/{DateTime.Now:yyyyMMddHHmmss}";
+    paymentModel.serviceTypeId = "14649764100";
+
+    currentApplicantPaymentLog.ApplicantPayCategoryId = currentPayDetails1.ApplicantPayCategoryId;
+    currentApplicantPaymentLog.ApplicantPayDetailsId = currentPayDetails1.Id;
+    currentApplicantPaymentLog.Comments = $"Regular Hostel Full Payment {currentSession.FirstOrDefault()?.Name}";
+
+    var hashString = paymentModel.merchantId + paymentModel.serviceTypeId + paymentModel.orderId + paymentModel.amount + paymentModel.responseurl + paymentModel.apiKey;
+    using var sha512 = System.Security.Cryptography.SHA512.Create();
+    var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+    paymentModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+    ApplicationFormDto applicationFormDto = await applicationForm.GetApplicationFormByUserId(userId);
+
+    await applicationForm.UpdateApplicationForm(applicationFormDto);
+      currentApplicationForm.ApplicantStage = ApplicationStage.Stage7;
+    currentApplicantPaymentLog.ReferenceNo = paymentModel.orderId;
+    currentApplicantPaymentLog.Amount = paymentModel.amount;
+}
+
+private async Task ProcessIndependentPayment()
+{
+    paymentModel.amount = currentPayDetails2.Amount;
+    paymentModel.orderId = $"{currentApplicationForm.FormRefNo}/NURSING/{DateTime.Now:yyyyMMddHHmmss}";
+    paymentModel.serviceTypeId = "14649764100";
+
+    currentApplicantPaymentLog.ApplicantPayCategoryId = currentPayDetails2.ApplicantPayCategoryId;
+    currentApplicantPaymentLog.ApplicantPayDetailsId = currentPayDetails2.Id;
+    currentApplicantPaymentLog.Comments = $"NURSING 100 LEVEL Full Tuition {currentSession.FirstOrDefault()?.Name}";
+
+    var hashString = paymentModel.merchantId + paymentModel.serviceTypeId + paymentModel.orderId + paymentModel.amount + paymentModel.responseurl + paymentModel.apiKey;
+    using var sha512 = System.Security.Cryptography.SHA512.Create();
+    var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+    paymentModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+    ApplicationFormDto applicationFormDto = await applicationForm.GetApplicationFormByUserId(userId);
+    await applicationForm.UpdateApplicationForm(applicationFormDto);
+       currentApplicationForm.ApplicantStage = ApplicationStage.Stage7;
+    currentApplicantPaymentLog.ReferenceNo = paymentModel.orderId;
+    currentApplicantPaymentLog.Amount = paymentModel.amount;
+}
+private async Task OnHalfPaymentClickAsync()
+{
+    if (userId == null)
+    {
+        snackBar.Add("User not authenticated", Severity.Error);
+        return;
+    }
+
+    paymentModel.merchantId = "2268484533";
+    paymentModel.apiKey = "018543";
+    paymentModel.responseurl = Navigation.BaseUri + "Payment/ProcessTransactionLogReceipt2";
+
+
+    if (HostelTypeInput == HostelType.None)
+    {
+        snackBar.Add("Please Provide Conversion Category", Severity.Error);
+        return;
+    }
+
+    var currentSessionList = await currentAcademicSession.GetActiveApplicantSession();
+    var currentSession = currentSessionList.FirstOrDefault();
+
+    currentApplicantPaymentLog = new ApplicantPaymentLogDto
+    {
+        ReferenceNo = paymentModel.orderId,
+        Amount = paymentModel.amount / 2, // Half payment
+        email = paymentModel.payerEmail,
+        client_name = paymentModel.payerName,
+        RRRRNo = "",
+        isSuccessful = false,
+        UserId = userId,
+        SessionId = currentSession?.Id
+    };
+
+    if (HostelTypeInput == HostelType.Regular)
+    {
+        await ProcessHalfRegularPayment();
+    }
+    else if (HostelTypeInput == HostelType.Premium)
+    {
+        await ProcessHalfIndependentPayment();
+    }
+
+    // Save the payment log
+    var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPaymentLog);
+
+    // Submit the form
+    await jsRuntime.InvokeVoidAsync("submitForm", "remitaForm");
+}
+
+private async Task ProcessHalfRegularPayment()
+{
+    paymentModel.amount = currentPayDetails1.Amount / 2; // Half payment
+    paymentModel.orderId = $"{currentApplicationForm.FormRefNo}Regular/HALF/{DateTime.Now:yyyyMMddHHmmss}";
+    paymentModel.serviceTypeId = "14649764100";
+
+    currentApplicantPaymentLog.ApplicantPayCategoryId = currentPayDetails1.ApplicantPayCategoryId;
+    currentApplicantPaymentLog.ApplicantPayDetailsId = currentPayDetails1.Id;
+    currentApplicantPaymentLog.Comments = $"Regular Hostel Half Payment{currentSession.FirstOrDefault()?.Name}";
+
+    var hashString = paymentModel.merchantId + paymentModel.serviceTypeId + paymentModel.orderId + paymentModel.amount + paymentModel.responseurl + paymentModel.apiKey;
+    using var sha512 = System.Security.Cryptography.SHA512.Create();
+    var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+    paymentModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+    ApplicationFormDto applicationFormDto = await applicationForm.GetApplicationFormByUserId(userId);
+   
+    await applicationForm.UpdateApplicationForm(applicationFormDto);
+       currentApplicationForm.ApplicantStage = ApplicationStage.Stage7;
+    currentApplicantPaymentLog.ReferenceNo = paymentModel.orderId;
+    currentApplicantPaymentLog.Amount = paymentModel.amount;
+}
+
+private async Task ProcessHalfIndependentPayment()
+{
+    paymentModel.amount = currentPayDetails2.Amount / 2; // Half payment
+    paymentModel.orderId = $"{currentApplicationForm.FormRefNo}/IND/HALF/{DateTime.Now:yyyyMMddHHmmss}";
+    paymentModel.serviceTypeId = "14649764100";
+
+    currentApplicantPaymentLog.ApplicantPayCategoryId = currentPayDetails2.ApplicantPayCategoryId;
+    currentApplicantPaymentLog.ApplicantPayDetailsId = currentPayDetails2.Id;
+    currentApplicantPaymentLog.Comments = $"BSC Premium Half Tuition {currentSession.FirstOrDefault()?.Name}";
+
+    var hashString = paymentModel.merchantId + paymentModel.serviceTypeId + paymentModel.orderId + paymentModel.amount + paymentModel.responseurl + paymentModel.apiKey;
+    using var sha512 = System.Security.Cryptography.SHA512.Create();
+    var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashString));
+    paymentModel.hash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+
+    ApplicationFormDto applicationFormDto = await applicationForm.GetApplicationFormByUserId(userId);
+    await applicationForm.UpdateApplicationForm(applicationFormDto);
+       currentApplicationForm.ApplicantStage = ApplicationStage.Stage7;
+    currentApplicantPaymentLog.ReferenceNo = paymentModel.orderId;
+    currentApplicantPaymentLog.Amount = paymentModel.amount;
+}
+
+    
+    
+    public class PaymentModel
+    {
+        public string payerName { get; set; }
+        public string payerEmail { get; set; }
+        public string payerPhone { get; set; }
+        public decimal amount { get; set; }
+        public string paymentType { get; set; }
+        public string merchantId { get; set; }
+        public string serviceTypeId { get; set; }
+        public string orderId { get; set; }
+        public string responseurl { get; set; }
+        public string apiKey { get; set; }
+        public string hash { get; set; }
+
+    }
+
+}

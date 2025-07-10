@@ -1,0 +1,220 @@
+@page "/Payment/ProcessTransactionLogReceipt5"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@using System.Text.RegularExpressions
+@using ACUnified.Data.Payloads
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentRepository paymentRepository
+@inject IApplicantPaymentLogRepository paymentRepositoryLog
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject HttpClient Http
+
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using ACUnified.Portal.Pages
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@attribute [Authorize]
+<LoadingOverlay IsLoading="@_loading" />
+<MudBlazor.MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Payment Receipt</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            
+            <MudGrid>
+
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@RRR" Label="RRR" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="@OrderID" Label="Order ID" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="decimal?" @bind-Value="@RRResponse.amount" Label="Order ID" ReadOnly="true" />
+                </MudItem>
+                <MudItem xs="12">
+                   @if(RRResponse.status=="00"){
+    <MudField  Label="Status" ReadOnly="true" >Successful Transaction</MudField>
+}
+                    @if (RRResponse.status != "00")
+                    {
+                        <MudField  Label="Status" ReadOnly="true" >Pending Transaction</MudField>
+                    }
+
+                </MudItem>
+                @if(RRResponse.status=="00"){
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnSuccessClickAsync" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Continue</MudButton>
+                    </MudItem>
+                }
+               
+            </MudGrid>
+        </MudItem>
+      
+    </MudGrid>
+    
+</MudBlazor.MudContainer>
+
+
+
+@code {
+
+
+    private string RRR { get; set; } = "";
+    private string OrderID { get; set; } = "";
+
+    public bool _loading { get; set; }
+
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentDto currentApplicantPayment = new ApplicantPaymentDto();
+    PaymentResponse RRResponse = new PaymentResponse();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        _loading = true;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        if (queryParams.TryGetValue("RRR", out var rrrValue))
+        {
+            RRR = rrrValue;
+        }
+
+        if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        {
+            OrderID = orderIDValue;
+        }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704"; 
+
+        string apiHashString = RRR+apiKey+merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+         try
+    {
+        var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+        RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+        if (RRResponse.status == "00")
+        {
+            // Retrieve the current application form
+            currentApplicationForm = await applicationForm.GetApplicationFormByUserId(userId);
+            if (currentApplicationForm != null)
+            {
+                // Update the application stage
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage6;
+                
+                // Update the application form
+                await applicationForm.UpdateApplicationForm(currentApplicationForm);
+
+                // Alternatively, you can use the UpdateApplicationStage method
+                // await applicationForm.UpdateApplicationStage(userId, ApplicationStage.Stage7);
+
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                // Get application form log table information
+                var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(OrderID);
+                var payLogItem = paylog.FirstOrDefault();
+                // verify transactions in the log table if it's there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //Payment Table
+                    currentApplicantPayment = new ApplicantPaymentDto();
+                    currentApplicantPayment.ReferenceNo = OrderID;
+                    currentApplicantPayment.Amount = payLogItem.Amount;
+                    currentApplicantPayment.email = payLogItem.email;
+                    currentApplicantPayment.client_name = payLogItem.client_name;
+                    currentApplicantPayment.Comments = payLogItem.Comments;
+                    currentApplicantPayment.isSuccessful = true;
+                    currentApplicantPayment.RRRRNo = RRResponse.RRR;
+                    currentApplicantPayment.ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId;
+                    currentApplicantPayment.ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId;
+                    currentApplicantPayment.UserId = userId;
+                    var currentSessionList = await currentAcademicSession.GetActiveApplicantSession();
+                    currentApplicantPayment.SessionId = currentSessionList.FirstOrDefault().Id;
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var payVerify = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+                    if (payVerify.Count() == 0)
+                    {
+                        var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+
+                    }
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(userId);
+                }
+                
+            }
+            else
+            {
+                // Handle the case where the application form doesn't exist
+                Console.WriteLine($"No application form found for user {userId}");
+                // You might want to show an error message to the user
+            }
+            
+        }
+        Console.WriteLine("+++ RRR Status Response: " + response);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error processing payment: {ex.Message}");
+        // Handle the exception appropriately
+        // You might want to show an error message to the user
+    }
+
+    _loading = false;
+}
+
+
+    private async Task OnSuccessClickAsync()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        Navigation.NavigateTo("/applicant/dashboard");
+    }
+    
+
+}

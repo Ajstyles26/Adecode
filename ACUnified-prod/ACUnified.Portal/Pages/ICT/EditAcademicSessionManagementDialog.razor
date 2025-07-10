@@ -1,0 +1,47 @@
+@page "/ict/EditAcademicSessionManagementDialog"
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@layout ACUnifiedLayout
+@inject IAcademicSessionRepository AcademicSessionService
+@inject ISnackbar snackBar
+
+@attribute [Authorize(Roles = "ICT")]
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="sessionToEdit.Name" Label="Name" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+        <MudToggleIconButton @bind-Toggled="@sessionToEdit.isActive"
+                             Icon="@Icons.Material.Filled.KeyOff" Color="@Color.Error" Title="Off"
+                             ToggledIcon="@Icons.Material.Filled.Key" ToggledColor="@Color.Success" ToggledTitle="On" />
+        <MudToggleIconButton @bind-Toggled="@sessionToEdit.isApplicantActive"
+                             Icon="@Icons.Material.Filled.KeyOff" Color="@Color.Error" Title="Off"
+                             ToggledIcon="@Icons.Material.Filled.Key" ToggledColor="@Color.Success" ToggledTitle="On" />
+        <MudTextField @bind-Value="sessionToEdit.Description" Label="Description" Variant="Variant.Outlined" Margin="Margin.Normal"></MudTextField>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="UpdateSession">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public long Id { get; set; }
+
+    private SessionDto sessionToEdit = new SessionDto();
+
+    protected override async Task OnInitializedAsync()
+    {
+        sessionToEdit = await AcademicSessionService.GetSession(Id);
+    }
+
+    private async Task UpdateSession()
+    {
+        await AcademicSessionService.UpdateSession(sessionToEdit);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,39 @@
+
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@inject ISemesterRepository semesterService
+@inject ISnackbar snackBar
+@attribute [Authorize(Roles = "ICT")]
+<MudDialog>
+    <DialogContent>
+        <MudForm>
+            <MudTextField @bind-Value="semesterDto.Name" Label="Semester Name" Variant="Variant.Outlined" Margin="Margin.Normal" />
+            <MudToggleIconButton @bind-Toggled="@semesterDto.isActive"
+                             Icon="@Icons.Material.Filled.KeyOff" Color="@Color.Error" Title="Off"
+                             ToggledIcon="@Icons.Material.Filled.Key" ToggledColor="@Color.Success" ToggledTitle="On" />
+            @* <MudTextField @bind-Value="ProgramSetup.Faculty.Name" Label="Faculty" Variant="Variant.Outlined" Margin="Margin.Normal" /> *@
+           
+            <!-- Add other fields as necessary -->
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public SemesterDto semesterDto { get; set; }
+    [CascadingParameter] MudDialogInstance DialogService { get; set; }
+    private async Task Save()
+    {
+        await semesterService.UpdateSemester(semesterDto);
+        DialogService.Close(DialogResult.Ok(true));
+        snackBar.Add("Semester Setup Saved.", Severity.Success);
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(DialogResult.Cancel());
+    }
+}

@@ -1,0 +1,163 @@
+@page "/hostel/Allocatedrooms"
+@layout ACUnifiedLayout
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Portal.Utils
+@using MudBlazor
+@inject IHostelAllocationRepository HostelAllocationRepository
+@inject IHostelBuildingRepository HostelBuildingRepository
+@inject IHostelRoomsRepository HostelRoomsRepository
+@inject IApplicationFormRepository applicationForm
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "Hostel")]
+
+<MudBlazor.MudCard Class="ma-4">
+    <MudBlazor.MudCardHeader>
+        <MudBlazor.MudText Typo="Typo.h5">Hostel Allocations</MudBlazor.MudText>
+    </MudBlazor.MudCardHeader>
+    <MudBlazor.MudCardContent>
+        @if (allocations == null)
+        {
+            <MudBlazor.MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        }
+        else
+        {
+            <MudBlazor.MudTable Items="@allocations" Dense="true" Hover="true" Bordered="true" Striped="true"
+                     Filter="new Func<HostelAllocationDto,bool>(FilterFunc)">
+                <ToolBarContent>
+                    <MudBlazor.MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" 
+                                AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" 
+                                Class="mt-0"></MudBlazor.MudTextField>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudBlazor.MudTh>Student Name</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>FormNo</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Room Number</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Building</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Date Allocated</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Duration</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Status</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Capacity</MudBlazor.MudTh>
+                    <MudBlazor.MudTh>Actions</MudBlazor.MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudBlazor.MudTd DataLabel="Student Name">
+                        @context.ApplicationForm?.BioData?.LastName @context.ApplicationForm?.BioData?.FirstName @context.ApplicationForm?.BioData.OtherName
+                    </MudBlazor.MudTd> 
+                     <MudBlazor.MudTd DataLabel="FormNo">
+                        @context.ApplicationForm?.FormRefNo
+                     </MudBlazor.MudTd>
+                    <MudBlazor.MudTd DataLabel="Room Number">
+                        @context.HostelRoom?.RoomNumber
+                    </MudBlazor.MudTd>
+                    <MudBlazor.MudTd DataLabel="Building">
+                        @context.HostelRoom?.HostelBuilding?.Name
+                    </MudBlazor.MudTd>
+                    <MudBlazor.MudTd DataLabel="Date Allocated">
+                        @context.DateAllocated.ToShortDateString()
+                    </MudBlazor.MudTd>
+                    <MudBlazor.MudTd DataLabel="Duration">
+                        @context.HostelDuration.ToString()
+                    </MudBlazor.MudTd>
+                    <MudBlazor.MudTd DataLabel="Status">
+                        <MudBlazor.MudChip Color="@GetStatusColor(context.CurrentStatus)">
+                            @context.CurrentStatus.ToString()
+                        </MudBlazor.MudChip> 
+                    </MudBlazor.MudTd> 
+                    <MudBlazor.MudTd DataLabel="Capacity">
+                        @context.HostelRoom?.Capacity
+                    </MudBlazor.MudTd>
+                    <MudBlazor.MudTd>
+                        <MudBlazor.MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                            <MudBlazor.MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                         OnClick="@(() => EditAllocation(context))" />
+                            <MudBlazor.MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                         OnClick="@(() => DeleteAllocation(context))" 
+                                         Color="Color.Error" />
+                        </MudBlazor.MudButtonGroup>
+                    </MudBlazor.MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudBlazor.MudTablePager />
+                </PagerContent>
+            </MudBlazor.MudTable>
+        }
+    </MudBlazor.MudCardContent>
+</MudBlazor.MudCard>
+
+@code {
+    private List<HostelAllocationDto> allocations;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllocations();
+    }
+
+    private async Task LoadAllocations()
+    {
+        try
+        {
+            var result = await HostelAllocationRepository.GetAllHostelAllocation();
+            allocations = result?.ToList() ?? new List<HostelAllocationDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading allocations", Severity.Error);
+        }
+    }
+
+    private bool FilterFunc(HostelAllocationDto allocation)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        var searchLower = searchString.Trim().ToLower();
+        return (allocation.ApplicationForm?.BioData?.LastName?.ToLower()?.Contains(searchLower) ?? false) ||
+               (allocation.ApplicationForm?.BioData?.FirstName?.ToLower()?.Contains(searchLower) ?? false) ||
+               (allocation.HostelRoom?.RoomNumber?.ToLower()?.Contains(searchLower) ?? false) ||
+               (allocation.HostelRoom?.HostelBuilding?.Name?.ToLower()?.Contains(searchLower) ?? false) ||
+               (allocation.ApplicationForm?.FormRefNo?.ToLower()?.Contains(searchLower)?? false);
+    }
+
+     private Color GetStatusColor(AllocationStatus status)
+    {
+        return status switch
+        {
+            AllocationStatus.Active => Color.Success,
+            AllocationStatus.Completed => Color.Error,
+            AllocationStatus.Pending => Color.Warning,
+            _ => Color.Default
+        };
+    } 
+
+    private async Task EditAllocation(HostelAllocationDto allocation)
+    {
+        // TODO: Implement edit logic
+        // You might want to navigate to an edit page or show a dialog
+    }
+
+    private async Task DeleteAllocation(HostelAllocationDto allocation)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Allocation",
+            "Are you sure you want to delete this allocation?",
+            "Yes", "No");
+
+        if (confirm ?? false)
+        {
+            try
+            {
+                await HostelAllocationRepository.DeleteHostelAllocation(allocation.Id);
+                await LoadAllocations();
+                Snackbar.Add("Allocation deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error deleting allocation", Severity.Error);
+            }
+        }
+    }
+}

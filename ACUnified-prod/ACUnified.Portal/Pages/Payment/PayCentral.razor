@@ -1,0 +1,315 @@
+﻿@page "/applicant/paycentral"
+
+@layout ACUnifiedLayout
+
+@using System.Security.Claims
+@using ACUnified.Data.Models
+@using ACUnified.Data.DTOs;
+@inject ISnackbar snackBar
+@inject IFacultyRepository facultyService
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IStudentRepository studentService
+@inject IPayCategoryRepository payCategoryService
+@inject IPayDetailsRepository payDetailsService
+@inject IPaymentRepository paymentService
+@inject IAcademicSessionRepository academicSessionService
+@inject ISemesterRepository semesterService
+@inject IJSRuntime jsRuntime
+@using Microsoft.AspNetCore.Authorization
+@using System.Text.Json
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@attribute [Authorize] 
+
+<div class="ml-5 py-4">
+    <MudCard Elevation="25">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Payment Central</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            @* <MudTextField T="string" Label="Student Name" ReadOnly>@currentStudent.FullName</MudTextField> *@
+            <!-- Removed commented out code for cleaner codebase -->
+            <br/>
+        </MudCardContent>
+    </MudCard>
+    <br />
+    
+    <MudTable T="PayDetailsDto" Elevation="25" @bind-Items="payDetailsListing" Loading="_loading">
+        <ToolBarContent>
+            @* <MudText Typo="Typo.h6">Payments</MudText> *@
+            <!-- Condensed the dropdowns for sessions and payment categories -->
+            <MudSelect T="long" Variant="Variant.Outlined" Label="Session"  ValueChanged="@OnSessionChanged">
+                @foreach (var session in sessionListing)
+                {
+                    <MudSelectItem Value="@session.Id">@session.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSpacer></MudSpacer>
+            <MudSelect T="long" Variant="Variant.Outlined" Label="Semester" ValueChanged="@OnSemesterChanged">
+                @foreach (var semester in semesterListing)
+                {
+                    <MudSelectItem Value="@semester.Id">@semester.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSpacer></MudSpacer>
+            
+@*         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnPaymentClickAsync" >Make Payment</MudButton>
+ *@        </ToolBarContent>
+        <HeaderContent>
+            <!-- Headers adjusted for clarity -->
+            @* <MudTh>Id</MudTh> *@
+            <MudTh>Name</MudTh>
+            <MudTh>Amount</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <!-- Data binding for table rows -->
+            @* <MudTd DataLabel="Id">@context.Id</MudTd> *@
+            @if (currentSemester != null & currentSemester.Name=="First")
+            {
+                <MudTd DataLabel="Name">
+                    @context.Name
+                </MudTd>
+                @if (@context.PayInstalment1 > 0)
+                {
+                    var payed = paymentListing.Where(x => x.Id == @context.Id);
+                    bool paid = payed.Count() > 0;
+                    bool PaidFull = payed.Where(x => x.ProformaPayPlan == PayPlan.Full).Count() > 0;
+                    bool PaidFirstInstall = payed.Where(x => x.ProformaPayPlan == PayPlan.FirstInstalment).Count() > 0;
+
+                    <MudTd DataLabel="Amount">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled=(PaidFull||PaidFirstInstall) OnClick="@(() =>  OnPaymentClickAsync(@context.Id, @context.TotalAmount,PayPlan.Full))">Full ₦@context.TotalAmount.ToString("#,##0.00")</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled=(PaidFull||PaidFirstInstall) OnClick="@(()=> OnPaymentClickAsync(@context.Id, @context.PayInstalment1,PayPlan.FirstInstalment))">1<sup>st</sup> Instalment ₦@context.PayInstalment1.ToString("#,##0.00")</MudButton>
+                    </MudTd>
+                }
+                else
+                {
+                    var payed = paymentListing.Where(x => x.PayDetailsId == @context.Id);
+                    bool paid = payed.Count() > 0;
+                    bool PaidGeneric = payed.Where(x=>x.ProformaPayPlan==PayPlan.FirstPortalFee).Count() > 0;
+                    <MudTd DataLabel="Amount">
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled=PaidGeneric OnClick="@(() =>  OnPaymentClickAsync(@context.Id, @context.TotalAmount,PayPlan.FirstPortalFee))">₦@context.TotalAmount.ToString("#,##0.00")</MudButton>
+
+                    </MudTd>
+                }
+
+
+            }
+            @if (currentSemester != null && currentSemester.Name == "Second")
+            {
+                <MudTd DataLabel="Name">
+                    @context.Name
+                </MudTd>
+            @if (@context.PayInstalment2 > 0)
+                {
+                    var paid = paymentListing.Where(x => x.Id == @context.Id);
+                    bool PaidGeneric = paid.Where(x=>x.ProformaPayPlan==PayPlan.SecondPortalFee).Count() > 0;
+                    bool PaidSecond=paid.Where(x=>x.ProformaPayPlan==PayPlan.SecondInstalment).Count()>0;
+                    bool PaidSecondThird=paid.Where(x=>x.ProformaPayPlan==PayPlan.SecondThirdInstalment).Count()>0;
+                    bool PaidThird = paid.Where(x => x.ProformaPayPlan == PayPlan.ThirdInstalment).Count() > 0;
+
+
+                <MudTd DataLabel="Amount">
+
+                        <MudButton Variant="Variant.Filled" Disabled=PaidSecond Color="Color.Primary" OnClick="@(() =>  OnPaymentClickAsync(@context.Id, @context.PayInstalment2,PayPlan.SecondInstalment))">2<sup>nd</sup> Instalment ₦@context.PayInstalment2.ToString("#,##0.00")</MudButton>
+                        <MudButton Variant="Variant.Filled" Disabled=PaidThird Color="Color.Primary" OnClick="@(()=>  OnPaymentClickAsync(@context.Id, @context.PayInstalment3,PayPlan.ThirdInstalment))">3<sup>rd</sup> Instalment ₦@context.PayInstalment3.ToString("#,##0.00")</MudButton>
+                        <MudButton Variant="Variant.Filled" Disabled=PaidSecondThird Color="Color.Primary" OnClick="@(()=>  OnPaymentClickAsync(@context.Id, @context.PayInstalment4,PayPlan.SecondThirdInstalment))">2<sup>nd</sup> & 3<sup>rd</sup> Instalment ₦@context.PayInstalment4.ToString("#,##0.00")</MudButton>
+
+                </MudTd>
+              
+            }
+                else
+                {
+                    var payed = paymentListing.Where(x => x.Id == @context.Id);
+                    bool paid = payed.Count() > 0;
+                    bool PaidGeneric = payed.Where(x => x.ProformaPayPlan == PayPlan.SecondPortalFee).Count() > 0;
+                    <MudTd DataLabel="Amount">
+                        <MudButton Variant="Variant.Filled" Disabled=PaidGeneric Color="Color.Primary" OnClick="@(()=>  OnPaymentClickAsync(@context.Id, @context.TotalAmount,PayPlan.SecondPortalFee))">₦@context.TotalAmount.ToString("#,##0.00")</MudButton>
+                    </MudTd>
+
+                }
+            }
+           
+           
+        </RowTemplate>
+    </MudTable>
+</div>
+
+@code{
+    private StudentDto currentStudent = new StudentDto();
+    private IEnumerable<SessionDto> sessionListing = new List<SessionDto>();
+    private IEnumerable<SemesterDto> semesterListing = new List<SemesterDto>();
+    private IEnumerable<PayCategoryDto> payCategoryListing = new List<PayCategoryDto>();
+    private IEnumerable<PayDetailsDto> payDetailsListing = new List<PayDetailsDto>();
+    private IEnumerable<PaymentDto> paymentListing = new List<PaymentDto>();
+    private bool _loading;
+    private long selectedSessionId;
+    private SemesterDto currentSemester = new SemesterDto();
+    private long currentSemesterId;
+
+    bool currentSemesterLate;
+    private long selectedSemesterId;
+    private HashSet<PayDetailsDto> selectedPayDetailsItems = new HashSet<PayDetailsDto>();
+    private List<PaymentDto> paymentItems=new List<PaymentDto>();
+    AuthenticationState authState;
+    protected override async Task OnInitializedAsync()
+    {
+        authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != null)
+        {
+            currentStudent = await studentService.GetStudentByUserId(userId);
+            if (currentStudent == null)
+            {
+                snackBar.Add("No student found for the current user.", Severity.Error);
+                return;
+            }
+
+            await LoadSessionData();
+        }
+        else
+        {
+            snackBar.Add("User ID not found.", Severity.Error);
+        }
+    }
+    private async Task LoadSessionData()
+    {
+        try
+        {
+            sessionListing = await academicSessionService.GetActiveSession();
+            semesterListing = await semesterService.GetActiveSemester();
+            if (sessionListing.Any())
+            {
+                selectedSessionId = sessionListing.First().Id; // Default to first session
+                                                               //currentSemester = semesterListing.First().SemesterType;
+                currentSemesterLate=semesterListing.First().isLate;
+                currentSemesterId = semesterListing.First().Id;
+            }
+            else
+            {
+                snackBar.Add("No active session found.", Severity.Error);
+            }
+        }
+        catch (Exception e)
+        {
+            snackBar.Add("Error retrieving session data: " + e.Message, Severity.Error);
+        }
+    }
+
+
+    private async Task LoadPayDetails()
+    {
+        _loading = true;
+        if (selectedSemesterId > 0)
+        {
+            try
+            {
+                payDetailsListing = await payDetailsService
+                .GetStudentPayDetails(
+                                     selectedSessionId,
+                                     currentSemesterId,
+                                     currentStudent.Id,
+                                     currentSemesterLate);
+                //Get Payments Related to this listings
+                paymentListing =  paymentService.GetPaymentByDetailsId(payDetailsListing.Select(x=>x.Id));
+            }
+            catch (Exception e)
+            {
+                snackBar.Add("Error retrieving pay categories: " + e.Message, Severity.Error);
+            }
+        }
+        _loading = false;
+    }
+
+
+    private async Task OnSessionChanged(long sessionId)
+    {
+
+        selectedSessionId = sessionId;
+        await LoadPayDetails();
+    }
+
+    private async Task OnSemesterChanged(long semesterId)
+    {
+        selectedSemesterId= semesterId;
+        currentSemester = semesterListing.FirstOrDefault(x => x.Id == semesterId);
+        await LoadPayDetails();
+    }
+    
+    private async Task OnPaymentClickAsync(long selectedDetailId,decimal Amount,PayPlan payPlan)
+    {
+        if (selectedDetailId<=0)
+        {
+            snackBar.Add("Please select items to make a payment.", Severity.Error);
+            return;
+        }
+
+        try
+        {
+          var payDetails = new
+                {
+                    TotalAmount = Amount,
+                    SelectedItems = selectedDetailId,
+                    PayGateway=2,
+                    TranId=Guid.NewGuid(),
+                    CustomerId=currentStudent.Matric,
+                    FirstName=currentStudent.FirstName,
+                    LastName=currentStudent.LastName,
+                    Name=currentStudent.FirstName+" "+currentStudent.LastName,
+                    Email=authState.User.FindFirst(ClaimTypes.Email)?.Value,
+                    
+                };
+                // Serialize the object to JSON if needed by the JavaScript function
+                var paymentDetailsJson = JsonSerializer.Serialize(payDetails);
+
+                // Call the JavaScript function for the payment gateway
+                var response= await jsRuntime.InvokeAsync<PayResponse>("makePayment", paymentDetailsJson);
+                //save the records in the database
+                //transverse all items for payments
+           
+                paymentItems.Add(new PaymentDto()
+                {
+                    PayDetailsId = selectedDetailId,
+                    Amount = Amount,
+                    SessionId = selectedSessionId,
+                    isSuccessful = response.Success,
+                    ReferenceNo = response.Payreference??"",
+                    MatricNo = currentStudent.Matric,
+                    Comments = response.Message??"",
+                    client_name = currentStudent.FirstName+" "+currentStudent.LastName,
+                    full_name =  currentStudent.FirstName+" "+currentStudent.LastName,
+                    pay_response = "",
+                    ProformaPayPlan=payPlan,
+                    SemesterId = selectedSemesterId,
+                    tran_id = "",
+                    tran_name = "",
+                    tran_ref = "",
+                    tran_type = "",
+                    tran_status = "",
+                    StaffNo = "",
+
+                           
+                });
+            
+          
+                var PaymentInstance=
+                    await paymentService.CreatePayments(paymentItems);
+            snackBar.Add($"Current Status: {PaymentInstance}", Severity.Info);
+            
+        }
+        catch (Exception e)
+        {
+        
+                snackBar.Add($"Error: {e.Message}", Severity.Error);
+                // Log the exception or handle it as necessary
+            
+        }
+      
+    }
+   
+}

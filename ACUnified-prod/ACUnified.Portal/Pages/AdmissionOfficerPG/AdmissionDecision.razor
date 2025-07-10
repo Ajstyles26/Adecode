@@ -1,0 +1,301 @@
+@page "/admissionOfficerPG/AdmissionDecision"
+@layout ACUnifiedLayout
+@using System.Security.Claims
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@inject ISnackbar snackBar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBioDataRepository BiodataRepository
+@inject IAcademicQualificationRepository AcademicQualificationRepository
+@inject IOtherDetailsRepository OtherDetailsRepository
+@inject INextOfKinRepository NextOfKinRepository
+@inject ILGARepository LGARepository
+@inject ICountryRepository CountryRepository
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILGARepository LGARepository
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "AdmissionOfficePG")]
+<div class="ml-5 py-4">
+    <MudContainer>
+        <MudText Typo="Typo.h6">Admission Decision</MudText>
+        <MudTable ServerData="@(new Func<TableState, Task<TableData<ApplicationFormDto>>>(ServerReload))"
+                  Dense="true" Hover="true" @ref="table">
+            <ToolBarContent>
+              
+
+                <MudSpacer />
+                <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                  <MudTh><MudTableSortLabel SortLabel="name_field" T="ApplicationFormDto">Name</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="formref_field" T="ApplicationFormDto">Form Reference</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="formref_field" T="ApplicationFormDto">Exam Type</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="formref_field" T="ApplicationFormDto">Mode of entry</MudTableSortLabel>"</MudTh>
+                <MudTh><MudTableSortLabel SortLabel="action_field" T="ApplicationFormDto">UTME</MudTableSortLabel></MudTh>
+                 <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Subject 1</MudTableSortLabel></MudTh>
+                  <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Subject 2</MudTableSortLabel></MudTh>
+                   <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Subject 3</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Subject 4</MudTableSortLabel></MudTh>
+                     <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Subject 5</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Second Siting 1</MudTableSortLabel></MudTh>
+                  <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Second Siting 2</MudTableSortLabel></MudTh>
+                   <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Second Siting 3</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Second Siting 4</MudTableSortLabel></MudTh>
+                     <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">Second Siting 5</MudTableSortLabel></MudTh>
+                     <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">UTME Subject</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">UTME Subject </MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">UTME Subject</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortLabel="" T="ApplicationFormDto">UTME Subject</MudTableSortLabel></MudTh> 
+                @* <MudTh><MudTableSortLabel SortLabel="department_field" T="PayCategory">Matric</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="programsetup_field" T="PayCategory">Amount</MudTableSortLabel></MudTh> *@
+                @* <MudTh><MudTableSortLabel SortLabel="position_field" T="PayCategory">Position</MudTableSortLabel></MudTh> *@
+                </HeaderContent>
+            <RowTemplate>
+
+                    @if (@context != null)
+                {
+                    <MudTd DataLabel="Name">
+                        @if (@context.BioData.FirstName!=null)
+                        {
+                            <div>@context.BioData.FirstName @context.BioData.LastName </div>
+                        }
+                        
+                    </MudTd>
+                    <MudTd DataLabel="FormRefNo">
+                        @if (@context.FormRefNo != null)
+                    {
+                        <div>@context.FormRefNo </div>
+                    }
+                    </MudTd>
+                    @if(@context.AcademicQualification!=null){
+                         <MudTd DataLabel="">
+                        @if (@context.AcademicQualification.ExamType != null && @context.AcademicQualification.ExamNumber!=null){
+                            <div>@context.AcademicQualification.ExamType @context.AcademicQualification.ExamNumber </div>
+                        }
+                        
+                    </MudTd>
+                     <MudTd>
+                    @if (@context.AcademicQualification.ExamType != null && @context.AcademicQualification.ExamNumber != null)
+                    {
+                        <div>@context.AcademicQualification.Modeofentry @context.AcademicQualification.UTMERegNo</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.UTMEScore!=null)
+                    {
+                        <div>@context.AcademicQualification.UTMEScore</div>
+                    }
+                    </MudTd>
+                     <MudTd>
+                    @if (@context.AcademicQualification.Subject1!=null && @context.AcademicQualification.Grade1!=null)
+                    {
+                        <div>@context.AcademicQualification.Subject1 @context.AcademicQualification.Grade1</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.Subject2!=null && @context.AcademicQualification.Grade2!=null)
+                    {
+                        <div>@context.AcademicQualification.Subject2 @context.AcademicQualification.Grade2</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.Subject3!=null && @context.AcademicQualification.Grade3!=null)
+                    {
+                        <div>@context.AcademicQualification.Subject3 @context.AcademicQualification.Grade3</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                        @if(@context.AcademicQualification.Subject3!=null && @context.AcademicQualification.Grade3!=null){
+                             <div>@context.AcademicQualification.Subject4 @context.AcademicQualification.Grade4</div>
+                        }
+                       
+                    </MudTd>
+                    <MudTd>
+                        @if (@context.AcademicQualification.Subject5 != null && @context.AcademicQualification.Grade5 != null)
+                    {
+                        <div>@context.AcademicQualification.Subject5 @context.AcademicQualification.Grade5</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                        @if (@context.AcademicQualification.Secondsubject1 != null && @context.AcademicQualification.Secondgrade1 != null)
+                    {
+                        <div>@context.AcademicQualification.Secondsubject1 @context.AcademicQualification.Secondgrade1</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                        @if (@context.AcademicQualification.Secondsubject2 != null && @context.AcademicQualification.Secondgrade2 != null)
+                    {
+                        <div>@context.AcademicQualification.Secondsubject2 @context.AcademicQualification.Secondgrade2</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                        @if (@context.AcademicQualification.Secondsubject3 != null && @context.AcademicQualification.Secondgrade3 != null)
+                    {
+                        <div>@context.AcademicQualification.Secondsubject3 @context.AcademicQualification.Secondgrade3</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                        @if (@context.AcademicQualification.Secondsubject4 != null && @context.AcademicQualification.Secondgrade4 != null)
+                    {
+                        <div>@context.AcademicQualification.Secondsubject4 @context.AcademicQualification.Secondgrade4</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.Secondsubject5 != null && @context.AcademicQualification.Secondgrade5 != null)
+                    {
+                        <div>@context.AcademicQualification.Secondsubject5 @context.AcademicQualification.Secondgrade5</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                        @if (@context.AcademicQualification.UTMESubject1 != null && @context.AcademicQualification.UTMESubscore1 != null)
+                    {
+                        <div>@context.AcademicQualification.UTMESubject1 @context.AcademicQualification.UTMESubscore1</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.UTMESubject2 != null && @context.AcademicQualification.UTMESubscore2 != null)
+                    {
+                        <div>@context.AcademicQualification.UTMESubject2 @context.AcademicQualification.UTMESubscore2</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.UTMESubject3 != null && @context.AcademicQualification.UTMESubscore3 != null)
+                    {
+                        <div>@context.AcademicQualification.UTMESubject3 @context.AcademicQualification.UTMESubscore3</div>
+                    }
+                    </MudTd>
+                    <MudTd>
+                    @if (@context.AcademicQualification.UTMESubject4 != null && @context.AcademicQualification.UTMESubscore4 != null)
+                    {
+                        <div>@context.AcademicQualification.UTMESubject4 @context.AcademicQualification.UTMESubscore4</div>
+                    }
+                    </MudTd>
+                    }
+
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.TwoTone.Info" @onclick="@(()=>ShowDetailsModal(@context.BioData.UserId))"></MudIconButton>
+                    </MudTd>
+                    }
+                    </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No matching records found</MudText>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText>Loading...</MudText>
+            </LoadingContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudContainer>
+  
+
+    
+</div>
+@code{
+     private IEnumerable<ApplicationFormDto> pagedData;
+        private MudTable<ApplicationFormDto> table;
+        private int totalItems;
+        private string searchString = null;
+
+        public IEnumerable<BioDataDto> BioDataDto;
+        public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
+        public OtherDetailsDto OtherDetailsDto=new OtherDetailsDto();
+        public AcademicQualificationDto  AcademicQualificationDto=new AcademicQualificationDto();
+
+        public bool _loading { get; set; }
+        protected override async Task OnInitializedAsync()
+    {
+        BioDataDto=(await BiodataRepository.GetAllBioData());
+       
+
+        _loading = true;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        @* if (userId != null)
+        {
+            BioDataDto = await BiodataRepository.GetBioData(userId);
+            OtherDetailsDto = await OtherDetailsRepository.GetOtherDetails(userId);
+            NextOfKinDto = await NextOfKinRepository.GetNextOfKin(userId);
+             AcademicQualificationDto = await AcademicQualificationRepository.GetAcademicQualification(userId); 
+        } *@
+    }
+
+    private void OnSearch(string text)
+    {
+        searchString = text;
+        table.ReloadServerData();
+    }
+
+    private async Task<TableData<ApplicationFormDto>> ServerReload(TableState state)
+    {
+        IEnumerable<ApplicationFormDto> data = (await ApplicationFormRepository.GetCompletedApplicationFormPG()).ToList();
+        await Task.Delay(300);
+
+        if (data != null)
+        {
+            data = data.Where(element =>
+       {
+           if (string.IsNullOrWhiteSpace(searchString))
+               return true;
+           if (element.BioData.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+               return true;
+           // if (element.ProgramSetup.Department.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           // if (element.ProgramSetup.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+           //     return true;
+           return false;
+       }).ToArray();
+            totalItems = data.Count();
+            switch (state.SortLabel)
+            {
+                case "name_field":
+                    data = data.OrderByDirection(state.SortDirection, o => o.BioData.FirstName);
+                    break;
+                    // case "department_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Department.Name);
+                    //     break;
+                    // case "programsetup_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.ProgramSetup.Name);
+                    //     break;
+                    // case "position_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.Position);
+                    //     break;
+                    // case "mass_field":
+                    //     data = data.OrderByDirection(state.SortDirection, o => o.Molar);
+                    //     break;
+            }
+
+            pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+            return new TableData<ApplicationFormDto>() { TotalItems = totalItems, Items = pagedData };
+        }
+        else return null;
+    }
+
+    private async Task ShowDetailsModal(string userid)
+    {
+        //var parameters = new DialogParameters { ["ProgramSetup"] = await programSetupService.GetProgramSetup(id) };
+        var param = new DialogParameters<ShowAdmissionDecisionModal> { ["userId"] = userid };
+        var dialog=DialogService.Show<ShowAdmissionDecisionModal>("Admission Decision",param, options: new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true ,Position = DialogPosition.TopCenter });
+
+            var result = await dialog.Result;
+            if (!result.Canceled)
+            {
+                //await GetProgramSetupAsync();
+            }
+
+        }
+   
+
+    
+
+
+}

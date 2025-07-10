@@ -1,0 +1,341 @@
+﻿@page "/ict/rolesmangement"
+@using Microsoft.AspNetCore.Identity
+@using ACUnified.Data.Models
+@using ACUnified.Business.Repository.IRepository
+@layout ACUnifiedLayout
+@attribute [Authorize(Roles = "ICT")]
+@using ACUnified.Data.Enum
+@using ACUnified.Data.DTOs
+@inject IApplicationFormRepository ApplicationFormRepository
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<MudCard Elevation="3" Class="mt-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h5">BSc Application Processing Stages</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                    <MudText Typo="Typo.subtitle1"><b>Total Applications:</b></MudText>
+                    <MudText Typo="Typo.h5">@totalApplications</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                    <MudText Typo="Typo.subtitle1"><b>Completed Applications:</b></MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Success">@completedApplications</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                    <MudText Typo="Typo.subtitle1"><b>Admitted Students:</b></MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Primary">@admittedStudents</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                    <MudText Typo="Typo.subtitle1"><b>Student Portal :</b></MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Warning">@pendingPayments</MudText>
+                </MudPaper>
+            </MudItem>
+            
+        </MudGrid>
+
+        <MudTable Items="@applicationStages" Dense="true" Hover="true" Bordered="true" Striped="true" Loading="@isLoading"
+                  LoadingProgressColor="Color.Info" Filter="new Func<ApplicationStageViewModel,bool>(FilterFunc)">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Application Stages Overview</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Stage</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh Style="text-align: center">Count</MudTh>
+                <MudTh Style="text-align: center">Status</MudTh>
+                <MudTh Style="text-align: center">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Stage">@context.StageName</MudTd>
+                <MudTd DataLabel="Description">@context.Description</MudTd>
+                <MudTd DataLabel="Count" Style="text-align: center">
+                    <MudBadge Content="@context.Count" Color="@GetBadgeColor(context.Stage)" Overlap="true" Class="mx-6">
+                        <MudIcon Icon="@GetStageIcon(context.Stage)" />
+                    </MudBadge>
+                </MudTd>
+                <MudTd DataLabel="Status" Style="text-align: center">
+                    <MudChip Color="@GetStatusColor(context.Stage)" Size="Size.Small">
+                        @context.Status
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Actions" Style="text-align: center">
+                    <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                        <MudButton OnClick="@(() => ViewApplications(context.Stage))"
+                                 StartIcon="@Icons.Material.Filled.Visibility">
+                            View
+                        </MudButton>
+                        <MudButton OnClick="@(() => ProcessStage(context.Stage))"
+                                 StartIcon="@GetActionIcon(context.Stage)"
+                                 Color="@GetActionButtonColor(context.Stage)">
+                            @GetActionButtonText(context.Stage)
+                        </MudButton>
+                    </MudButtonGroup>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool isLoading = true;
+    private string searchString = "";
+    private List<ApplicationStageViewModel> applicationStages = new();
+    private int totalApplications;
+    private int completedApplications;
+    private int pendingPayments;
+    private int admittedStudents;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            var statistics = await ApplicationFormRepository.GetBScApplicationStatistics();
+
+            applicationStages = new List<ApplicationStageViewModel>
+            {
+                new()
+                {
+                    Stage = ApplicationStage.Stage1,
+                    StageName = "Initial Application",
+                    Description = "Application Form Not Paid",
+                    Count = (await ApplicationFormRepository.GetBScNotPaidApplications())?.Count() ?? 0000,
+                    Status = "Payment Required"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage2,
+                    StageName = "Form Payment",
+                    Description = "Application Form Paid",
+                    Count = (await ApplicationFormRepository.GetBScPaidNotSubmittedApplications())?.Count() ?? 0000,
+                    Status = "Form Submission Required"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage3,
+                    StageName = "Submitted",
+                    Description = "Application Under Review",
+                    Count = (await ApplicationFormRepository.GetBScSubmittedApplications())?.Count() ?? 0000,
+                    Status = "Under Review"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage4,
+                    StageName = "Decision Made",
+                    Description = "Application Evaluated",
+                    Count = (await ApplicationFormRepository.GetBScDecisionMadeApplications())?.Count() ?? 0000,
+                    Status = "Decision Complete"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage5,
+                    StageName = "Admission",
+                    Description = "Provisional Admission Granted",
+                    Count = (await ApplicationFormRepository.GetBScProvisionalAdmissionApplications())?.Count() ?? 0000,
+                    Status = "Admission Granted"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage6,
+                    StageName = "Acceptance",
+                    Description = "Acceptance Fee Payment",
+                    Count = (await ApplicationFormRepository.GetBScAcceptanceFeePaidApplications())?.Count() ?? 0000,
+                    Status = "Acceptance Confirmed"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage7,
+                    StageName = "School Fees",
+                    Description = "School Fees Payment",
+                    Count = (await ApplicationFormRepository.GetBScSchoolFeesPaidApplications())?.Count() ?? 0000,
+                    Status = "Fees Paid"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage8,
+                    StageName = "Hostel Selection",
+                    Description = "Hostel Room Selection Process",
+                    Count = (await ApplicationFormRepository.GetBScHostelSelectionInProgressApplications())?.Count() ?? 0000,
+                    Status = "Room Selection"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage9,
+                    StageName = "Hostel Confirmed",
+                    Description = "Hostel Room Selected",
+                    Count = (await ApplicationFormRepository.GetBScHostelSelectedApplications())?.Count() ?? 0000,
+                    Status = "Room Confirmed"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage10,
+                    StageName = "Medical",
+                    Description = "Medical Fee Payment",
+                    Count = (await ApplicationFormRepository.GetBScMedicalFeePaidApplications())?.Count() ?? 0000,
+                    Status = "Medical Cleared"
+                },
+                new()
+                {
+                    Stage = ApplicationStage.Stage11,
+                    StageName = "Matriculation",
+                    Description = "Matriculation Fee Payment",
+                    Count = (await ApplicationFormRepository.GetBScMatriculationFeePaidApplications())?.Count() ?? 0000,
+                    Status = "Registration Complete"
+                }
+            };
+
+            // Update summary statistics
+            totalApplications = applicationStages.Sum(x => x.Count);
+            completedApplications = applicationStages
+                .Where(x => x.Stage >= ApplicationStage.Stage3)
+                .Sum(x => x.Count);
+            pendingPayments = applicationStages
+                .Where(x => x.Stage == ApplicationStage.Stage11)
+                .Sum(x => x.Count);
+            admittedStudents = applicationStages
+                .Where(x => x.Stage >= ApplicationStage.Stage5)
+                .Sum(x => x.Count);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+
+    private bool FilterFunc(ApplicationStageViewModel stage)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        return stage.StageName.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || stage.Description.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || stage.Status.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetStageIcon(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => Icons.Material.Filled.Receipt,
+        ApplicationStage.Stage2 => Icons.Material.Filled.Receipt,
+        ApplicationStage.Stage3 => Icons.Material.Filled.AssignmentTurnedIn,
+        ApplicationStage.Stage4 => Icons.Material.Filled.RuleFolder,
+        ApplicationStage.Stage5 => Icons.Material.Filled.School,
+        ApplicationStage.Stage6 => Icons.Material.Filled.Payments,
+        ApplicationStage.Stage7 => Icons.Material.Filled.AccountBalance,
+        ApplicationStage.Stage8 => Icons.Material.Filled.Home,
+        ApplicationStage.Stage9 => Icons.Material.Filled.DoneAll,
+        ApplicationStage.Stage10 => Icons.Material.Filled.LocalHospital,
+        ApplicationStage.Stage11 => Icons.Material.Filled.EmojiEvents,
+        _ => Icons.Material.Filled.Help
+    };
+
+    private Color GetStatusColor(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => Color.Error,
+        ApplicationStage.Stage2 => Color.Info,
+        ApplicationStage.Stage3 => Color.Warning,
+        ApplicationStage.Stage4 => Color.Info,
+        ApplicationStage.Stage5 => Color.Success,
+        ApplicationStage.Stage6 => Color.Warning,
+        ApplicationStage.Stage7 => Color.Success,
+        ApplicationStage.Stage8 => Color.Info,
+        ApplicationStage.Stage9 => Color.Success,
+        ApplicationStage.Stage10 => Color.Success,
+        ApplicationStage.Stage11 => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetBadgeColor(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => Color.Error,
+        ApplicationStage.Stage5 => Color.Success,
+        ApplicationStage.Stage11 => Color.Success,
+        _ => Color.Info
+    };
+
+    private string GetActionIcon(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => Icons.Material.Filled.Payment,
+        ApplicationStage.Stage2 => Icons.Material.Filled.Edit,
+        ApplicationStage.Stage3 => Icons.Material.Filled.Assignment,
+        ApplicationStage.Stage4 => Icons.Material.Filled.Rule,
+        ApplicationStage.Stage5 => Icons.Material.Filled.School,
+        ApplicationStage.Stage6 => Icons.Material.Filled.Payment,
+        ApplicationStage.Stage7 => Icons.Material.Filled.Payment,
+        ApplicationStage.Stage8 => Icons.Material.Filled.Home,
+        ApplicationStage.Stage9 => Icons.Material.Filled.Check,
+        ApplicationStage.Stage10 => Icons.Material.Filled.Payment,
+        ApplicationStage.Stage11 => Icons.Material.Filled.CheckCircle,
+        _ => Icons.Material.Filled.Help
+    };
+
+    private string GetActionButtonText(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => "Process Payment",
+        ApplicationStage.Stage2 => "Review Form",
+        ApplicationStage.Stage3 => "Evaluate",
+        ApplicationStage.Stage4 => "Process",
+        ApplicationStage.Stage5 => "Confirm",
+        ApplicationStage.Stage6 => "Verify Payment",
+        ApplicationStage.Stage7 => "Verify Payment",
+        ApplicationStage.Stage8 => "Assign Room",
+        ApplicationStage.Stage9 => "Confirm",
+        ApplicationStage.Stage10 => "Verify Payment",
+        ApplicationStage.Stage11 => "Complete",
+        _ => "Process"
+    };
+
+    private Color GetActionButtonColor(ApplicationStage stage) => stage switch
+    {
+        ApplicationStage.Stage1 => Color.Error,
+        ApplicationStage.Stage11 => Color.Success,
+        _ => Color.Primary
+    };
+
+    private async Task ViewApplications(ApplicationStage stage)
+    {
+        NavigationManager.NavigateTo($"/bsc-applications/{(int)stage}");
+}
+
+    private async Task ProcessStage(ApplicationStage stage)
+    {
+        // Implement stage processing logic
+        await LoadData();
+    }
+
+    public class ApplicationStageViewModel
+    {
+        public ApplicationStage Stage { get; set; }
+        public string StageName { get; set; }
+        public string Description { get; set; }
+        public int Count { get; set; }
+        public string Status { get; set; }
+    }
+}

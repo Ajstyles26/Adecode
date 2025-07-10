@@ -1,0 +1,1407 @@
+﻿@page "/bursary/ProcessTransactionLogReceipt"
+
+@using ACUnified.Business.Repository.IRepository
+@using System.Security.Claims
+@using ACUnified.Data.DTOs
+@using ACUnified.Data.Enum
+@using ACUnified.Portal.Utils
+@using System.Text.RegularExpressions
+@using ACUnified.Data.Payloads
+@layout ACUnifiedLayout
+
+@inject IApplicantPaymentRepository paymentRepository
+@inject IApplicantPaymentLogRepository paymentRepositoryLog
+@inject IApplicantPayDetailsRepository payDetailsRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IApplicationFormRepository applicationForm
+@inject IAcademicSessionRepository currentAcademicSession
+@inject IBioDataRepository biodataRepository
+@inject HttpClient Http
+
+@inject IJSRuntime jsRuntime
+@inject ISnackbar snackBar
+@inject NavigationManager Navigation
+@inject UserManager<ApplicationUser> UserManager
+
+@using ACUnified.Data.Models
+@using Microsoft.AspNetCore.Identity
+@using System.Text.Json
+@using ACUnified.Portal.Pages
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@* @attribute [Authorize(Roles = "Bursary")] *@
+@attribute [Authorize]
+<LoadingOverlay IsLoading="@_loading" />
+<MudContainer Class="mt-2" MaxWidth="MaxWidth.Medium">
+    <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">Process Payment Receipt</MudText>
+    <MudGrid Spacing="6" Class="mt-5">
+        <MudItem xs="7">
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTextField T="string" @bind-Value="@RRR" Label="RRR" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="@ReferenceNo" Label="ReferenceNo" />
+                </MudItem>
+                <MudSelect T="int" Label="Payment Category" @bind-Value="@paycategory">
+                    <MudSelectItem T="int" Value=1>Application Form</MudSelectItem>
+                    <MudSelectItem T="int" Value=2>Acceptance Fee</MudSelectItem>
+                    <MudSelectItem T="int" Value=3>Tuition Fee</MudSelectItem>
+                    <MudSelectItem T="int" Value=4>Hostel Fee</MudSelectItem>
+                    <MudSelectItem T="int" Value=5>Medical Fee</MudSelectItem>
+                    <MudSelectItem T="int" Value=6> Matric Fee </MudSelectItem>
+                      <MudSelectItem T="int" Value=7> Second Tuition Fee </MudSelectItem>
+                </MudSelect>
+                
+                @if (paycategory == 1)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsync" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Application Fee</MudButton>
+                    </MudItem>
+                }
+                
+                @if (paycategory == 2)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsyncs" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Acceptance Fee</MudButton>
+                    </MudItem>
+                }
+                
+                @if (paycategory == 3)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsyncs1" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Tuition Fee</MudButton>
+                    </MudItem>
+                }
+                
+                @if (paycategory == 4)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsyncs2" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Hostel Fee</MudButton>
+                    </MudItem>
+                }
+                @if (paycategory == 5)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsyncs3" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Tuition Fee</MudButton>
+                    </MudItem>
+                }
+                
+                @if (paycategory == 6)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsyncs4" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Hostel Fee</MudButton>
+                    </MudItem>
+                }
+                @if (paycategory == 7)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Variant="Variant.Filled" OnClick="@OnProcessTransactionClickAsyncs5" DisableElevation="true" Color="Color.Primary" Size="Size.Large" Class="mt-8">Process Second Tuition Fee</MudButton>
+                    </MudItem>
+                }
+                
+            </MudGrid>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+
+
+    private string RRR { get; set; } = "";
+    private string OrderID { get; set; } = "";
+    private string userEmail { get; set; } = "";
+    private string ReferenceNo {get; set; } ="";
+    private int paycategory { get; set; } = 2;
+
+    public bool _loading { get; set; }
+
+
+    public ApplicantPayment currentPayment = new ApplicantPayment();
+    ApplicantPayDetailsDto currentPayDetails = new ApplicantPayDetailsDto();
+    ApplicationFormDto currentApplicationForm = new ApplicationFormDto();
+    ApplicantPaymentDto currentApplicantPayment = new ApplicantPaymentDto();
+    PaymentResponse RRResponse = new PaymentResponse();
+    IEnumerable<SessionDto> currentSession = new List<SessionDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        _loading = true;
+
+
+
+        _loading = false;
+
+    }
+ private async Task OnProcessTransactionClickAsyncs()
+     {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2209175152";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+if (!existingPayments.Any())
+            {
+                var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                if (paymentInfo != null)
+                {
+                    Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                    
+                    // Update the log entry to mark it as processed
+                    payLogItem.isSuccessful = true;
+                    await paymentRepositoryLog.UpdatePayment(payLogItem);
+                    
+                    // Update or create application form
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                    if (appFormVerify == null)
+                    {
+                        var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                        Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                    }
+                    else
+                    {
+                        // Update existing application form
+                        appFormVerify.ApplicantStage = ApplicationStage.Stage6;
+                        appFormVerify.ApplicationPaymentReference = OrderID;
+                        appFormVerify.SessionId = currentApplicationForm.SessionId;
+                        appFormVerify.DegreeId = currentApplicationForm.DegreeId;
+                        
+                        var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                        Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                    }
+
+                    snackBar.Add("Success: Record successfully processed", Severity.Success);
+                }
+                else
+                {
+                    throw new Exception("Failed to create payment record");
+                }
+            }
+             
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+private async Task OnProcessTransactionClickAsyncs1()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+if (!existingPayments.Any())
+            {
+                var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                if (paymentInfo != null)
+                {
+                    Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                    
+                    // Update the log entry to mark it as processed
+                    payLogItem.isSuccessful = true;
+                    await paymentRepositoryLog.UpdatePayment(payLogItem);
+                    
+                    // Update or create application form
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                    if (appFormVerify == null)
+                    {
+                        var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                        Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                    }
+                    else
+                    {
+                        // Update existing application form
+                        appFormVerify.ApplicantStage = ApplicationStage.Stage7;
+                        appFormVerify.ApplicationPaymentReference = OrderID;
+                        appFormVerify.SessionId = currentApplicationForm.SessionId;
+                        appFormVerify.DegreeId = currentApplicationForm.DegreeId;
+                        
+                        var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                        Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                    }
+
+                    snackBar.Add("Success: Record successfully processed", Severity.Success);
+                }
+                else
+                {
+                    throw new Exception("Failed to create payment record");
+                }
+            }
+             
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+private async Task OnProcessTransactionClickAsyncs2()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+if (!existingPayments.Any())
+            {
+                var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                if (paymentInfo != null)
+                {
+                    Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                    
+                    // Update the log entry to mark it as processed
+                    payLogItem.isSuccessful = true;
+                    await paymentRepositoryLog.UpdatePayment(payLogItem);
+                    
+                    // Update or create application form
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                    if (appFormVerify == null)
+                    {
+                        var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                        Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                    }
+                    else
+                    {
+                        // Update existing application form
+                        appFormVerify.ApplicantStage = ApplicationStage.Stage8;
+                        
+                        var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                        Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                    }
+
+                    snackBar.Add("Success: Record successfully processed", Severity.Success);
+                }
+                else
+                {
+                    throw new Exception("Failed to create payment record");
+                }
+            }
+             
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+private async Task OnProcessTransactionClickAsyncs3()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+if (!existingPayments.Any())
+            {
+                var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                if (paymentInfo != null)
+                {
+                    Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                    
+                    // Update the log entry to mark it as processed
+                    payLogItem.isSuccessful = true;
+                    await paymentRepositoryLog.UpdatePayment(payLogItem);
+                    
+                    // Update or create application form
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                    if (appFormVerify == null)
+                    {
+                        var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                        Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                    }
+                    else
+                    {
+                        // Update existing application form
+                        appFormVerify.ApplicantStage = ApplicationStage.Stage10;
+                        
+                        var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                        Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                    }
+
+                    snackBar.Add("Success: Record successfully processed", Severity.Success);
+                }
+                else
+                {
+                    throw new Exception("Failed to create payment record");
+                }
+            }
+             
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+private async Task OnProcessTransactionClickAsyncs4()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+if (!existingPayments.Any())
+            {
+                var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                if (paymentInfo != null)
+                {
+                    Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                    
+                    // Update the log entry to mark it as processed
+                    payLogItem.isSuccessful = true;
+                    await paymentRepositoryLog.UpdatePayment(payLogItem);
+                    
+                    // Update or create application form
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                    if (appFormVerify == null)
+                    {
+                        var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                        Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                    }
+                    else
+                    {
+                        // Update existing application form
+                        appFormVerify.ApplicantStage = ApplicationStage.Stage11;
+                        
+                        var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                        Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                    }
+
+                    snackBar.Add("Success: Record successfully processed", Severity.Success);
+                }
+                else
+                {
+                    throw new Exception("Failed to create payment record");
+                }
+            }
+             
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+
+private async Task OnProcessTransactionClickAsyncs5()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+if (!existingPayments.Any())
+            {
+                var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                if (paymentInfo != null)
+                {
+                    Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                    
+                    // Update the log entry to mark it as processed
+                    payLogItem.isSuccessful = true;
+                    await paymentRepositoryLog.UpdatePayment(payLogItem);
+                    
+                    // Update or create application form
+                    var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                    if (appFormVerify == null)
+                    {
+                        var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                        Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                    }
+                    else
+                    {
+                        // Update existing application form
+                        appFormVerify.ApplicantStage = ApplicationStage.Stage11;
+                        
+                        var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                        Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                    }
+
+                    snackBar.Add("Success: Record successfully processed", Severity.Success);
+                }
+                else
+                {
+                    throw new Exception("Failed to create payment record");
+                }
+            }
+             
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+
+
+    private async Task OnProcessTransactionClickAsync()
+    {
+        // snackBar.Add("Error:0101 Record doesnt exist try again later", Severity.Error);
+        // return;
+        //Navigation.NavigateTo("/applicant/biodata");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        string DEMO = "https://demo.remita.net";
+        string LIVE = "https://login.remita.net";
+        Headers _header;
+        List<Header> headers;
+        // if (queryParams.TryGetValue("RRR", out var rrrValue))
+        // {
+        //     RRR = rrrValue;
+        // }
+
+        // if (queryParams.TryGetValue("orderID", out var orderIDValue))
+        // {
+        //     OrderID = orderIDValue;
+        // }
+
+        string merchantId = "2268484533";
+        string apiKey = "018543";
+        string prodKey = "QUNVX09ZT3wyMjY4NDg0NTMzfGI2ZmUwOWRlM2M1OTZlMWExMDAyYzQ0ODdjZmY0MTlkZGZlNzI5MDJlOGE3NzU1NjJmZjEyZjBlNjBiMjJlNGRlOGY3MjdmMzEyYzY1ODFjNzJmZDhiZGVjZTY4NTAzNDk5ZTUxOGE3NzExNjA4NGUwYmEyNjgzOTgwMjdjNzkz";
+        string serviceTypeId = "2267186704";
+
+        string apiHashString = RRR + apiKey + merchantId;
+        using var sha512 = System.Security.Cryptography.SHA512.Create();
+        var hashedBytes = sha512.ComputeHash(System.Text.Encoding.UTF8.GetBytes(apiHashString));
+        string apiHash = BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        string rrrStatusPath = "/remita/exapp/api/v1/send/api/echannelsvc/" + merchantId + "/" + RRR + "/" + apiHash + "/status.reg";
+
+        _header = new Headers();
+        headers = new List<Header>();
+        headers.Add(new Header { header = "Content-Type", value = "application/json" });
+        headers.Add(new Header { header = "Authorization", value = "remitaConsumerKey=" + merchantId + ",remitaConsumerToken=" + apiHash });
+        _header.headers = headers;
+
+        try
+        {
+
+            var response = RemitaWebClientUtil.GetResponse(LIVE, rrrStatusPath, _header);
+            RRResponse = JsonSerializer.Deserialize<PaymentResponse>(response);
+            if (RRResponse.status == "00")
+            {
+
+                currentApplicationForm = new ApplicationFormDto();
+
+                currentApplicationForm.ApplicantStage = ApplicationStage.Stage2;
+                currentSession = await currentAcademicSession.GetActiveApplicantSession();
+                currentApplicationForm.ApplicationPaymentReference = OrderID;
+                if (currentSession.Count() > 0)
+                {
+                    currentApplicationForm.SessionId = currentSession.FirstOrDefault().Id;
+
+                }
+                else
+                {
+                    currentApplicationForm.SessionId = 14;
+                }
+                //Get application form log table information
+               var paylog = await paymentRepositoryLog.GetAllPaymentByReferenceNo(ReferenceNo);
+                @* var paylog = await paymentRepositoryLog.GetAllPaymentByEmail(userEmail); *@
+                var payLogItem = paylog.FirstOrDefault();
+                
+                //verify transactions in the log table if its there work and update necessary tables
+                if (payLogItem != null)
+                {
+                    //add degree and level
+                    if (payLogItem.Comments.StartsWith("Undergraduate"))
+                    {
+                        currentApplicationForm.DegreeId = 2;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MSC"))
+                    {
+                        currentApplicationForm.DegreeId = 3;
+                    }
+                    else if (payLogItem.Comments.StartsWith("JUPEB"))
+                    {
+                        currentApplicationForm.DegreeId = 8;
+                    }
+                    else if (payLogItem.Comments.StartsWith("BTHBA"))
+                    {
+                        currentApplicationForm.DegreeId = 10;
+                    }
+                    else if (payLogItem.Comments.StartsWith("HND"))
+                    {
+                        currentApplicationForm.DegreeId = 12;
+                    }
+                    else if (payLogItem.Comments.StartsWith("MBA"))
+                    {
+                        currentApplicationForm.DegreeId = 6;
+                    }
+                    else
+                    {
+                        //DONT KNOW CLASSIFY AS UNDERGRADUATE
+                      
+                    }
+                    //get the user id for the transaction
+                    currentApplicationForm.UserId = payLogItem.UserId;
+
+                    //Payment Table
+                   currentApplicantPayment = new ApplicantPaymentDto
+                {
+                    ReferenceNo =payLogItem.ReferenceNo,
+                    Amount = payLogItem.Amount,
+                    email = payLogItem.email,
+                    client_name = payLogItem.client_name,
+                    Comments = payLogItem.Comments,
+                    isSuccessful = true,
+                    RRRRNo = RRR,
+                    ApplicantPayCategoryId = payLogItem.ApplicantPayCategoryId,
+                    ApplicantPayDetailsId = payLogItem.ApplicantPayDetailsId,
+                    UserId = payLogItem.UserId,
+                    StaffNo = "MrBode",
+                    SessionId = (await currentAcademicSession.GetActiveApplicantSession()).FirstOrDefault()?.Id ?? 0
+                };
+
+                    //save the payment and also the application form
+                    //check if exist before writing it
+                    var existingPayments = await paymentRepository.GetAllPaymentByReferenceNo(currentApplicantPayment.ReferenceNo);
+                if (!existingPayments.Any())
+                {
+                    var paymentInfo = await paymentRepository.CreateApplicantPayment(currentApplicantPayment);
+                    if (paymentInfo != null)
+                    {
+                        Console.WriteLine($"Payment created successfully. ID: {paymentInfo.Id}");
+                        
+                        // Update the log entry to mark it as processed
+                        payLogItem.isSuccessful = true;
+                        await paymentRepositoryLog.UpdatePayment(payLogItem);
+                        
+                        // Create or update application form
+                        var appFormVerify = await applicationForm.GetApplicationFormByUserId(currentApplicantPayment.UserId);
+                        if (appFormVerify == null)
+                        {
+                            var savedForm = await applicationForm.CreateApplicationForm(currentApplicationForm);
+                            Console.WriteLine($"Application form created. ID: {savedForm.Id}");
+                        }
+                        else
+                        {
+                            // Update existing application form if needed
+                            // appFormVerify.ApplicantStage = ApplicationStage.Stage2;
+                            // var updatedForm = await applicationForm.UpdateApplicationForm(appFormVerify);
+                            // Console.WriteLine($"Application form updated. ID: {updatedForm.Id}");
+                        }
+
+                        snackBar.Add("Success: Record successfully processed", Severity.Success);
+                    }
+                    else
+                    {
+                        throw new Exception("Failed to create payment record");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Payment record already exists");
+                    snackBar.Add("Payment has already been processed", Severity.Warning);
+                }
+            }
+            else
+            {
+                snackBar.Add("Error: No payment log found for the given email", Severity.Error);
+            }
+        }
+        else
+        {
+            snackBar.Add($"Error: Invalid RRResponse status: {RRResponse.status}", Severity.Error);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error occurred: {ex.Message}");
+        snackBar.Add($"Error Occurred: {ex.Message}. Please try again later", Severity.Error);
+    }
+}
+    
+
+}
