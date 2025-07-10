@@ -9,5 +9,6 @@ namespace ACUnified.Business.Services.IServices
     public interface IHTMLTemplateFileService
     {
        Task<string> GetTemplateFileAsync(string filepath);
+       Task SaveTemplateFileAsync(string filepath, string content);
     }
 }

@@ -1,0 +1,67 @@
+@page "/ict/template-upload"
+@layout ACUnifiedLayout
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components.Forms
+@inject IHTMLTemplateFileService TemplateService
+@inject ISnackbar Snackbar
+
+<h3>Upload Template</h3>
+<InputFile OnChange="OnFileChange" accept=".html,.htm" />
+
+@if (!string.IsNullOrEmpty(FileName))
+{
+    <MudText Typo="Typo.h6" Class="mt-3">Placeholders</MudText>
+    <MudTable Items="placeholders">
+        <HeaderContent>
+            <MudTh>Original</MudTh>
+            <MudTh>Replacement</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Original</MudTd>
+            <MudTd>
+                <MudTextField @bind-Value="context.Replacement" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+    <MudButton OnClick="SaveTemplate" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">Save Template</MudButton>
+}
+
+@code {
+    private string? FileName;
+    private string? fileContent;
+
+    private List<PlaceholderItem> placeholders = new();
+
+    private class PlaceholderItem
+    {
+        public string Original { get; set; } = string.Empty;
+        public string Replacement { get; set; } = string.Empty;
+    }
+
+    private async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        FileName = file.Name;
+        using var reader = new StreamReader(file.OpenReadStream());
+        fileContent = await reader.ReadToEndAsync();
+        var matches = Regex.Matches(fileContent!, "{{(.*?)}}");
+        placeholders = matches.Select(m => m.Value)
+                               .Distinct()
+                               .Select(p => new PlaceholderItem{Original=p, Replacement=p})
+                               .ToList();
+    }
+
+    private async Task SaveTemplate()
+    {
+        if (string.IsNullOrEmpty(fileContent) || string.IsNullOrEmpty(FileName))
+            return;
+        var content = fileContent;
+        foreach (var ph in placeholders)
+        {
+            content = content.Replace(ph.Original, ph.Replacement);
+        }
+        var path = Path.Combine("Templates", "Uploaded", FileName);
+        await TemplateService.SaveTemplateFileAsync(path, content);
+        Snackbar.Add("Template saved", Severity.Success);
+    }
+}
