@@ -7,6 +7,7 @@ using ACUnified.Data.Models;
 using AutoMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using ZXing;
 
 namespace ACUnified.Business.Repository
@@ -90,7 +91,7 @@ namespace ACUnified.Business.Repository
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -259,7 +260,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Include(x => x.BioData)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "BSC")
                         .Where(x => x.ApplicantStage >= Data.Enum.ApplicationStage.Stage5)
@@ -295,7 +296,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Include(x => x.BioData)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -437,7 +438,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -580,7 +581,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Include(x => x.BioData)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "BTHBA")
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
@@ -643,7 +644,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -812,7 +813,7 @@ public async Task<string> GetLastUsedNumber()
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Include(x => x.BioData)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "JUPEB")
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
@@ -876,7 +877,7 @@ public async Task<string> GetLastUsedNumber()
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -986,7 +987,7 @@ public async Task<string> GetLastUsedNumber()
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    var query = db.ApplicationForm.Include(x => x.BioData)
+                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
