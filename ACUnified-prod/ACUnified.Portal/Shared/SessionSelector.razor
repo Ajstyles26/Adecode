@@ -1,0 +1,40 @@
+@using ACUnified.Business.Repository.IRepository
+@using ACUnified.Data.DTOs
+@inject IAcademicSessionRepository AcademicSessionRepository
+@using Microsoft.AspNetCore.Components
+
+<MudSelect T="long" Label="Session" @bind-Value="SelectedSessionId" OnChange="SelectionChanged" Dense="true" Class="mb-2">
+    @if (Sessions != null)
+    {
+        foreach (var s in Sessions)
+        {
+            <MudSelectItem Value="@s.Id">@s.Name</MudSelectItem>
+        }
+    }
+</MudSelect>
+
+@code {
+    [Parameter]
+    public long SelectedSessionId { get; set; }
+
+    [Parameter]
+    public EventCallback<long> SelectedSessionIdChanged { get; set; }
+
+    private IEnumerable<SessionDto> Sessions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sessions = await AcademicSessionRepository.GetAllSession();
+        if (Sessions != null && Sessions.Any() && SelectedSessionId == 0)
+        {
+            SelectedSessionId = Sessions.First().Id;
+            await SelectedSessionIdChanged.InvokeAsync(SelectedSessionId);
+        }
+    }
+
+    private async Task SelectionChanged(long value)
+    {
+        SelectedSessionId = value;
+        await SelectedSessionIdChanged.InvokeAsync(value);
+    }
+}

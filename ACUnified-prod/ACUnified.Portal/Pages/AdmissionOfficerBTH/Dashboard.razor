@@ -22,6 +22,7 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILGARepository LGARepository
 @inject IDialogService DialogService
+@inject IAcademicSessionRepository AcademicSessionRepository
 @attribute [Authorize(Roles = "AdmissionOfficeBTH")]
 
 <MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
@@ -37,7 +38,9 @@
         <MudItem xs="12" sm="6">
             <MudGrid>
                 <MudItem xs="12">
-                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto"></MudPaper>
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto">
+                        <SessionSelector @bind-SelectedSessionId="selectedSessionId" />
+                    </MudPaper>
                     <MudSimpleTable Style="overflow-x: auto;">
     <thead>
         <tr>
@@ -137,6 +140,8 @@
         private MudTable<ApplicationFormDto> table;
         private int totalItems;
         private string searchString = null;
+
+        private long selectedSessionId;
 
         public IEnumerable<BioDataDto> BioDataDto;
         public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
