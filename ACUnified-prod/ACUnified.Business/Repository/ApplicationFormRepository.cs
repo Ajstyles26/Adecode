@@ -7,6 +7,7 @@ using ACUnified.Data.Models;
 using AutoMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using ZXing;
 
 namespace ACUnified.Business.Repository
