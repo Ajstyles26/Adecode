@@ -15,6 +15,7 @@
 @inject ILGARepository LGARepository
 @inject ICountryRepository CountryRepository
 @inject IApplicationFormRepository ApplicationFormRepository
+@inject IAcademicSessionRepository AcademicSessionRepository
 @inject NavigationManager Navigation
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
@@ -28,6 +29,7 @@
 @attribute [Authorize(Roles = "AdmissionOffice")]
 <div class="ml-5 py-4">
     <MudContainer>
+        <SessionSelector @bind-SelectedSessionId="selectedSessionId" />
         <MudText Typo="Typo.h6">Admission Decision</MudText>
      <MudButton ButtonType="ButtonType.Submit"
                                    Variant="Variant.Filled"
@@ -223,6 +225,8 @@
         private int totalItems;
         private string searchString = null;
           IEnumerable<ApplicationFormDto> ApplicationFormDtos;
+
+        private long selectedSessionId;
 
         public IEnumerable<BioDataDto> BioDataDto;
         public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
