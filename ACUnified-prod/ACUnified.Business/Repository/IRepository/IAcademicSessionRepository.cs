@@ -9,4 +9,6 @@ public interface IAcademicSessionRepository
     Task<SessionDto> UpdateSession(SessionDto sessionDto);
     Task<IEnumerable<SessionDto>>  GetActiveSession();
     Task<IEnumerable<SessionDto>> GetActiveApplicantSession();
+    Task SetActiveSession(long sessionId);
+    Task SetApplicantActiveSession(long sessionId);
 }

@@ -53,8 +53,12 @@
     <RowTemplate>
         <MudTd DataLabel="Id">@context.Id</MudTd>
         <MudTd DataLabel="Name">@context.Name</MudTd>
-        <MudTd DataLabel="Name">@context.isActive</MudTd>
-        <MudTd DataLabel="Name">@context.isApplicantActive</MudTd>
+        <MudTd DataLabel="IsActive">
+            <MudSwitch Checked="@context.isActive" Color="Color.Primary" @onchange="@(async _ => await ToggleActiveSession(context.Id))" />
+        </MudTd>
+        <MudTd DataLabel="IsApplicantActive">
+            <MudSwitch Checked="@context.isApplicantActive" Color="Color.Primary" @onchange="@(async _ => await ToggleApplicantActiveSession(context.Id))" />
+        </MudTd>
             <MudFab @onclick="@(()=>EditDialog(@context.Id))" Color="Color.Primary" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" IconSize="Size.Small" />
             @* <MudFab @onclick="@(()=>DeleteUser(@context.Id))" Color="Color.Secondary" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" IconSize="Size.Small" /> *@
     </RowTemplate>
@@ -97,6 +101,18 @@
         await AcademicSessionService.CreateSession(academicSession);
         academicSession = new SessionDto();
         snackBar.Add("Academic Session Saved.", Severity.Success);
+        await GetAcademicSessionAsync();
+    }
+
+    private async Task ToggleActiveSession(long id)
+    {
+        await AcademicSessionService.SetActiveSession(id);
+        await GetAcademicSessionAsync();
+    }
+
+    private async Task ToggleApplicantActiveSession(long id)
+    {
+        await AcademicSessionService.SetApplicantActiveSession(id);
         await GetAcademicSessionAsync();
     }
 
