@@ -136,6 +136,32 @@ public class AcademicSessionRepository : IAcademicSessionRepository
         }
     }
 
+    public async Task SetActiveSession(long sessionId)
+    {
+        using (var db = new ApplicationDbContext(dbOptions))
+        {
+            var sessions = await db.Session.ToListAsync();
+            foreach (var s in sessions)
+            {
+                s.isActive = s.Id == sessionId;
+            }
+            await db.SaveChangesAsync();
+        }
+    }
+
+    public async Task SetApplicantActiveSession(long sessionId)
+    {
+        using (var db = new ApplicationDbContext(dbOptions))
+        {
+            var sessions = await db.Session.ToListAsync();
+            foreach (var s in sessions)
+            {
+                s.isApplicantActive = s.Id == sessionId;
+            }
+            await db.SaveChangesAsync();
+        }
+    }
+
    
 
   

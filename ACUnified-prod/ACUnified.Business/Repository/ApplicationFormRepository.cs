@@ -952,27 +952,34 @@ public async Task<string> GetLastUsedNumber()
                 return null;
             }
         }
-        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG()
+        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG(long? sessionId = null)
         {
             IEnumerable<ApplicationFormRankingsDto> applicationFormRankings = new List<ApplicationFormRankingsDto>();
 
             using (var db = new ApplicationDbContext(dbOptions))
             {
-                applicationFormRankings = db.ApplicationForm.Include(x=>x.Degree)
-                .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
-                .Where(y => y.Degree.Name == "MSC" || y.Degree.Name == "PHD" || y.Degree.Name == "PGD" || y.Degree.Name == "MBA" || y.Degree.Name == "DBA" || y.Degree.Name == "MA")
-                .Join(
-                    db.AcademicQualification,
-                    x => x.AcademicQualificationId,
-                    aq => aq.Id,
-                    (x, aq) => new { aq.Choice1, aq.Id }
-                )
-                .GroupBy(dt => dt.Choice1)
-                .Select(g => new ApplicationFormRankingsDto
+                var query = db.ApplicationForm.Include(x => x.Degree)
+                    .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    .Where(y => y.Degree.Name == "MSC" || y.Degree.Name == "PHD" || y.Degree.Name == "PGD" || y.Degree.Name == "MBA" || y.Degree.Name == "DBA" || y.Degree.Name == "MA");
+
+                if (sessionId != null)
                 {
-                    Choice1 = g.Key,
-                    Count = g.Count()
-                }).ToList();
+                    query = query.Where(x => x.SessionId == sessionId);
+                }
+
+                applicationFormRankings = query
+                    .Join(
+                        db.AcademicQualification,
+                        x => x.AcademicQualificationId,
+                        aq => aq.Id,
+                        (x, aq) => new { aq.Choice1, aq.Id }
+                    )
+                    .GroupBy(dt => dt.Choice1)
+                    .Select(g => new ApplicationFormRankingsDto
+                    {
+                        Choice1 = g.Key,
+                        Count = g.Count()
+                    }).ToList();
             }
             return applicationFormRankings;
         }

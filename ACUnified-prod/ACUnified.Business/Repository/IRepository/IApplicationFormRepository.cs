@@ -49,7 +49,7 @@ namespace ACUnified.Business.Repository.IRepository
 
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormPG();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormPG();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG(long? sessionId = null);
         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG();
         //PG
 
