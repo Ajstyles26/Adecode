@@ -1,4 +1,4 @@
-﻿using ACUnified.Business.Repository.IRepository;
+using ACUnified.Business.Repository.IRepository;
 using ACUnified.Business.Services;
 using ACUnified.Data.DTOs;
 using ACUnified.Data.Enum;
@@ -118,21 +118,32 @@ namespace ACUnified.Business.Repository
             }
         }
 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationForm()
+         public async Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationForm()
         {
             try
             {
                 using (var db = new ApplicationDbContext(dbOptions))
                 {
-                    IEnumerable<ApplicationFormDto> ApplicationFormDtos =
-                        _mapper.Map<IEnumerable<ApplicationForm>, IEnumerable<ApplicationFormDto>>(db.ApplicationForm.Include(x => x.BioData)
-                        .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage4)
+                    var activeSessionId = await db.Session.Where(s => s.isApplicantActive)
+                                                          .Select(s => (long?)s.Id)
+                                                          .FirstOrDefaultAsync();
+
+                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage4)
+                        .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
-                         .Include(x => x.NextOfKin)
-                          .Include(x => x.References)
-                          .Include(x => x.Degree)
-                          .Where(y => y.Degree.Name == "BSC" || y.Degree.Name == "TRANSFER"));
+                        .Include(x => x.NextOfKin)
+                        .Include(x => x.References)
+                        .Include(x => x.Degree)
+                        .Where(y => y.Degree.Name == "BSC" || y.Degree.Name == "TRANSFER");
+
+                    if (activeSessionId != null)
+                    {
+                        query = query.Where(x => x.SessionId == activeSessionId);
+                    }
+
+                    IEnumerable<ApplicationFormDto> ApplicationFormDtos =
+                        _mapper.Map<IEnumerable<ApplicationForm>, IEnumerable<ApplicationFormDto>>(query);
 
 
                     return ApplicationFormDtos;
@@ -275,7 +286,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    var filterSession = sessionId ?? activeSessionId;
+                 var filterSession = sessionId ?? activeSessionId;
                     if (filterSession != null)
                     {
                         query = query.Where(x => x.SessionId == filterSession);
@@ -585,7 +596,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
 }
 
                 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH(long? sessionId = null)
+        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH()
         {
             try
             {
@@ -604,10 +615,9 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    var filterSession = sessionId ?? activeSessionId;
-                    if (filterSession != null)
+                    if (activeSessionId != null)
                     {
-                        query = query.Where(x => x.SessionId == filterSession);
+                        query = query.Where(x => x.SessionId == activeSessionId);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
@@ -825,7 +835,7 @@ public async Task<string> GetLastUsedNumber()
 }
 
                 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB(long? sessionId = null)
+        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB()
         {
             try
             {
@@ -844,10 +854,9 @@ public async Task<string> GetLastUsedNumber()
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    var filterSession = sessionId ?? activeSessionId;
-                    if (filterSession != null)
+                    if (activeSessionId != null)
                     {
-                        query = query.Where(x => x.SessionId == filterSession);
+                        query = query.Where(x => x.SessionId == activeSessionId);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
@@ -1007,7 +1016,7 @@ public async Task<string> GetLastUsedNumber()
             return applicationFormRankings;
         }
 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG(long? sessionId = null)
+        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG()
         {
             try
             {
@@ -1026,10 +1035,9 @@ public async Task<string> GetLastUsedNumber()
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "MSC" || y.Degree.Name == "PHD" || y.Degree.Name == "PGD" || y.Degree.Name == "MBA" || y.Degree.Name == "DBA" || y.Degree.Name == "MA");
 
-                    var filterSession = sessionId ?? activeSessionId;
-                    if (filterSession != null)
+                    if (activeSessionId != null)
                     {
-                        query = query.Where(x => x.SessionId == filterSession);
+                        query = query.Where(x => x.SessionId == activeSessionId);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
