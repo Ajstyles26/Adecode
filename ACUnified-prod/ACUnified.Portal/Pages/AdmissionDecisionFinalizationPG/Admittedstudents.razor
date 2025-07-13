@@ -9,7 +9,9 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
 @inject IApplicationFormRepository ApplicationFormRepository
+@inject IAcademicSessionRepository AcademicSessionRepository
 @attribute [Authorize(Roles = "AdmissionDecisionFinalizationPG")]
+<SessionSelector SelectedSessionId="selectedSessionId" SelectedSessionIdChanged="OnSessionChanged" />
 
 <RadzenDataGrid TItem="ApplicationFormDto" Data="@ApplicationFormDtos" AllowFiltering="true" AllowPaging="true" AllowSorting="true" PageSize="10" AllowSearching="true">
     <Columns>
@@ -25,10 +27,18 @@
 
 @code {
     IEnumerable<ApplicationFormDto> ApplicationFormDtos;
+    private long selectedSessionId;
 
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
         ApplicationFormDtos = await ApplicationFormRepository.GetAdmittedStudentsPG();
+    }
+
+    private async Task OnSessionChanged(long value)
+    {
+        selectedSessionId = value;
+        ApplicationFormDtos = await ApplicationFormRepository.GetAdmittedStudentsPG(selectedSessionId);
+        await InvokeAsync(StateHasChanged);
     }
 }

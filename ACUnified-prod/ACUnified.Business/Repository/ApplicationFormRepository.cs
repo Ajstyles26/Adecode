@@ -256,7 +256,7 @@ namespace ACUnified.Business.Repository
     }
 }
 
-public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg()
+public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg(long? sessionId = null)
         {
             try
             {
@@ -275,9 +275,10 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    if (activeSessionId != null)
+                    var filterSession = sessionId ?? activeSessionId;
+                    if (filterSession != null)
                     {
-                        query = query.Where(x => x.SessionId == activeSessionId);
+                        query = query.Where(x => x.SessionId == filterSession);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
@@ -584,7 +585,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
 }
 
                 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH()
+        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH(long? sessionId = null)
         {
             try
             {
@@ -603,9 +604,10 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    if (activeSessionId != null)
+                    var filterSession = sessionId ?? activeSessionId;
+                    if (filterSession != null)
                     {
-                        query = query.Where(x => x.SessionId == activeSessionId);
+                        query = query.Where(x => x.SessionId == filterSession);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
@@ -823,7 +825,7 @@ public async Task<string> GetLastUsedNumber()
 }
 
                 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB()
+        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB(long? sessionId = null)
         {
             try
             {
@@ -842,9 +844,10 @@ public async Task<string> GetLastUsedNumber()
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    if (activeSessionId != null)
+                    var filterSession = sessionId ?? activeSessionId;
+                    if (filterSession != null)
                     {
-                        query = query.Where(x => x.SessionId == activeSessionId);
+                        query = query.Where(x => x.SessionId == filterSession);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
@@ -1004,7 +1007,7 @@ public async Task<string> GetLastUsedNumber()
             return applicationFormRankings;
         }
 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG()
+        public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG(long? sessionId = null)
         {
             try
             {
@@ -1023,9 +1026,10 @@ public async Task<string> GetLastUsedNumber()
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "MSC" || y.Degree.Name == "PHD" || y.Degree.Name == "PGD" || y.Degree.Name == "MBA" || y.Degree.Name == "DBA" || y.Degree.Name == "MA");
 
-                    if (activeSessionId != null)
+                    var filterSession = sessionId ?? activeSessionId;
+                    if (filterSession != null)
                     {
-                        query = query.Where(x => x.SessionId == activeSessionId);
+                        query = query.Where(x => x.SessionId == filterSession);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =

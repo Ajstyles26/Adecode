@@ -14,7 +14,9 @@
 @using Microsoft.EntityFrameworkCore
 @inject IJSRuntime JSRuntime
 @inject IApplicationFormRepository ApplicationFormRepository
+@inject IAcademicSessionRepository AcademicSessionRepository
 @attribute [Authorize(Roles = "AdmissionDecisionFinalizationBTH")]
+<SessionSelector SelectedSessionId="selectedSessionId" SelectedSessionIdChanged="OnSessionChanged" />
 <RadzenButton Text="Export to CSV" Click="@ExportToCsv" />
 <RadzenDataGrid TItem="ApplicationFormDto" Data="@AdmittedStudents" AllowFiltering="true" AllowPaging="true" AllowSorting="true" PageSize="10">
     <Columns>
@@ -30,12 +32,20 @@
 </RadzenDataGrid>
 
 @code {
-       IEnumerable<ApplicationFormDto> AdmittedStudents;
+    IEnumerable<ApplicationFormDto> AdmittedStudents;
+    private long selectedSessionId;
 
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
         AdmittedStudents = await ApplicationFormRepository.GetAdmittedStudentsDetailsBTH();
+    }
+
+    private async Task OnSessionChanged(long value)
+    {
+        selectedSessionId = value;
+        AdmittedStudents = await ApplicationFormRepository.GetAdmittedStudentsDetailsBTH(selectedSessionId);
+        await InvokeAsync(StateHasChanged);
     }
 
  private async Task ExportToCsv()

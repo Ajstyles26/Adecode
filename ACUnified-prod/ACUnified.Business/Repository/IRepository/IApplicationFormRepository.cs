@@ -20,7 +20,7 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudents();
         Task<ApplicationFormDto> GetCompletedApplicationForm(string userId);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsReg();
-       Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg();
+       Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg(long? sessionId = null);
         //regular
 
         //bth
@@ -30,7 +30,7 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormBTH();
         Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH(long? sessionId = null);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsBTH();
-         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH();
+         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH(long? sessionId = null);
         //bth
          Task<string> GetLastUsedNumber();
         //JUPEB
@@ -40,7 +40,7 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormJUPEB();
         Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB(long? sessionId = null);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsJUPEB();
-         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB();
+         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB(long? sessionId = null);
        //JUPEB
 
         //PG
@@ -50,7 +50,7 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormPG();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormPG();
         Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG(long? sessionId = null);
-        Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG();
+        Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG(long? sessionId = null);
         //PG
 
 

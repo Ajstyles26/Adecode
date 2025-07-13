@@ -39,7 +39,7 @@
             <MudGrid>
                 <MudItem xs="12">
                     <MudPaper Elevation="2" Class="pa-4" Style="height:auto">
-                        <SessionSelector @bind-SelectedSessionId="selectedSessionId" SelectedSessionIdChanged="OnSessionChanged" />
+                        <SessionSelector SelectedSessionId="selectedSessionId" SelectedSessionIdChanged="OnSessionChanged" />
                     </MudPaper>
                     <MudSimpleTable Style="overflow-x: auto;">
     <thead>
@@ -198,6 +198,10 @@
     private async Task<TableData<ApplicationFormDto>> ServerReload(TableState state)
     {
         IEnumerable<ApplicationFormDto> data = (await ApplicationFormRepository.GetCompletedApplicationForm()).ToList();
+        if (selectedSessionId > 0)
+        {
+            data = data.Where(x => x.SessionId == selectedSessionId).ToList();
+        }
         await Task.Delay(300);
 
         if (data != null)
@@ -253,5 +257,7 @@
     {
         selectedSessionId = value;
         ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCourses(selectedSessionId);
+        await table.ReloadServerData();
+        await InvokeAsync(StateHasChanged);
     }
 }
