@@ -17,6 +17,7 @@
 @inject ILGARepository LGARepository
 @inject ICountryRepository CountryRepository
 @inject IApplicationFormRepository ApplicationFormRepository
+@inject IAcademicSessionRepository AcademicSessionRepository
 @inject NavigationManager Navigation
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
@@ -37,7 +38,17 @@
         <MudItem xs="12" sm="6">
             <MudGrid>
                 <MudItem xs="12">
-                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto"></MudPaper>
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto">
+                        <MudSelect T="long" Label="Session" @bind-Value="selectedSessionId" OnChange="OnSessionChanged" Dense="true" Class="mb-2">
+                            @if (sessions != null)
+                            {
+                                foreach(var s in sessions)
+                                {
+                                    <MudSelectItem Value="@s.Id">@s.Name</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+                    </MudPaper>
                     <MudSimpleTable Style="overflow-x: auto;">
     <thead>
         <tr>
@@ -142,8 +153,11 @@
         public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
         public OtherDetailsDto OtherDetailsDto=new OtherDetailsDto();
         public AcademicQualificationDto  AcademicQualificationDto=new AcademicQualificationDto();
-        public IEnumerable<ApplicationFormRankingsDto> ApplicationFormRankingsDTO;
-        public bool _loading { get; set; }
+    public IEnumerable<ApplicationFormRankingsDto> ApplicationFormRankingsDTO;
+    public bool _loading { get; set; }
+
+    private IEnumerable<SessionDto> sessions;
+    private long selectedSessionId;
 
        
         string[] headings = { "Courses", "Admitted Students", "Quota"  };
@@ -158,8 +172,13 @@
     };
     protected override async Task OnInitializedAsync()
     {
-        BioDataDto=(await BiodataRepository.GetAllBioData());
-        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCoursesPG();
+        BioDataDto = (await BiodataRepository.GetAllBioData());
+        sessions = await AcademicSessionRepository.GetAllSession();
+        if (sessions != null && sessions.Any())
+        {
+            selectedSessionId = sessions.First().Id;
+        }
+        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCoursesPG(selectedSessionId);
 
         _loading = true;
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -182,6 +201,10 @@
     private async Task<TableData<ApplicationFormDto>> ServerReload(TableState state)
     {
         IEnumerable<ApplicationFormDto> data = (await ApplicationFormRepository.GetCompletedApplicationFormPG()).ToList();
+        if (selectedSessionId > 0)
+        {
+            data = data.Where(x => x.SessionId == selectedSessionId).ToList();
+        }
         await Task.Delay(300);
 
         if (data != null)
@@ -232,4 +255,12 @@
         new ChartSeries() { Name = "PHD", Data = new double[] { 8, 6, 11,  } },
     };
     public string[] XAxisLabels = { "2020/2021", "2021/2022", "2022/2023" };
+
+    private async Task OnSessionChanged(long value)
+    {
+        selectedSessionId = value;
+        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCoursesPG(selectedSessionId);
+        await table.ReloadServerData();
+        await InvokeAsync(StateHasChanged);
+    }
 }

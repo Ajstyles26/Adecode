@@ -22,6 +22,7 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILGARepository LGARepository
 @inject IDialogService DialogService
+@inject IAcademicSessionRepository AcademicSessionRepository
 @attribute [Authorize(Roles = "AdmissionOffice")]
 
 <MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
@@ -37,7 +38,9 @@
         <MudItem xs="12" sm="6">
             <MudGrid>
                 <MudItem xs="12">
-                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto"></MudPaper>
+                    <MudPaper Elevation="2" Class="pa-4" Style="height:auto">
+                        <SessionSelector SelectedSessionId="selectedSessionId" SelectedSessionIdChanged="OnSessionChanged" />
+                    </MudPaper>
                     <MudSimpleTable Style="overflow-x: auto;">
     <thead>
         <tr>
@@ -143,6 +146,8 @@
         private int totalItems;
         private string searchString = null;
 
+        private long selectedSessionId;
+
         public IEnumerable<BioDataDto> BioDataDto;
         public NextOfKinDto  NextOfKinDto = new NextOfKinDto();
         public OtherDetailsDto OtherDetailsDto=new OtherDetailsDto();
@@ -161,10 +166,16 @@
         @"English 12 ", *@
 
     };
+    private IEnumerable<SessionDto> sessions;
     protected override async Task OnInitializedAsync()
     {
-        BioDataDto=(await BiodataRepository.GetAllBioData());
-        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCourses();
+        BioDataDto = (await BiodataRepository.GetAllBioData());
+        sessions = await AcademicSessionRepository.GetAllSession();
+        if (sessions != null && sessions.Any())
+        {
+            selectedSessionId = sessions.First().Id;
+        }
+        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCourses(selectedSessionId);
 
         _loading = true;
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -187,6 +198,10 @@
     private async Task<TableData<ApplicationFormDto>> ServerReload(TableState state)
     {
         IEnumerable<ApplicationFormDto> data = (await ApplicationFormRepository.GetCompletedApplicationForm()).ToList();
+        if (selectedSessionId > 0)
+        {
+            data = data.Where(x => x.SessionId == selectedSessionId).ToList();
+        }
         await Task.Delay(300);
 
         if (data != null)
@@ -237,4 +252,12 @@
         new ChartSeries() { Name = "PHD", Data = new double[] { 8, 6, 11,  } },
     };
     public string[] XAxisLabels = { "2020/2021", "2021/2022", "2022/2023" };
+
+    private async Task OnSessionChanged(long value)
+    {
+        selectedSessionId = value;
+        ApplicationFormRankingsDTO = await ApplicationFormRepository.GetApplicationFormsByAppliedCourses(selectedSessionId);
+        await table.ReloadServerData();
+        await InvokeAsync(StateHasChanged);
+    }
 }

@@ -1,4 +1,4 @@
-﻿using ACUnified.Business.Repository.IRepository;
+using ACUnified.Business.Repository.IRepository;
 using ACUnified.Business.Services;
 using ACUnified.Data.DTOs;
 using ACUnified.Data.Enum;
@@ -91,7 +91,7 @@ namespace ACUnified.Business.Repository
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -118,21 +118,32 @@ namespace ACUnified.Business.Repository
             }
         }
 
-        public async Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationForm()
+         public async Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationForm()
         {
             try
             {
                 using (var db = new ApplicationDbContext(dbOptions))
                 {
-                    IEnumerable<ApplicationFormDto> ApplicationFormDtos =
-                        _mapper.Map<IEnumerable<ApplicationForm>, IEnumerable<ApplicationFormDto>>(db.ApplicationForm.Include(x => x.BioData)
-                        .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage4)
+                    var activeSessionId = await db.Session.Where(s => s.isApplicantActive)
+                                                          .Select(s => (long?)s.Id)
+                                                          .FirstOrDefaultAsync();
+
+                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage4)
+                        .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
-                         .Include(x => x.NextOfKin)
-                          .Include(x => x.References)
-                          .Include(x => x.Degree)
-                          .Where(y => y.Degree.Name == "BSC" || y.Degree.Name == "TRANSFER"));
+                        .Include(x => x.NextOfKin)
+                        .Include(x => x.References)
+                        .Include(x => x.Degree)
+                        .Where(y => y.Degree.Name == "BSC" || y.Degree.Name == "TRANSFER");
+
+                    if (activeSessionId != null)
+                    {
+                        query = query.Where(x => x.SessionId == activeSessionId);
+                    }
+
+                    IEnumerable<ApplicationFormDto> ApplicationFormDtos =
+                        _mapper.Map<IEnumerable<ApplicationForm>, IEnumerable<ApplicationFormDto>>(query);
 
 
                     return ApplicationFormDtos;
@@ -168,26 +179,32 @@ namespace ACUnified.Business.Repository
                 return null;
             }
         }
-        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCourses()
+        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCourses(long? sessionId = null)
         {
             IEnumerable<ApplicationFormRankingsDto> applicationFormRankings = new List<ApplicationFormRankingsDto>();
 
             using (var db = new ApplicationDbContext(dbOptions))
             {
-                applicationFormRankings = db.ApplicationForm
-                .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
-                .Join(
-                    db.AcademicQualification,
-                    x => x.AcademicQualificationId,
-                    aq => aq.Id,
-                    (x, aq) => new { aq.Choice1, aq.Id }
-                )
-                .GroupBy(dt => dt.Choice1)
-                .Select(g => new ApplicationFormRankingsDto
+                var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3);
+
+                if (sessionId != null)
                 {
-                    Choice1 = g.Key,
-                    Count = g.Count()
-                }).ToList();
+                    query = query.Where(x => x.SessionId == sessionId);
+                }
+
+                applicationFormRankings = query
+                    .Join(
+                        db.AcademicQualification,
+                        x => x.AcademicQualificationId,
+                        aq => aq.Id,
+                        (x, aq) => new { aq.Choice1, aq.Id }
+                    )
+                    .GroupBy(dt => dt.Choice1)
+                    .Select(g => new ApplicationFormRankingsDto
+                    {
+                        Choice1 = g.Key,
+                        Count = g.Count()
+                    }).ToList();
             }
             return applicationFormRankings;
         }
@@ -250,7 +267,7 @@ namespace ACUnified.Business.Repository
     }
 }
 
-public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg()
+public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg(long? sessionId = null)
         {
             try
             {
@@ -269,9 +286,10 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                         .Include(x => x.NextOfKin)
                         .Include(x => x.References);
 
-                    if (activeSessionId != null)
+                 var filterSession = sessionId ?? activeSessionId;
+                    if (filterSession != null)
                     {
-                        query = query.Where(x => x.SessionId == activeSessionId);
+                        query = query.Where(x => x.SessionId == filterSession);
                     }
 
                     IEnumerable<ApplicationFormDto> ApplicationFormDtos =
@@ -296,7 +314,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
+                 IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -438,7 +456,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -516,27 +534,34 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
             }
         }
 
-        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH()
+        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH(long? sessionId = null)
         {
             IEnumerable<ApplicationFormRankingsDto> applicationFormRankings = new List<ApplicationFormRankingsDto>();
 
             using (var db = new ApplicationDbContext(dbOptions))
             {
-                applicationFormRankings = db.ApplicationForm.Include(x => x.Degree)
+                var query = db.ApplicationForm.Include(x => x.Degree)
                           .Where(y => y.Degree.Name == "BTHBA")
-                .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
-                .Join(
-                    db.AcademicQualification,
-                    x => x.AcademicQualificationId,
-                    aq => aq.Id,
-                    (x, aq) => new { aq.Choice1, aq.Id }
-                )
-                .GroupBy(dt => dt.Choice1)
-                .Select(g => new ApplicationFormRankingsDto
+                          .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3);
+
+                if (sessionId != null)
                 {
-                    Choice1 = g.Key,
-                    Count = g.Count()
-                }).ToList();
+                    query = query.Where(x => x.SessionId == sessionId);
+                }
+
+                applicationFormRankings = query
+                    .Join(
+                        db.AcademicQualification,
+                        x => x.AcademicQualificationId,
+                        aq => aq.Id,
+                        (x, aq) => new { aq.Choice1, aq.Id }
+                    )
+                    .GroupBy(dt => dt.Choice1)
+                    .Select(g => new ApplicationFormRankingsDto
+                    {
+                        Choice1 = g.Key,
+                        Count = g.Count()
+                    }).ToList();
             }
             return applicationFormRankings;
         }
@@ -581,7 +606,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
+                   IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "BTHBA")
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
@@ -644,7 +669,7 @@ public async Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -748,27 +773,34 @@ public async Task<string> GetLastUsedNumber()
             }
         }
 
-        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB()
+        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB(long? sessionId = null)
         {
             IEnumerable<ApplicationFormRankingsDto> applicationFormRankings = new List<ApplicationFormRankingsDto>();
 
             using (var db = new ApplicationDbContext(dbOptions))
             {
-                applicationFormRankings = db.ApplicationForm.Include(x => x.Degree)
+                var query = db.ApplicationForm.Include(x => x.Degree)
                           .Where(y => y.Degree.Name == "JUPEB")
-                .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
-                .Join(
-                    db.AcademicQualification,
-                    x => x.AcademicQualificationId,
-                    aq => aq.Id,
-                    (x, aq) => new { aq.Choice1, aq.Id }
-                )
-                .GroupBy(dt => dt.Choice1)
-                .Select(g => new ApplicationFormRankingsDto
+                          .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3);
+
+                if (sessionId != null)
                 {
-                    Choice1 = g.Key,
-                    Count = g.Count()
-                }).ToList();
+                    query = query.Where(x => x.SessionId == sessionId);
+                }
+
+                applicationFormRankings = query
+                    .Join(
+                        db.AcademicQualification,
+                        x => x.AcademicQualificationId,
+                        aq => aq.Id,
+                        (x, aq) => new { aq.Choice1, aq.Id }
+                    )
+                    .GroupBy(dt => dt.Choice1)
+                    .Select(g => new ApplicationFormRankingsDto
+                    {
+                        Choice1 = g.Key,
+                        Count = g.Count()
+                    }).ToList();
             }
             return applicationFormRankings;
         }
@@ -813,7 +845,7 @@ public async Task<string> GetLastUsedNumber()
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
+                 IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
                         .Include(x => x.Degree)
                         .Where(y => y.Degree.Name == "JUPEB")
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
@@ -877,7 +909,7 @@ public async Task<string> GetLastUsedNumber()
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    var query = db.ApplicationForm.Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
                         .Include(x => x.BioData)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)
@@ -952,27 +984,34 @@ public async Task<string> GetLastUsedNumber()
                 return null;
             }
         }
-        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG()
+        public async Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG(long? sessionId = null)
         {
             IEnumerable<ApplicationFormRankingsDto> applicationFormRankings = new List<ApplicationFormRankingsDto>();
 
             using (var db = new ApplicationDbContext(dbOptions))
             {
-                applicationFormRankings = db.ApplicationForm.Include(x=>x.Degree)
-                .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
-                .Where(y => y.Degree.Name == "MSC" || y.Degree.Name == "PHD" || y.Degree.Name == "PGD" || y.Degree.Name == "MBA" || y.Degree.Name == "DBA" || y.Degree.Name == "MA")
-                .Join(
-                    db.AcademicQualification,
-                    x => x.AcademicQualificationId,
-                    aq => aq.Id,
-                    (x, aq) => new { aq.Choice1, aq.Id }
-                )
-                .GroupBy(dt => dt.Choice1)
-                .Select(g => new ApplicationFormRankingsDto
+                var query = db.ApplicationForm.Include(x => x.Degree)
+                    .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage3)
+                    .Where(y => y.Degree.Name == "MSC" || y.Degree.Name == "PHD" || y.Degree.Name == "PGD" || y.Degree.Name == "MBA" || y.Degree.Name == "DBA" || y.Degree.Name == "MA");
+
+                if (sessionId != null)
                 {
-                    Choice1 = g.Key,
-                    Count = g.Count()
-                }).ToList();
+                    query = query.Where(x => x.SessionId == sessionId);
+                }
+
+                applicationFormRankings = query
+                    .Join(
+                        db.AcademicQualification,
+                        x => x.AcademicQualificationId,
+                        aq => aq.Id,
+                        (x, aq) => new { aq.Choice1, aq.Id }
+                    )
+                    .GroupBy(dt => dt.Choice1)
+                    .Select(g => new ApplicationFormRankingsDto
+                    {
+                        Choice1 = g.Key,
+                        Count = g.Count()
+                    }).ToList();
             }
             return applicationFormRankings;
         }
@@ -987,7 +1026,7 @@ public async Task<string> GetLastUsedNumber()
                                                           .Select(s => (long?)s.Id)
                                                           .FirstOrDefaultAsync();
 
-                    IQueryable<ApplicationForm> query = db.ApplicationForm.Include(x => x.BioData)
+                    var query = db.ApplicationForm.Include(x => x.BioData)
                         .Where(x => x.ApplicantStage == Data.Enum.ApplicationStage.Stage5)
                         .Include(x => x.OtherDetails)
                         .Include(x => x.AcademicQualification)

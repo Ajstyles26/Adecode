@@ -16,11 +16,11 @@ namespace ACUnified.Business.Repository.IRepository
 
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationForm();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationForm();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCourses();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCourses(long? sessionId = null);
         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudents();
         Task<ApplicationFormDto> GetCompletedApplicationForm(string userId);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsReg();
-       Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg();
+       Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsReg(long? sessionId = null);
         //regular
 
         //bth
@@ -28,9 +28,9 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetCompletedApplicationFormBTH();
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormBTH();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormBTH();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesBTH(long? sessionId = null);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsBTH();
-         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH();
+         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsBTH(long? sessionId = null);
         //bth
          Task<string> GetLastUsedNumber();
         //JUPEB
@@ -38,9 +38,9 @@ namespace ACUnified.Business.Repository.IRepository
         Task<IEnumerable<ApplicationFormDto>> GetCompletedApplicationFormJUPEB();
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormJUPEB();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormJUPEB();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesJUPEB(long? sessionId = null);
         Task<IEnumerable<ApplicationFormRankingsDto>> GetAdmittedStudentsJUPEB();
-         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB();
+         Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsDetailsJUPEB(long? sessionId = null);
        //JUPEB
 
         //PG
@@ -49,8 +49,8 @@ namespace ACUnified.Business.Repository.IRepository
 
         Task<IEnumerable<ApplicationFormDto>> GetAuthorizedApplicationFormPG();
         Task<IEnumerable<ApplicationFormDto>> GetFinalizedApplicationFormPG();
-        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG();
-        Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG();
+        Task<IEnumerable<ApplicationFormRankingsDto>> GetApplicationFormsByAppliedCoursesPG(long? sessionId = null);
+        Task<IEnumerable<ApplicationFormDto>> GetAdmittedStudentsPG(long? sessionId = null);
         //PG
 
 
